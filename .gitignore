@@ -1,0 +1,10 @@
+bin/*
+lib/*
+build/*
+
+docs/*.png
+docs/*.css
+docs/*.js
+docs/search/*
+
+src/appinfo.h
