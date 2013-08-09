@@ -1,5 +1,5 @@
 FILE (GLOB_RECURSE test_SRCS *.cpp *.cxx *.cc *.C *.c *.h *.hpp)
-SET (test_LIBS ${Qt_LIBRARIES} ${UnitTestPlusPlus_LIBRARIES} cbViews vtkHybrid vtkCommon)
+SET (test_LIBS ${Qt_LIBRARIES} ${UnitTestPlusPlus_LIBRARIES} cbView cbData cbDICOM vtkHybrid vtkCommon)
 SET (test_BIN ${PROJECT_NAME}-unittests)
 
 ADD_EXECUTABLE(${test_BIN} ${test_SRCS})

@@ -18,7 +18,6 @@ SET (APPLICATION_VENDOR_NAME "Calgary Image Processing and Analysis Centre")
 SET (APPLICATION_VENDOR_URL "calgaryimageanalysis.ca")
 SET (APPLICATION_ID "${APPLICATION_VENDOR_ID}.${PROJECT_NAME}")
 
-
 #
 # Debugging Options
 #
@@ -30,6 +29,12 @@ SET (CMAKE_VERBOSE_MAKEFILE 0) # Use 1 for debugging, 0 for release
 SET (MAINFOLDER ${PROJECT_SOURCE_DIR})
 SET (EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
 SET (LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
+SET (INCLUDE_OUTPUT_PATH "${MAINFOLDER}/include" "${MAINFOLDER}/src/gui")
+
+#
+# Libraries built
+#
+SET (Cerebra_LIBRARIES "")
 
 #
 # Project Search Paths
@@ -38,7 +43,7 @@ LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
 LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/tools")
 LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/thirdparty")
 SET (CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
-INCLUDE_DIRECTORIES("${MAINFOLDER}/include")
+INCLUDE_DIRECTORIES(${INCLUDE_OUTPUT_PATH})
 
 #
 # Locate Project Prerequisites
@@ -95,3 +100,11 @@ ENDIF (EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFO
 # Add Documentation Targets
 #
 INCLUDE (DocumentationTargets)
+
+#
+# Export CMAKE Variables for external FIND_PACKAGE(..) calls
+#
+configure_file(build/CerebraConfig.cmake.in
+  "${EXECUTABLE_OUTPUT_PATH}/CerebraConfig.cmake" @ONLY)
+configure_file(build/UseCerebra.cmake.in
+  ${EXECUTABLE_OUTPUT_PATH}/UseCerebra.cmake COPYONLY IMMEDIATE)

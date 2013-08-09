@@ -1,5 +1,7 @@
 project(cbGUI)
 
+SET (Cerebra_LIBRARIES ${Cerebra_LIBRARIES} ${PROJECT_NAME})
+
 # CMake version requirements
 cmake_minimum_required(VERSION 2.8)
 
@@ -23,13 +25,9 @@ set(LIB_DEPS
   vtkToolCursor
   cbView
   vtkDataManager
-  cbSidebars
-  cbLesionCounting
-  cbExecution
   cbToolCursor
   cbITK
   cbVTK
-  cbAnalyzePerfusion
   )
 
 set(LIB_SRCS

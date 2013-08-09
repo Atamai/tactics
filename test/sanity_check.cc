@@ -3,9 +3,10 @@
  * It is here as a reference for you when creating additional unit tests.
  * For additional reference information, see the "test.h" header.
  */
- 
+
 #include "test.h" // Brings in the UnitTest++ framework
 
+#include "vtkDataManager.h"
 #include "vtkSmartPointer.h"
 #include "vtkViewRect.h"
 #include "vtkDynamicViewFrame.h"
@@ -37,4 +38,9 @@ TEST(can_use_view_library) {
   outer_frame->AddChild(pane);
 
   rect->Start();
+}
+
+TEST(can_use_data_library) {
+  vtkSmartPointer<vtkDataManager> manager =
+    vtkSmartPointer<vtkDataManager>::New();
 }

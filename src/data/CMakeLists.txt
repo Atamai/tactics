@@ -1,4 +1,4 @@
-project(cbView)
+project(cbData)
 
 SET (Cerebra_LIBRARIES ${Cerebra_LIBRARIES} ${PROJECT_NAME})
 
@@ -10,31 +10,23 @@ if(COMMAND CMAKE_POLICY)
   cmake_policy(SET CMP0003 NEW)
 endif()
 
-find_library(TOOL_CURSOR_LIB vtkToolCursor)
-
 # The library name, dependencies, and source files
 set(LIB_NAME ${PROJECT_NAME})
-set(LIB_DEPS vtkHybrid vtkToolCursor vtkVolumeRendering)
-
+set(LIB_DEPS vtkFiltering cbDICOM)
 set(LIB_SRCS
-  vtkViewObject.cxx
-  vtkViewObjectCollection.cxx
-  vtkViewRect.cxx
-  vtkViewFrame.cxx
-  vtkViewPane.cxx
-  vtkDummyViewPane.cxx
-  vtkImageViewPane.cxx
-  vtkDynamicViewFrame.cxx
-  vtkHViewFrame.cxx
-  vtkVViewFrame.cxx
-  vtkGViewFrame.cxx
-  vtkViewToolCursorInteractorObserver.cxx
+  vtkDataManager.cxx
+  vtkDataManagerDefaultKeys.cxx
+  vtkDataNode.cxx
+  vtkFrameOfReference.cxx
+  vtkImageNode.cxx
+  vtkSurfaceNode.cxx
 )
 
 include_directories(
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "${MAINFOLDER}/thirdparty/toolcursor/"
+  ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+message("Current DataManager Source Dir ${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Create a list of header files (source files that end in .h)
 set(LIB_HDRS)

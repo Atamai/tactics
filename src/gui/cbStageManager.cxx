@@ -34,8 +34,6 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =========================================================================*/
 
-#include "cbPerfusionToolBarWidget.h"
-#include "cbElectrodeToolBarWidget.h"
 #include "cbStageManager.h"
 #include "cbStage.h"
 
@@ -83,7 +81,7 @@ cbStageManager::cbStageManager(QWidget *parent, QFrame *toolbar,
       clinicalInfoLayout->addWidget(clinicalInfo);
       clinicalInfoWidget->setLayout(clinicalInfoLayout);
 
-  this->toolbarWidget = static_cast<cbElectrodeToolBarWidget *>(toolbar);
+  this->toolbarWidget = toolbar;
   sidebarLayout->addWidget(toolbar);
   sidebarLayout->addWidget(buttonWidget);
 
@@ -99,7 +97,6 @@ cbStageManager::cbStageManager(QWidget *parent, QFrame *toolbar,
   containerWidget->setLayout(sidebarLayout);
 
   this->setWidget(containerWidget);
-  //this->setMinimumWidth(400);
 }
 
 cbStageManager::~cbStageManager()
@@ -161,8 +158,8 @@ void cbStageManager::enableNextButton()
     }
   if (current > 0)
     {
-    toolbarWidget->setBasicToolEnabled(true);
-    toolbarWidget->onPlaneButtonDown();
+    //toolbarWidget->setBasicToolEnabled(true);
+    //toolbarWidget->onPlaneButtonDown();
     }
 }
 
