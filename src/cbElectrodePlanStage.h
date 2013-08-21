@@ -134,6 +134,7 @@ private:
 
   QSlider *declinationSlider;
   QSlider *azimuthSlider;
+  QSlider *depthSlider;
   QSlider *opacitySlider;
 
   QSpinBox *xSpin;

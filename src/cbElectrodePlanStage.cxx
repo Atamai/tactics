@@ -63,6 +63,9 @@ cbElectrodePlanStage::cbElectrodePlanStage()
           QGroupBox *aGroup = new QGroupBox;
             azimuthSlider = new QSlider;
             QSpinBox *azimuthLabel = new QSpinBox;
+          QGroupBox *depthGroup = new QGroupBox;
+            depthSlider = new QSlider;
+            QSpinBox *depthLabel = new QSpinBox;
           QGroupBox *posBox = new QGroupBox;
             xSpin = new QSpinBox;
             ySpin = new QSpinBox;
@@ -117,6 +120,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   nameGroup->setLayout(new QFormLayout);
   dGroup->setLayout(new QFormLayout);
   aGroup->setLayout(new QFormLayout);
+  depthGroup->setLayout(new QFormLayout);
   posBox->setLayout(new QHBoxLayout);
   planWidget->setLayout(new QVBoxLayout);
   optionWidget->setLayout(new QVBoxLayout);
@@ -128,6 +132,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   nameGroup->layout()->setContentsMargins(0,0,0,0);
   dGroup->layout()->setContentsMargins(0,0,0,0);
   aGroup->layout()->setContentsMargins(0,0,0,0);
+  depthGroup->layout()->setContentsMargins(0,0,0,0);
   posBox->layout()->setContentsMargins(0,0,0,0);
 
   planWidget->layout()->setContentsMargins(0,0,0,0);
@@ -137,8 +142,10 @@ cbElectrodePlanStage::cbElectrodePlanStage()
 
   QFormLayout *dLayout = qobject_cast<QFormLayout *>(dGroup->layout());
   QFormLayout *aLayout = qobject_cast<QFormLayout *>(aGroup->layout());
+  QFormLayout *depthLayout = qobject_cast<QFormLayout *>(depthGroup->layout());
   dLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
   aLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+  depthLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
 
   QFormLayout *nameLayout = qobject_cast<QFormLayout *>(nameGroup->layout());
   nameLayout->addRow(nameLabel, nameEdit);
@@ -151,6 +158,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   planWidget->layout()->addWidget(posBox);
   planWidget->layout()->addWidget(dGroup);
   planWidget->layout()->addWidget(aGroup);
+  planWidget->layout()->addWidget(depthGroup);
   planWidget->layout()->addWidget(placedLabel);
   planWidget->layout()->addWidget(placedList);
   planWidget->layout()->addWidget(crudWidget);
@@ -246,18 +254,22 @@ cbElectrodePlanStage::cbElectrodePlanStage()
 
   dGroup->setTitle("Anterior to Posterior Angle");
   aGroup->setTitle("Left to Right Angle");
+  depthGroup->setTitle("Probe Depth");
   posBox->setTitle("R to L, P to A, S to I");
 
   qobject_cast<QFormLayout *>(dGroup->layout())->addRow(declinationLabel,
                                                         declinationSlider);
   qobject_cast<QFormLayout *>(aGroup->layout())->addRow(azimuthLabel,
                                                         azimuthSlider);
+  qobject_cast<QFormLayout *>(depthGroup->layout())->addRow(depthLabel,
+                                                        depthSlider);
   qobject_cast<QHBoxLayout *>(posBox->layout())->addWidget(xSpin);
   qobject_cast<QHBoxLayout *>(posBox->layout())->addWidget(ySpin);
   qobject_cast<QHBoxLayout *>(posBox->layout())->addWidget(zSpin);
 
   int declinationRange[2] = {0, 180};
   int azimuthRange[2] = {0, 180};
+  int depthRange[2] = {-20, 20};
 
   declinationSlider->setOrientation(Qt::Horizontal);
   declinationSlider->setTracking(true);
@@ -283,8 +295,21 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   connect(azimuthLabel, SIGNAL(valueChanged(int)),
           azimuthSlider, SLOT(setValue(int)));
 
+  depthSlider->setOrientation(Qt::Horizontal);
+  depthSlider->setTracking(true);
+  depthSlider->setTickInterval(1);
+  depthSlider->setMinimum(depthRange[0]);
+  depthSlider->setMaximum(depthRange[1]);
+  depthLabel->setMinimum(depthRange[0]);
+  depthLabel->setMaximum(depthRange[1]);
+  connect(depthSlider,SIGNAL(valueChanged(int)),
+          depthLabel, SLOT(setValue(int)));
+  connect(depthLabel, SIGNAL(valueChanged(int)),
+          depthSlider, SLOT(setValue(int)));
+
   azimuthSlider->setValue(90);
   declinationSlider->setValue(90);
+  depthSlider->setValue(0);
 
   connect(azimuthSlider, SIGNAL(valueChanged(int)),
           this, SLOT(updateCurrentProbeOrientation()));
