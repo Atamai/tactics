@@ -29,12 +29,24 @@ SET (CMAKE_VERBOSE_MAKEFILE 0) # Use 1 for debugging, 0 for release
 SET (MAINFOLDER ${PROJECT_SOURCE_DIR})
 SET (EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
 SET (LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
-SET (INCLUDE_OUTPUT_PATH "${MAINFOLDER}/include" "${MAINFOLDER}/src/gui")
+
+#
+# FIXME: These directories should append themselves to the list
+# (apart from thirdparty applications that are compiled into libraries)
+#
+SET (INCLUDE_OUTPUT_PATH
+  "${MAINFOLDER}/include"
+  "${MAINFOLDER}/thirdparty/toolcursor"
+  "${MAINFOLDER}/thirdparty/airs/ImageRegistration/"
+  "${MAINFOLDER}/thirdparty/airs/ImageSegmentation/"
+  "${MAINFOLDER}/thirdparty/upstream/vtk/"
+  "${MAINFOLDER}/thirdparty/upstream/airs/"
+  )
 
 #
 # Libraries built
 #
-SET (Cerebra_LIBRARIES "")
+SET (Cerebra_LIBRARIES "vtkToolCursor" ${VTK_LIBRARIES} ${QT_LIBRARIES})
 
 #
 # Project Search Paths
@@ -53,6 +65,10 @@ INCLUDE (${VTK_USE_FILE})
 
 FIND_PACKAGE (ITK REQUIRED)
 INCLUDE (${ITK_USE_FILE})
+
+# Find ITK_VTK_GLUE
+FIND_PACKAGE(ItkVtkGlue REQUIRED)
+INCLUDE(${ItkVtkGlue_USE_FILE})
 
 FIND_PACKAGE (Qt4 REQUIRED)
 INCLUDE(UseQt4)
@@ -85,9 +101,13 @@ ENDFOREACH (CONFIGINPUT ${CONFIGINPUTS})
 #
 # Add Build Targets
 #
-ADD_SUBDIRECTORY(src)
-ADD_SUBDIRECTORY(test)
-ADD_SUBDIRECTORY(thirdparty/toolcursor)
+ADD_SUBDIRECTORY (src/gui)
+ADD_SUBDIRECTORY (src/data)
+ADD_SUBDIRECTORY (src/view)
+ADD_SUBDIRECTORY (src/dicom)
+ADD_SUBDIRECTORY (src/processing)
+ADD_SUBDIRECTORY (test)
+ADD_SUBDIRECTORY (thirdparty)
 
 #
 # Add Install Targets
@@ -104,7 +124,12 @@ INCLUDE (DocumentationTargets)
 #
 # Export CMAKE Variables for external FIND_PACKAGE(..) calls
 #
-configure_file(build/CerebraConfig.cmake.in
+CONFIGURE_FILE(build/CerebraConfig.cmake.in
   "${EXECUTABLE_OUTPUT_PATH}/CerebraConfig.cmake" @ONLY)
-configure_file(build/UseCerebra.cmake.in
+CONFIGURE_FILE(build/UseCerebra.cmake.in
   ${EXECUTABLE_OUTPUT_PATH}/UseCerebra.cmake COPYONLY IMMEDIATE)
+
+MESSAGE (STATUS "includes: ${INCLUDE_OUTPUT_PATH}")
+MESSAGE (STATUS "libraries: ${Cerebra_LIBRARIES}")
+
+EXPORT (PACKAGE Cerebra)

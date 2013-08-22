@@ -1,6 +1,7 @@
 project(cbView)
 
-SET (Cerebra_LIBRARIES ${Cerebra_LIBRARIES} ${PROJECT_NAME})
+SET (Cerebra_LIBRARIES ${Cerebra_LIBRARIES} ${PROJECT_NAME} PARENT_SCOPE)
+SET (INCLUDE_OUTPUT_PATH ${INCLUDE_OUTPUT_PATH} ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
 # CMake version requirements
 cmake_minimum_required(VERSION 2.8)
@@ -53,3 +54,6 @@ endif()
 # Create the library
 add_library(${LIB_NAME} ${LIB_SRCS})
 target_link_libraries(${LIB_NAME} ${LIB_DEPS})
+
+EXPORT (TARGETS ${LIB_NAME}
+  APPEND FILE "${EXECUTABLE_OUTPUT_PATH}/CerebraTargets.cmake")

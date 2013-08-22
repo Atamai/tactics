@@ -1,7 +1,4 @@
-project(cbData)
-
-SET (Cerebra_LIBRARIES ${Cerebra_LIBRARIES} ${PROJECT_NAME} PARENT_SCOPE)
-SET (INCLUDE_OUTPUT_PATH ${INCLUDE_OUTPUT_PATH} ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+project(cbAIRS)
 
 # CMake version requirements
 cmake_minimum_required(VERSION 2.8)
@@ -13,19 +10,14 @@ endif()
 
 # The library name, dependencies, and source files
 set(LIB_NAME ${PROJECT_NAME})
-set(LIB_DEPS vtkFiltering cbDICOM)
+set(LIB_DEPS vtkRendering vtkImaging vtkCommon vtkHybrid)
 set(LIB_SRCS
-  vtkDataManager.cxx
-  vtkDataManagerDefaultKeys.cxx
-  vtkDataNode.cxx
-  vtkFrameOfReference.cxx
-  vtkImageNode.cxx
-  vtkSurfaceNode.cxx
+  vtkFrameFiducialMetric.cxx
+  vtkFrameRegistration.cxx
 )
 
 include_directories(
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "${MAINFOLDER}/src/dicom/"
+  ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # Create a list of header files (source files that end in .h)
@@ -45,6 +37,3 @@ endif()
 # Create the library
 add_library(${LIB_NAME} ${LIB_SRCS})
 target_link_libraries(${LIB_NAME} ${LIB_DEPS})
-
-EXPORT (TARGETS ${LIB_NAME}
-  APPEND FILE "${EXECUTABLE_OUTPUT_PATH}/CerebraTargets.cmake")
