@@ -269,7 +269,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
 
   int declinationRange[2] = {0, 180};
   int azimuthRange[2] = {0, 180};
-  int depthRange[2] = {-20, 20};
+  int depthRange[2] = {-100, 100};
 
   declinationSlider->setOrientation(Qt::Horizontal);
   declinationSlider->setTracking(true);
@@ -315,6 +315,8 @@ cbElectrodePlanStage::cbElectrodePlanStage()
           this, SLOT(updateCurrentProbeOrientation()));
   connect(declinationSlider, SIGNAL(valueChanged(int)),
           this, SLOT(updateCurrentProbeOrientation()));
+  connect(depthSlider, SIGNAL(valueChanged(int)),
+          this, SLOT(updateCurrentProbeDepth()));
 
   connect(removeButton, SIGNAL(clicked()), this, SLOT(RemoveCurrentFromPlan()));
 
@@ -458,6 +460,8 @@ void cbElectrodePlanStage::updateForCurrentSelection()
              this, SLOT(updateCurrentProbeOrientation()));
   disconnect(this->declinationSlider, SIGNAL(valueChanged(int)),
              this, SLOT(updateCurrentProbeOrientation()));
+  disconnect(this->depthSlider, SIGNAL(valueChanged(int)),
+             this, SLOT(updateCurrentProbeDepth()));
 
   if (pos == -1 || this->placedList->count() <= 0) {
     this->xSpin->setValue(0);
@@ -466,6 +470,8 @@ void cbElectrodePlanStage::updateForCurrentSelection()
 
     this->azimuthSlider->setValue(90);
     this->declinationSlider->setValue(90);
+
+    this->depthSlider->setValue(0);
 
     this->nameEdit->setText(QString::number(0));
     this->typeList->setCurrentIndex(0);
@@ -480,11 +486,14 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   temp.GetPosition(p);
   temp.GetOrientation(o);
 
+  double depth = temp.depth();
+
   if (this->xSpin->value() == static_cast<int>(p[0]) &&
       this->ySpin->value() == static_cast<int>(p[1]) &&
       this->zSpin->value() == static_cast<int>(p[2]) &&
       this->azimuthSlider->value() == static_cast<int>(o[0]) &&
-      this->declinationSlider->value() == static_cast<int>(o[1])) {
+      this->declinationSlider->value() == static_cast<int>(o[1]) &&
+      this->depthSlider->value() == static_cast<int>(depth)) {
     // No need to update anything
     return;
   }
@@ -496,6 +505,8 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   this->azimuthSlider->setValue(o[0]);
   this->declinationSlider->setValue(o[1]);
 
+  this->depthSlider->setValue(depth);
+
   this->nameEdit->setText(QString(temp.GetName().c_str()));
 
   int type_index = this->typeList->findText(temp.specification().catalogue_number().c_str());
@@ -504,6 +515,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   // Gather coords and tell view to update display
   this->updateCurrentProbePosition();
   this->updateCurrentProbeOrientation();
+  this->updateCurrentProbeDepth();
 
   // Reconnect the slider signals, now that updating has occured.
   connect(this->xSpin, SIGNAL(valueChanged(int)),
@@ -523,6 +535,8 @@ void cbElectrodePlanStage::updateForCurrentSelection()
           this, SLOT(updateCurrentProbeOrientation()));
   connect(this->declinationSlider, SIGNAL(valueChanged(int)),
           this, SLOT(updateCurrentProbeOrientation()));
+  connect(this->depthSlider, SIGNAL(valueChanged(int)),
+          this, SLOT(updateCurrentProbeDepth()));
 }
 
 // Called when a spinbox has changed. If there is a selection, update the
@@ -749,4 +763,26 @@ void cbElectrodePlanStage::placeProbeCallback()
 {
   this->tabWidget->setEnabled(false);
   emit InitiatePlaceProbeCallback();
+}
+
+void cbElectrodePlanStage::updateCurrentProbeDepth()
+{
+  int pos = this->placedList->currentRow();
+  if (pos == -1) {
+    std::cout << "Nothing selected." << std::endl;
+    return;
+  }
+
+  double depth = this->depthSlider->value();
+
+  // Update the depth in the probe
+  this->Plan.at(pos).set_depth(depth);
+
+  // Update the listing
+  QListWidgetItem *item = this->placedList->item(pos);
+
+  QString str(this->Plan.at(pos).ToString().c_str());
+  item->setText(str);
+
+  emit UpdateProbeCallback(pos, this->Plan.at(pos));
 }

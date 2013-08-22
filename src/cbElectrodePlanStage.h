@@ -118,6 +118,7 @@ private slots:
   void updateCurrentProbePosition();
   void updateCurrentProbeName(QString);
   void updateCurrentProbeType(QString n);
+  void updateCurrentProbeDepth();
 
   void opacitySliderChanged(int);
 

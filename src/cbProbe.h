@@ -59,6 +59,9 @@ public:
   cbProbeSpecification specification() const;
   void set_specification(cbProbeSpecification s);
 
+  void set_depth(double d);
+  double depth() const;
+
   void SetName(const std::string n);
   std::string GetName() const;
   std::string ToString() const;
@@ -69,6 +72,7 @@ private:
   double z_; // z position
   double a_; // azimuth
   double d_; // declination
+  double depth_; // probe depth
   std::string name_;
 
   cbProbeSpecification specification_;

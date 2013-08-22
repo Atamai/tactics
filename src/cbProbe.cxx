@@ -49,6 +49,8 @@ cbProbe::cbProbe(double x, double y, double z, double a, double d, const char *n
   this->d_ = d;
 
   this->name_ = n;
+
+  this->depth_ = 0.0;
 }
 
 // Constructor
@@ -61,6 +63,8 @@ cbProbe::cbProbe() : specification_() {
   this->d_ = 0.0;
 
   this->name_ = "noid";
+
+  this->depth_ = 0.0;
 }
 
 // Destructor
@@ -85,6 +89,8 @@ cbProbe::cbProbe(const cbProbe& other) {
   this->specification_ = other.specification();
 
   this->name_ = other.GetName();
+
+  this->depth_ = other.depth();
 }
 
 // Assignment Operator
@@ -109,6 +115,8 @@ cbProbe& cbProbe::operator=(const cbProbe& rhs) {
   this->specification_ = rhs.specification();
 
   this->name_ = rhs.GetName();
+
+  this->depth_ = rhs.depth();
 
   return *this;
 }
@@ -136,7 +144,8 @@ std::string cbProbe::ToString() const {
          << "y:" << floor(this->y_ + 0.5) << " "
          << "z:" << floor(this->z_ + 0.5) << " | "
          << "AP:" << floor(this->d_ + 0.5) << " | "
-         << "LR:" << floor(this->a_ + 0.5);
+         << "LR:" << floor(this->a_ + 0.5) << " | "
+         << "D:" << floor(this->depth_ + 0.5);
 
   temp = stream.str();
 
@@ -161,13 +170,16 @@ std::ostream& operator<<(std::ostream &os, const cbProbe& p) {
 
   std::string catalogue_number = p.specification().catalogue_number();
 
+  int depth = p.depth();
+
   return os << p.GetName() << " "
             << catalogue_number << " "
             << position[0] << " "
             << position[1] << " "
             << position[2] << " "
             << orientation[1] << " "
-            << orientation[0];
+            << orientation[0] << " "
+            << depth;
 }
 
 std::string cbProbe::GetName() const
@@ -188,4 +200,14 @@ cbProbeSpecification cbProbe::specification() const
 void cbProbe::set_specification(cbProbeSpecification s)
 {
   this->specification_ = s;
+}
+
+void cbProbe::set_depth(double d)
+{
+  this->depth_ = d;
+}
+
+double cbProbe::depth() const
+{
+  return this->depth_;
 }

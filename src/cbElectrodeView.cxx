@@ -1264,6 +1264,8 @@ void cbElectrodeView::CreateProbeCallback(cbProbe p)
   p.GetPosition(position);
   p.GetOrientation(orientation);
 
+  double depth = p.depth();
+
   // Create the poly data
   vtkSmartPointer<vtkPolyData> data =
     vtkSmartPointer<vtkPolyData>::New();
@@ -1301,6 +1303,8 @@ void cbElectrodeView::CreateProbeCallback(cbProbe p)
   vtkSmartPointer<vtkTransform> transform =
     vtkSmartPointer<vtkTransform>::New();
   transform->PostMultiply();
+
+  transform->Translate(-1.0*depth, 0.0, 0.0);
 
   // azimuth = Left-to-Right angle (rotate about -Z axis)
   // declination = Posterior-to-Anterior angle (rotate about -X axis)
@@ -1382,10 +1386,15 @@ void cbElectrodeView::UpdateProbeCallback(int index, cbProbe p)
   double orientation[2];
   p.GetOrientation(orientation);
 
+  // Update the probe's depth
+  double depth = p.depth();
+
   // Build the transform necessary to build the user matrix for the probes
   vtkSmartPointer<vtkTransform> transform =
     vtkSmartPointer<vtkTransform>::New();
   transform->PostMultiply();
+
+  transform->Translate(-1.0*depth, 0.0, 0.0);
 
   // azimuth = Left-to-Right angle (rotate about -Z axis)
   // declination = Posterior-to-Anterior angle (rotate about -X axis)

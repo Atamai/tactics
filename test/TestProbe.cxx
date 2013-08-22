@@ -14,7 +14,7 @@ SUITE (TestProbe) {
   TEST (ShouldRoundMembersAtPrint) {
     cbProbe p(1.0, 2.1, 3.2, 4.5, 5.6);
 
-    std::string expected("noid |  | x:1 y:2 z:3 | AP:6 | LR:5");
+    std::string expected("noid |  | x:1 y:2 z:3 | AP:6 | LR:5 | D:0");
     std::string actual = p.ToString();
 
     CHECK_EQUAL(0, expected.compare(actual));
@@ -84,7 +84,7 @@ SUITE (TestProbe) {
     cbProbe p(1.0, 2.0, 3.0, 5.0, 4.0);
     std::string actual = p.ToString();
 
-    std::string expected("noid |  | x:1 y:2 z:3 | AP:4 | LR:5");
+    std::string expected("noid |  | x:1 y:2 z:3 | AP:4 | LR:5 | D:0");
 
     CHECK_EQUAL(0, expected.compare(actual));
   }
@@ -120,7 +120,7 @@ SUITE (TestProbe) {
     stream << p;
     std::string actual = stream.str();
 
-    std::string expected("noid  1 2 3 4 5");
+    std::string expected("noid  1 2 3 4 5 0");
 
     CHECK_EQUAL(0, expected.compare(actual));
   }
@@ -129,7 +129,7 @@ SUITE (TestProbe) {
     cbProbe p(1.0, 2.0, 3.0, 5.0, 4.0, "Ted");
 
     std::string actual = p.ToString();
-    std::string expected("Ted |  | x:1 y:2 z:3 | AP:4 | LR:5");
+    std::string expected("Ted |  | x:1 y:2 z:3 | AP:4 | LR:5 | D:0");
 
     CHECK_EQUAL(0, expected.compare(actual));
   }
@@ -139,8 +139,21 @@ SUITE (TestProbe) {
     p.SetName("Bob");
 
     std::string actual = p.ToString();
-    std::string expected("Bob |  | x:1 y:2 z:3 | AP:4 | LR:5");
+    std::string expected("Bob |  | x:1 y:2 z:3 | AP:4 | LR:5 | D:0");
 
     CHECK_EQUAL(0, expected.compare(actual));
+  }
+
+  TEST (ShouldSetNewDepth) {
+    cbProbe p(1.0, 2.0, 3.0, 5.0, 4.0, "Ted");
+    double starting_depth_actual = p.depth();
+    double starting_depth_expected = 0.0;
+
+    CHECK_CLOSE(starting_depth_expected, starting_depth_actual, 0.01);
+
+    p.set_depth(-4.0);
+    double depth_actual = p.depth();
+
+    CHECK_CLOSE(-4.0, depth_actual, 0.01);
   }
 }
