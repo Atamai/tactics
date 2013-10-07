@@ -56,4 +56,4 @@ add_library(${LIB_NAME} ${LIB_SRCS})
 target_link_libraries(${LIB_NAME} ${LIB_DEPS})
 
 export(TARGETS ${LIB_NAME}
-  APPEND FILE "${EXECUTABLE_OUTPUT_PATH}/CerebraTargets.cmake")
+  APPEND FILE "${CONFIGURE_OUTPUT_PATH}/CerebraTargets.cmake")

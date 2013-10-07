@@ -29,10 +29,11 @@ set(CMAKE_VERBOSE_MAKEFILE 0) # Use 1 for debugging, 0 for release
 set(MAINFOLDER ${PROJECT_SOURCE_DIR})
 set(EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
 set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
+set(CONFIGURE_OUTPUT_PATH "${MAINFOLDER}/build")
 
 #
 # FIXME: These directories should append themselves to the list
-#(apart from thirdparty applications that are compiled into libraries)
+# (apart from thirdparty applications that are compiled into libraries)
 #
 set(INCLUDE_OUTPUT_PATH
   "${MAINFOLDER}/include"
@@ -124,10 +125,10 @@ include(DocumentationTargets)
 #
 # Export CMAKE Variables for external FIND_PACKAGE(..) calls
 #
-configure_file(build/CerebraConfig.cmake.in
-  "${EXECUTABLE_OUTPUT_PATH}/CerebraConfig.cmake" @ONLY)
-configure_file(build/UseCerebra.cmake.in
-  ${EXECUTABLE_OUTPUT_PATH}/UseCerebra.cmake COPYONLY IMMEDIATE)
+configure_file(cmake/CerebraConfig.cmake.in
+  "${CONFIGURE_OUTPUT_PATH}/CerebraConfig.cmake" @ONLY)
+configure_file(cmake/UseCerebra.cmake.in
+  "${CONFIGURE_OUTPUT_PATH}/UseCerebra.cmake" COPYONLY IMMEDIATE)
 
 message(STATUS "includes: ${INCLUDE_OUTPUT_PATH}")
 message(STATUS "libraries: ${Cerebra_LIBRARIES}")
