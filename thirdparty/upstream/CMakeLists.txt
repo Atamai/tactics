@@ -1,3 +1,3 @@
-ADD_SUBDIRECTORY (vtk)
-ADD_SUBDIRECTORY (itk)
-ADD_SUBDIRECTORY (airs)
+add_subdirectory(vtk)
+add_subdirectory(itk)
+add_subdirectory(airs)

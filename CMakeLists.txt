@@ -3,38 +3,38 @@
 #
 # Project Properties
 #
-CMAKE_MINIMUM_REQUIRED (VERSION 2.6.2)
-PROJECT (cerebra)
-SET (APPLICATION_NAME "Cerebra")
-SET (APPLICATION_CODENAME "${PROJECT_NAME}")
-SET (APPLICATION_COPYRIGHT_YEARS "2012-2013")
-SET (APPLICATION_VERSION_MAJOR 1)
-SET (APPLICATION_VERSION_MINOR 0)
-SET (APPLICATION_VERSION_PATCH 0)
-SET (APPLICATION_VERSION_TYPE SNAPSHOT)
-SET (APPLICATION_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}-${APPLICATION_VERSION_TYPE}")
-SET (APPLICATION_VENDOR_ID "ca.calgaryimageanalysis")
-SET (APPLICATION_VENDOR_NAME "Calgary Image Processing and Analysis Centre")
-SET (APPLICATION_VENDOR_URL "calgaryimageanalysis.ca")
-SET (APPLICATION_ID "${APPLICATION_VENDOR_ID}.${PROJECT_NAME}")
+cmake_minimum_required(VERSION 2.6.2)
+project(cerebra)
+set(APPLICATION_NAME "Cerebra")
+set(APPLICATION_CODENAME "${PROJECT_NAME}")
+set(APPLICATION_COPYRIGHT_YEARS "2012-2013")
+set(APPLICATION_VERSION_MAJOR 1)
+set(APPLICATION_VERSION_MINOR 0)
+set(APPLICATION_VERSION_PATCH 0)
+set(APPLICATION_VERSION_TYPE SNAPSHOT)
+set(APPLICATION_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}-${APPLICATION_VERSION_TYPE}")
+set(APPLICATION_VENDOR_ID "ca.calgaryimageanalysis")
+set(APPLICATION_VENDOR_NAME "Calgary Image Processing and Analysis Centre")
+set(APPLICATION_VENDOR_URL "calgaryimageanalysis.ca")
+set(APPLICATION_ID "${APPLICATION_VENDOR_ID}.${PROJECT_NAME}")
 
 #
 # Debugging Options
 #
-SET (CMAKE_VERBOSE_MAKEFILE 0) # Use 1 for debugging, 0 for release
+set(CMAKE_VERBOSE_MAKEFILE 0) # Use 1 for debugging, 0 for release
 
 #
 # Project Output Paths
 #
-SET (MAINFOLDER ${PROJECT_SOURCE_DIR})
-SET (EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
-SET (LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
+set(MAINFOLDER ${PROJECT_SOURCE_DIR})
+set(EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
+set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
 
 #
 # FIXME: These directories should append themselves to the list
-# (apart from thirdparty applications that are compiled into libraries)
+#(apart from thirdparty applications that are compiled into libraries)
 #
-SET (INCLUDE_OUTPUT_PATH
+set(INCLUDE_OUTPUT_PATH
   "${MAINFOLDER}/include"
   "${MAINFOLDER}/thirdparty/toolcursor"
   "${MAINFOLDER}/thirdparty/airs/ImageRegistration/"
@@ -46,90 +46,90 @@ SET (INCLUDE_OUTPUT_PATH
 #
 # Libraries built
 #
-SET (Cerebra_LIBRARIES "vtkToolCursor" ${VTK_LIBRARIES} ${QT_LIBRARIES})
+set(Cerebra_LIBRARIES "vtkToolCursor" ${VTK_LIBRARIES} ${QT_LIBRARIES})
 
 #
 # Project Search Paths
 #
-LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
-LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/tools")
-LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/thirdparty")
-SET (CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
-INCLUDE_DIRECTORIES(${INCLUDE_OUTPUT_PATH})
+list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
+list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/tools")
+list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/thirdparty")
+set(CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
+include_directories(${INCLUDE_OUTPUT_PATH})
 
 #
 # Locate Project Prerequisites
 #
-FIND_PACKAGE (VTK REQUIRED)
-INCLUDE (${VTK_USE_FILE})
+find_package(VTK REQUIRED)
+include(${VTK_USE_FILE})
 
-FIND_PACKAGE (ITK REQUIRED)
-INCLUDE (${ITK_USE_FILE})
+find_package(ITK REQUIRED)
+include(${ITK_USE_FILE})
 
 # Find ITK_VTK_GLUE
-FIND_PACKAGE(ItkVtkGlue REQUIRED)
-INCLUDE(${ItkVtkGlue_USE_FILE})
+find_package(ItkVtkGlue REQUIRED)
+include(${ItkVtkGlue_USE_FILE})
 
-FIND_PACKAGE (Qt4 REQUIRED)
-INCLUDE(UseQt4)
+find_package(Qt4 REQUIRED)
+include(UseQt4)
 
-FIND_PACKAGE (UnitTestPlusPlus REQUIRED)
-INCLUDE_DIRECTORIES(${UnitTestPlusPlus_INCLUDE_DIRS})
-LINK_DIRECTORIES(${UnitTestPlusPlus_LIBRARY_DIRS})
+find_package(UnitTestPlusPlus REQUIRED)
+include_directories(${UnitTestPlusPlus_INCLUDE_DIRS})
+link_directories(${UnitTestPlusPlus_LIBRARY_DIRS})
 
 #
 # Configure Files
 #
-FILE (GLOB_RECURSE CONFIGINPUTS1 include/*.in.h.cmake)
-FILE (GLOB_RECURSE CONFIGINPUTS2 include/*.h.in.cmake)
-FILE (GLOB_RECURSE CONFIGINPUTS3 src/*.in.h.cmake)
-FILE (GLOB_RECURSE CONFIGINPUTS4 src/*.h.in.cmake)
-FILE (GLOB_RECURSE CONFIGINPUTS5 test/*.in.h.cmake)
-FILE (GLOB_RECURSE CONFIGINPUTS6 test/*.h.in.cmake)
-LIST (APPEND CONFIGINPUTS "${CONFIGINPUTS1}")
-LIST (APPEND CONFIGINPUTS "${CONFIGINPUTS2}")
-LIST (APPEND CONFIGINPUTS "${CONFIGINPUTS3}")
-LIST (APPEND CONFIGINPUTS "${CONFIGINPUTS4}")
-LIST (APPEND CONFIGINPUTS "${CONFIGINPUTS5}")
-LIST (APPEND CONFIGINPUTS "${CONFIGINPUTS6}")
-FOREACH (CONFIGINPUT ${CONFIGINPUTS})
-    STRING (REPLACE ".in.h.cmake" ".h" CONFIGOUTPUT1 "${CONFIGINPUT}")
-    STRING (REPLACE ".h.in.cmake" ".h" CONFIGOUTPUT2 "${CONFIGOUTPUT1}")
-    CONFIGURE_FILE ("${CONFIGINPUT}" "${CONFIGOUTPUT2}")
-ENDFOREACH (CONFIGINPUT ${CONFIGINPUTS})
+file(GLOB_RECURSE CONFIGINPUTS1 include/*.in.h.cmake)
+file(GLOB_RECURSE CONFIGINPUTS2 include/*.h.in.cmake)
+file(GLOB_RECURSE CONFIGINPUTS3 src/*.in.h.cmake)
+file(GLOB_RECURSE CONFIGINPUTS4 src/*.h.in.cmake)
+file(GLOB_RECURSE CONFIGINPUTS5 test/*.in.h.cmake)
+file(GLOB_RECURSE CONFIGINPUTS6 test/*.h.in.cmake)
+list(APPEND CONFIGINPUTS "${CONFIGINPUTS1}")
+list(APPEND CONFIGINPUTS "${CONFIGINPUTS2}")
+list(APPEND CONFIGINPUTS "${CONFIGINPUTS3}")
+list(APPEND CONFIGINPUTS "${CONFIGINPUTS4}")
+list(APPEND CONFIGINPUTS "${CONFIGINPUTS5}")
+list(APPEND CONFIGINPUTS "${CONFIGINPUTS6}")
+foreach(CONFIGINPUT ${CONFIGINPUTS})
+  string(REPLACE ".in.h.cmake" ".h" CONFIGOUTPUT1 "${CONFIGINPUT}")
+  string(REPLACE ".h.in.cmake" ".h" CONFIGOUTPUT2 "${CONFIGOUTPUT1}")
+  configure_file("${CONFIGINPUT}" "${CONFIGOUTPUT2}")
+endforeach(CONFIGINPUT ${CONFIGINPUTS})
 
 #
 # Add Build Targets
 #
-ADD_SUBDIRECTORY (src/gui)
-ADD_SUBDIRECTORY (src/data)
-ADD_SUBDIRECTORY (src/view)
-ADD_SUBDIRECTORY (src/dicom)
-ADD_SUBDIRECTORY (src/processing)
-ADD_SUBDIRECTORY (test)
-ADD_SUBDIRECTORY (thirdparty)
+add_subdirectory(src/gui)
+add_subdirectory(src/data)
+add_subdirectory(src/view)
+add_subdirectory(src/dicom)
+add_subdirectory(src/processing)
+add_subdirectory(test)
+add_subdirectory(thirdparty)
 
 #
 # Add Install Targets
 #
-IF (EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
-    INSTALL(DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}" DESTINATION "include")
-ENDIF (EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
+if(EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
+  install(DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}" DESTINATION "include")
+endif(EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
 
 #
 # Add Documentation Targets
 #
-INCLUDE (DocumentationTargets)
+include(DocumentationTargets)
 
 #
 # Export CMAKE Variables for external FIND_PACKAGE(..) calls
 #
-CONFIGURE_FILE(build/CerebraConfig.cmake.in
+configure_file(build/CerebraConfig.cmake.in
   "${EXECUTABLE_OUTPUT_PATH}/CerebraConfig.cmake" @ONLY)
-CONFIGURE_FILE(build/UseCerebra.cmake.in
+configure_file(build/UseCerebra.cmake.in
   ${EXECUTABLE_OUTPUT_PATH}/UseCerebra.cmake COPYONLY IMMEDIATE)
 
-MESSAGE (STATUS "includes: ${INCLUDE_OUTPUT_PATH}")
-MESSAGE (STATUS "libraries: ${Cerebra_LIBRARIES}")
+message(STATUS "includes: ${INCLUDE_OUTPUT_PATH}")
+message(STATUS "libraries: ${Cerebra_LIBRARIES}")
 
-EXPORT (PACKAGE Cerebra)
+export(PACKAGE Cerebra)
