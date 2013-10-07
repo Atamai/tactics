@@ -74,10 +74,6 @@ include(${ItkVtkGlue_USE_FILE})
 find_package(Qt4 REQUIRED)
 include(UseQt4)
 
-find_package(UnitTestPlusPlus REQUIRED)
-include_directories(${UnitTestPlusPlus_INCLUDE_DIRS})
-link_directories(${UnitTestPlusPlus_LIBRARY_DIRS})
-
 #
 # Configure Files
 #
