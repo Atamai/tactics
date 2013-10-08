@@ -31,6 +31,11 @@ set(EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
 set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
 set(CONFIGURE_OUTPUT_PATH "${MAINFOLDER}/build")
 
+file(MAKE_DIRECTORY
+ "${EXECUTABLE_OUTPUT_PATH}"
+ "${LIBRARY_OUTPUT_PATH}"
+ "${CONFIGURE_OUTPUT_PATH}")
+
 #
 # FIXME: These directories should append themselves to the list
 # (apart from thirdparty applications that are compiled into libraries)
@@ -126,7 +131,7 @@ configure_file(cmake/CerebraConfig.cmake.in
 configure_file(cmake/UseCerebra.cmake.in
   "${CONFIGURE_OUTPUT_PATH}/UseCerebra.cmake" COPYONLY IMMEDIATE)
 
-message(STATUS "includes: ${INCLUDE_OUTPUT_PATH}")
-message(STATUS "libraries: ${Cerebra_LIBRARIES}")
+#message(STATUS "includes: ${INCLUDE_OUTPUT_PATH}")
+#message(STATUS "libraries: ${Cerebra_LIBRARIES}")
 
 export(PACKAGE Cerebra)
