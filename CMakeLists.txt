@@ -62,7 +62,7 @@ link_directories(${UnitTestPlusPlus_LIBRARY_DIRS})
 # Add Build Targets
 #
 add_subdirectory(src)
-#add_subdirectory(test)
+add_subdirectory(test)
 
 #
 # Add Install Targets
