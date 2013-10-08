@@ -32,6 +32,11 @@ set(EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
 set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
 
 #
+# Project Data Path
+#
+set(APPLICATION_DATA_PATH "${MAINFOLDER}/share")
+
+#
 # Project Search Paths
 #
 list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")

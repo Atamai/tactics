@@ -1,0 +1,8 @@
+/* Generated header to provide path to test data */
+
+#ifndef __TestData_h
+#define __TestData_h
+
+#define APPLICATION_DATA_PATH "@APPLICATION_DATA_PATH@"
+
+#endif /* __TestData_h */

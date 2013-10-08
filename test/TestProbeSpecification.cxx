@@ -1,4 +1,5 @@
 #include "UnitTest++.h"
+#include "TestData.h"
 
 #include "cbProbeSpecification.h"
 
@@ -8,7 +9,7 @@ SUITE (TestProbeSpecification) {
 
   struct SpecFixture {
     SpecFixture() {
-      default_path_ = "/Users/dadair/CAIN/Brain/Application/Electrode/Probes/6142.txt";
+      default_path_ = APPLICATION_DATA_PATH "/CIPAC.txt";
       s_ = new cbProbeSpecification(default_path_);
     }
     ~SpecFixture() {
@@ -26,17 +27,11 @@ SUITE (TestProbeSpecification) {
 
     std::vector<double> expected_points;
     expected_points.push_back(0.0);
-    expected_points.push_back(3.0);
-    expected_points.push_back(4.5);
-    expected_points.push_back(6.0);
-    expected_points.push_back(7.5);
-    expected_points.push_back(9.0);
-    expected_points.push_back(10.5);
-    expected_points.push_back(12.0);
-    expected_points.push_back(250.2);
-    expected_points.push_back(264.7);
+    expected_points.push_back(10.0);
+    expected_points.push_back(240.0);
+    expected_points.push_back(250.0);
 
-    std::string expected_catalogue_number = "6142";
+    std::string expected_catalogue_number = "CIPAC";
     bool expected_tip_is_contact = true;
 
     CHECK_EQUAL(expected_tip_is_contact, tip_is_contact);

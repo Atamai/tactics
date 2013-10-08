@@ -1,4 +1,5 @@
 #include "UnitTest++.h"
+#include "TestData.h"
 
 #include "cbProbeCatalogue.h"
 #include "cbProbeSpecification.h"
@@ -8,7 +9,7 @@
 
 SUITE (TestProbeCatalogue) {
   struct CatalogueFixture {
-    CatalogueFixture() : directory_path_("/Users/dadair/CAIN/Brain/Resources/Probes"), catalogue_(directory_path_) {};
+    CatalogueFixture() : directory_path_(APPLICATION_DATA_PATH), catalogue_(directory_path_) {};
     ~CatalogueFixture() {};
 
     std::string directory_path_;
@@ -19,6 +20,7 @@ SUITE (TestProbeCatalogue) {
     std::vector<std::string> list = catalogue_.list_as_strings();
 
     std::vector<std::string> expected;
+#ifdef TACTICS_PRIVATE_PROBES
     expected.push_back(std::string("3387S-40"));
     expected.push_back(std::string("3389S-40"));
     expected.push_back(std::string("3391S-40"));
@@ -51,6 +53,9 @@ SUITE (TestProbeCatalogue) {
     expected.push_back(std::string("RD14R-SP35X-000"));
     expected.push_back(std::string("SD10R-SP05X-000"));
     expected.push_back(std::string("SD12R-SP05X-000"));
+#else
+    expected.push_back(std::string("CIPAC"));
+#endif
 
     CHECK_EQUAL(expected.size(), list.size());
 
@@ -60,7 +65,7 @@ SUITE (TestProbeCatalogue) {
   }
 
   TEST_FIXTURE(CatalogueFixture, TestShouldQueryCatalogue) {
-    std::string type("6142");
+    std::string type("CIPAC");
 
     cbProbeSpecification spec = catalogue_.specification(type);
 
