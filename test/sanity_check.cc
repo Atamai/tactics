@@ -4,7 +4,7 @@
  * For additional reference information, see the "test.h" header.
  */
 
-#include "test.h" // Brings in the UnitTest++ framework
+#include "test.h"
 
 #include "vtkDataManager.h"
 #include "vtkSmartPointer.h"

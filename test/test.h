@@ -1,31 +1,96 @@
-#include "unittest++/UnitTest++.h"
+/* This file provides some simple unit test macros. */
 
-/*
- * This file provides a transitive include for the UnitTest++ library
- * so that you don't need to remember how to include it yourself. This
- * file also provides you with a reference for using UnitTest++.
- *
- * == BASIC REFERENCE ==
- *      - TEST(NAME_OF_TEST) { body_of_test }
- *      - TEST_FIXTURE(NAME_OF_FIXTURE,NAME_OF_TEST){ body_of_test }
- *
- * == CHECK MACRO REFERENCE ==
- *      - CHECK(EXPR);
- *      - CHECK_EQUAL(EXPECTED,ACTUAL);
- *      - CHECK_CLOSE(EXPECTED,ACTUAL,EPSILON);
- *      - CHECK_ARRAY_EQUAL(EXPECTED,ACTUAL,LENGTH);
- *      - CHECK_ARRAY_CLOSE(EXPECTED,ACTUAL,LENGTH,EPSILON);
- *      - CHECK_ARRAY2D_EQUAL(EXPECTED,ACTUAL,ROWCOUNT,COLCOUNT);
- *      - CHECK_ARRAY2D_CLOSE(EXPECTED,ACTUAL,ROWCOUNT,COLCOUNT,EPSILON);
- *      - CHECK_THROW(EXPR,EXCEPTION_TYPE_EXPECTED);
- *
- * == TIME CONSTRAINTS ==
- *
- *      - UNITTEST_TIME_CONSTRAINT(TIME_IN_MILLISECONDS);
- *      - UNITTEST_TIME_CONSTRAINT_EXEMPT();
- *
- * == MORE INFO ==
- *      See: http://unittest-cpp.sourceforge.net/UnitTest++.html
- */
+#include <math.h>
+#include <vector>
+
+class UnitTest
+{
+public:
+  UnitTest();
+  static int RunAllTests();
+
+protected:
+  virtual void operator() () = 0;
+
+  static std::vector<UnitTest *> *Tests;
+  static bool TestFailed;
+
+private:
+  friend class UnitTestInitializer;
+};
+
+static class UnitTestInitializer
+{
+public:
+  UnitTestInitializer();
+  ~UnitTestInitializer();
+} unitTestSchwarzCounter;
+
+inline UnitTest::UnitTest()
+{
+  UnitTest::Tests->push_back(this);
+}
+
+inline int UnitTest::RunAllTests()
+{
+  UnitTest::TestFailed = false;
+  for (size_t i = 0; i < UnitTest::Tests->size(); i++)
+    {
+    (*UnitTest::Tests->at(i))();
+    }
+  return UnitTest::TestFailed;
+}
+
+#define CHECK(t) \
+if (!(t)) \
+{ \
+  cout << __FILE__ << ":" << __LINE__ << ": "; \
+  cout << "Test assertion failed: " << #t << " [UnitTest]\n"; \
+  cout.flush(); \
+  UnitTest::TestFailed = true; \
+}
+
+#define CHECK_EQUAL(expected, actual) \
+CHECK((expected) == (actual))
+
+#define CHECK_ARRAY_EQUAL(x, y, size) \
+{ \
+  size_t array_size = (size); \
+  for (size_t array_index = 0; array_index < array_size; array_index++) \
+    { \
+    CHECK((x)[array_index] == (y)[array_index]); \
+    } \
+}
+
+#define CHECK_CLOSE(x, y, tol) \
+CHECK(fabs((x) - (y)) < (tol))
  
- 
+#define TEST(name) \
+class UnitTest_##name : UnitTest \
+{ \
+  void operator() (); \
+} UnitTest_##name##_Instance; \
+void UnitTest_##name::operator() ()
+
+#define TEST_MAIN() \
+std::vector<UnitTest *> *UnitTest::Tests; \
+bool UnitTest::TestFailed; \
+static size_t schwarzCounter = 0; \
+UnitTestInitializer::UnitTestInitializer() \
+{ \
+  if (schwarzCounter++ == 0) \
+    { \
+    UnitTest::Tests = new std::vector<UnitTest *>; \
+    } \
+} \
+UnitTestInitializer::~UnitTestInitializer() \
+{ \
+  if (--schwarzCounter == 0) \
+    { \
+    delete UnitTest::Tests; \
+    } \
+} \
+int main(int, char* []) \
+{ \
+  return UnitTest::RunAllTests(); \
+}
