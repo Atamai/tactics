@@ -9,7 +9,7 @@ all: ./build/Makefile
 	@ $(MAKE) -C build
 
 ./build/Makefile:
-	@ (cd build >/dev/null 2>&1 && cmake ..)
+	@ (mkdir -p build >/dev/null && cd build >/dev/null 2>&1 && cmake ..)
 
 distclean:
 	@- (cd build >/dev/null 2>&1 && cmake .. >/dev/null 2>&1)
