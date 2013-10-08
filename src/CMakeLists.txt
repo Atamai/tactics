@@ -1,8 +1,6 @@
 file(GLOB_RECURSE project_SRCS *.cpp *.cxx *.cc *.C *.c *.h *.hpp)
-set(project_LIBS ${Boost_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} ${ITK_LIBRARIES} ${Cerebra_LIBRARIES})
+set(project_LIBS ${QT_LIBRARIES} ${VTK_LIBRARIES} ${ITK_LIBRARIES} ${Cerebra_LIBRARIES})
 set(project_BIN ${PROJECT_NAME})
-
-message(STATUS "Cerebra-libs: ${Cerebra_LIBRARIES}")
 
 set(project_MOC_HEADERS
   cbElectrodeAutomator.h

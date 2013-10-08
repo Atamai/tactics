@@ -59,31 +59,10 @@ include_directories(${UnitTestPlusPlus_INCLUDE_DIRS})
 link_directories(${UnitTestPlusPlus_LIBRARY_DIRS})
 
 #
-# Configure Files
-#
-file(GLOB_RECURSE CONFIGINPUTS1 include/*.in.h.cmake)
-file(GLOB_RECURSE CONFIGINPUTS2 include/*.h.in.cmake)
-file(GLOB_RECURSE CONFIGINPUTS3 src/*.in.h.cmake)
-file(GLOB_RECURSE CONFIGINPUTS4 src/*.h.in.cmake)
-file(GLOB_RECURSE CONFIGINPUTS5 test/*.in.h.cmake)
-file(GLOB_RECURSE CONFIGINPUTS6 test/*.h.in.cmake)
-list(APPEND CONFIGINPUTS "${CONFIGINPUTS1}")
-list(APPEND CONFIGINPUTS "${CONFIGINPUTS2}")
-list(APPEND CONFIGINPUTS "${CONFIGINPUTS3}")
-list(APPEND CONFIGINPUTS "${CONFIGINPUTS4}")
-list(APPEND CONFIGINPUTS "${CONFIGINPUTS5}")
-list(APPEND CONFIGINPUTS "${CONFIGINPUTS6}")
-foreach(CONFIGINPUT ${CONFIGINPUTS})
-  string(REPLACE ".in.h.cmake" ".h" CONFIGOUTPUT1 "${CONFIGINPUT}")
-  string(REPLACE ".h.in.cmake" ".h" CONFIGOUTPUT2 "${CONFIGOUTPUT1}")
-  configure_file("${CONFIGINPUT}" "${CONFIGOUTPUT2}")
-endforeach(CONFIGINPUT ${CONFIGINPUTS})
-
-#
 # Add Build Targets
 #
 add_subdirectory(src)
-#ADD_SUBDIRECTORY(test)
+#add_subdirectory(test)
 
 #
 # Add Install Targets
