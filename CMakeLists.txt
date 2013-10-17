@@ -5,7 +5,7 @@
 # Project Properties
 #
 cmake_minimum_required(VERSION 2.6.2)
-project(tactics)
+project(Tactics)
 set(APPLICATION_NAME "Tactics")
 set(APPLICATION_CODENAME "${PROJECT_NAME}")
 set(APPLICATION_COPYRIGHT_YEARS "2013")
@@ -35,7 +35,8 @@ set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
 # Project Data Path
 #
 set(APPLICATION_DATA_PATH "${MAINFOLDER}/share")
-
+set(APPLICATION_ICON_PATH
+  "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Icons")
 #
 # Project Search Paths
 #
@@ -64,10 +65,43 @@ include_directories(${UnitTestPlusPlus_INCLUDE_DIRS})
 link_directories(${UnitTestPlusPlus_LIBRARY_DIRS})
 
 #
+# Application icon
+#
+if(APPLE)
+set(MACOSX_BUNDLE_ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/tactics.png)
+endif()
+
+#
 # Add Build Targets
 #
 add_subdirectory(src)
 add_subdirectory(test)
+
+#
+# Copy icons
+#
+foreach(ICONTYPE Icons Cursors)
+  string(TOLOWER "${ICONTYPE}" LC_ICONTYPE)
+  file(GLOB_RECURSE ICON_FILES
+       RELATIVE ${CMAKE_SOURCE_DIR}/resources/${LC_ICONTYPE}
+       resources/${LC_ICONTYPE}/*.png)
+  set(ALL_ICON_FILES)
+  foreach(ICON_FILE ${ICON_FILES})
+    set(src ${CMAKE_SOURCE_DIR}/resources/${LC_ICONTYPE}/${ICON_FILE})
+    set(tgt ${APPLICATION_ICON_PATH}/${ICONTYPE}/${ICON_FILE})
+    add_custom_command(DEPENDS ${src}
+                       COMMAND ${CMAKE_COMMAND} -E copy ${src} ${tgt}
+                       OUTPUT ${tgt}
+                       COMMENT "icon copy ${LC_ICONTYPE}/${ICON_FILE}")
+    set(ALL_ICON_FILES ${ALL_ICON_FILES} ${tgt})
+  endforeach()
+
+  add_custom_target(Copy${ICONTYPE} ALL echo "..."
+    DEPENDS ${ALL_ICON_FILES})
+
+  install(FILES ${ALL_ICON_FILES}
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/Icons/${ICONTYPE})
+endforeach()
 
 #
 # Add Install Targets

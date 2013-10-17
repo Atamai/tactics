@@ -20,7 +20,7 @@ qt4_wrap_cpp(project_MOC_SRCS_GENERATED ${project_MOC_HEADERS})
 add_library(${project_LIB} STATIC ${project_SRCS} ${project_MOC_SRCS_GENERATED})
 target_link_libraries(${project_LIB} ${project_LIBS})
 
-add_executable(${project_BIN} ${project_MAIN})
+add_executable(${project_BIN} MACOSX_BUNDLE ${project_MAIN} ${MACOSX_BUNDLE_ICON_FILE})
 target_link_libraries(${project_BIN} ${project_LIB})
 set_target_properties(${project_BIN} PROPERTIES VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}" OUTPUT_NAME ${project_BIN} CLEAN_DIRECT_OUTPUT 1)
 
