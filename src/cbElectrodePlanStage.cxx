@@ -43,6 +43,8 @@
 #include <fstream>
 #include <sstream>
 
+static const int sliderSubdivisions = 10;
+
 cbElectrodePlanStage::cbElectrodePlanStage()
   : cbStage(), Plan(), catalogue_(this->get_probe_dir())
 {
@@ -224,14 +226,17 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   connect(patientToggle, SIGNAL(stateChanged(int)),
           this, SIGNAL(TogglePatientAnnotations(int)));
 
+  xSpin->setAccelerated(true);
   xSpin->setMinimum(0);
-  xSpin->setMaximum(200);
+  xSpin->setMaximum(200*sliderSubdivisions);
 
+  ySpin->setAccelerated(true);
   ySpin->setMinimum(0);
-  ySpin->setMaximum(200);
+  ySpin->setMaximum(200*sliderSubdivisions);
 
+  zSpin->setAccelerated(true);
   zSpin->setMinimum(0);
-  zSpin->setMaximum(200);
+  zSpin->setMaximum(200*sliderSubdivisions);
 
   xSpin->setValue(0);
   ySpin->setValue(0);
@@ -298,10 +303,10 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   depthSlider->setOrientation(Qt::Horizontal);
   depthSlider->setTracking(true);
   depthSlider->setTickInterval(1);
-  depthSlider->setMinimum(depthRange[0]);
-  depthSlider->setMaximum(depthRange[1]);
-  depthLabel->setMinimum(depthRange[0]);
-  depthLabel->setMaximum(depthRange[1]);
+  depthSlider->setMinimum(depthRange[0]*sliderSubdivisions);
+  depthSlider->setMaximum(depthRange[1]*sliderSubdivisions);
+  depthLabel->setMinimum(depthRange[0]*sliderSubdivisions);
+  depthLabel->setMaximum(depthRange[1]*sliderSubdivisions);
   connect(depthSlider,SIGNAL(valueChanged(int)),
           depthLabel, SLOT(setValue(int)));
   connect(depthLabel, SIGNAL(valueChanged(int)),
@@ -490,24 +495,24 @@ void cbElectrodePlanStage::updateForCurrentSelection()
 
   double depth = temp.GetDepth();
 
-  if (this->xSpin->value() == static_cast<int>(p[0]) &&
-      this->ySpin->value() == static_cast<int>(p[1]) &&
-      this->zSpin->value() == static_cast<int>(p[2]) &&
+  if (this->xSpin->value() == static_cast<int>(p[0]*sliderSubdivisions) &&
+      this->ySpin->value() == static_cast<int>(p[1]*sliderSubdivisions) &&
+      this->zSpin->value() == static_cast<int>(p[2]*sliderSubdivisions) &&
       this->azimuthSlider->value() == static_cast<int>(o[0]) &&
       this->declinationSlider->value() == static_cast<int>(o[1]) &&
-      this->depthSlider->value() == static_cast<int>(depth)) {
+      this->depthSlider->value() == static_cast<int>(depth*sliderSubdivisions)) {
     // No need to update anything
     return;
   }
 
-  this->xSpin->setValue(p[0]);
-  this->ySpin->setValue(p[1]);
-  this->zSpin->setValue(p[2]);
+  this->xSpin->setValue(p[0]*sliderSubdivisions);
+  this->ySpin->setValue(p[1]*sliderSubdivisions);
+  this->zSpin->setValue(p[2]*sliderSubdivisions);
 
   this->azimuthSlider->setValue(o[0]);
   this->declinationSlider->setValue(o[1]);
 
-  this->depthSlider->setValue(depth);
+  this->depthSlider->setValue(depth*sliderSubdivisions);
 
   this->nameEdit->setText(QString(temp.GetName().c_str()));
 
@@ -552,9 +557,9 @@ void cbElectrodePlanStage::updateCurrentProbePosition()
   }
 
   double position[3];
-  position[0] = this->xSpin->value();
-  position[1] = this->ySpin->value();
-  position[2] = this->zSpin->value();
+  position[0] = this->xSpin->value()*1.0/sliderSubdivisions;
+  position[1] = this->ySpin->value()*1.0/sliderSubdivisions;
+  position[2] = this->zSpin->value()*1.0/sliderSubdivisions;
 
   // Update the position in the probe
   this->Plan.at(pos).SetPosition(position);
@@ -775,7 +780,7 @@ void cbElectrodePlanStage::updateCurrentProbeDepth()
     return;
   }
 
-  double depth = this->depthSlider->value();
+  double depth = this->depthSlider->value()*1.0/sliderSubdivisions;
 
   // Update the depth in the probe
   this->Plan.at(pos).SetDepth(depth);
