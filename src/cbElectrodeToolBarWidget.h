@@ -56,10 +56,10 @@ public:
   cbElectrodeToolBarWidget(vtkDataManager *dataManager, QDir iconDir, QWidget *parent);
   ~cbElectrodeToolBarWidget();
 
-  //! Set up availability for toolbar button groups.
-  void setBasicToolEnabled(bool en);
-
 public slots:
+
+  //! Set up availability for toolbar button groups.
+  void enableBasicTool();
 
   //! Click to change the window/level of current viewing image
   void onWinlevButtonDown();

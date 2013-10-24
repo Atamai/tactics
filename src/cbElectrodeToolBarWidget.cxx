@@ -187,11 +187,12 @@ void cbElectrodeToolBarWidget::onPlaneButtonDown()
 }
 
 //----------------------------------------------------------------------------
-void cbElectrodeToolBarWidget::setBasicToolEnabled(bool en)
+void cbElectrodeToolBarWidget::enableBasicTool()
 {
-  m_groupMouseControl->setEnabled(en);
-  actionReset->setEnabled(en);
-  actionMaximizeToggle->setEnabled(en);
+  m_groupMouseControl->setEnabled(true);
+  actionReset->setEnabled(true);
+  actionMaximizeToggle->setEnabled(true);
+  this->onPlaneButtonDown();
 }
 
 void cbElectrodeToolBarWidget::onResetButtonDown()

@@ -182,7 +182,11 @@ int main(int argc, char *argv[])
 
   cbElectrodeToolBarWidget *toolBarWidget =
     new cbElectrodeToolBarWidget(dataManager, dir, &window);
+
   cbStageManager manager(&window, toolBarWidget, dataManager, dir, stages);
+
+  QObject::connect(&controller, SIGNAL(finished()),
+                   toolBarWidget, SLOT(enableBasicTool()));
 
   QObject::connect(&controller, SIGNAL(finished()),
                    &manager, SLOT(enableNextButton()));
