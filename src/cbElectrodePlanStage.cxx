@@ -296,7 +296,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   crudWidget->setLayout(new QGridLayout);
   qobject_cast<QGridLayout *>(crudWidget->layout())->addWidget(removeButton, 1, 0);
 
-  connect(saveButton, SIGNAL(clicked()), this, SLOT(savePlan()));
+  connect(saveButton, SIGNAL(clicked()), this, SLOT(savePlanReport()));
   connect(exportButton, SIGNAL(clicked()), this, SIGNAL(ExportScreenshot()));
 
   connect(placedList, SIGNAL(itemSelectionChanged()),
@@ -551,7 +551,7 @@ void cbElectrodePlanStage::updateCurrentProbeOrientation()
   emit UpdateProbeCallback(pos, this->Plan.at(pos));
 }
 
-void cbElectrodePlanStage::savePlan()
+void cbElectrodePlanStage::savePlanReport()
 {
   std::stringstream plan;
 
@@ -570,26 +570,43 @@ void cbElectrodePlanStage::savePlan()
   box.setDefaultButton(QMessageBox::Save);
   int ret = box.exec();
 
-  switch (ret) {
-    case QMessageBox::Save:
-      // Open a file dialog to find where to save
-      // If successful, open a stream to that file and append all the probes
-      QString fileName = QFileDialog::getSaveFileName(NULL, "Save Plan",
-                                                      "/untitled.txt",
-                                                      "Text Files (*.txt)");
-
-      if (fileName.isNull()) {
-        return;
-      }
-
-      std::ofstream file;
-      file.open(fileName.toStdString().c_str());
-      file << plan.str();
-      file.close();
-
-      cbMainWindow::displaySuccessMessage(QString("File saved."));
-      break;
+  if (ret != QMessageBox::Save) {
+    return;
   }
+
+  // Check the planFileFolder setting for the save path
+  const char *folderKey = "planFileFolder";
+  QSettings settings;
+  QString path;
+
+  if (settings.value(folderKey).toString() != NULL) {
+    path = settings.value(folderKey).toString();
+  }
+
+  if (path == "") {
+    path = QDir::homePath();
+  }
+
+  // Open a file dialog to find where to save
+  // If successful, open a stream to that file and append all the probes
+  QString fileName = QFileDialog::getSaveFileName(NULL, "Save Operation Report",
+                                                  path + "/untitled.txt",
+                                                  "Text Files (*.txt)");
+
+  if (fileName.isNull()) {
+    return;
+  }
+
+  // Save the planFileFolder for the next time a plan is loaded
+  QFileInfo fileInfo(fileName);
+  settings.setValue(folderKey, fileInfo.path());
+
+  std::ofstream file;
+  file.open(fileName.toStdString().c_str());
+  file << plan.str();
+  file.close();
+
+  cbMainWindow::displaySuccessMessage(QString("File saved."));
 }
 
 void cbElectrodePlanStage::toggleFrameVisualization(int s)

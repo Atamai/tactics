@@ -88,31 +88,31 @@ cbElectrodeOpenStage::~cbElectrodeOpenStage()
 
 void cbElectrodeOpenStage::Execute()
 {
+  const char *folderKey = "recentFileFolder";
   QSettings settings;
   QString path;
 
-  if (settings.value("recentFileFolder").toString() != NULL)
-    {
-    path = settings.value("recentFileFolder").toString();
-    }
-  else
-    {
-    path = "/";
-    }
+  if (settings.value(folderKey).toString() != NULL) {
+    path = settings.value(folderKey).toString();
+  }
+  else {
+    path = QDir::homePath();
+  }
 
   QFileDialog dialog(NULL, "Open Primary Series", path);
-  if (!dialog.exec())
-    {
+  if (!dialog.exec()) {
     return;
-    }
+  }
 
   QString initialImage = dialog.selectedFiles().at(0);
-  settings.setValue("recentFileFolder", initialImage);
 
-  if (initialImage == "")
-    {
+  QFileInfo fileInfo(initialImage);
+  path = fileInfo.path();
+  settings.setValue(folderKey, path);
+
+  if (initialImage == "") {
     return;
-    }
+  }
 
   std::string *pathString = new std::string(initialImage.toStdString());
 

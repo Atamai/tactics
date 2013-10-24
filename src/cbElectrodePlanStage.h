@@ -123,7 +123,7 @@ private slots:
 
   void toggleFrameVisualization(int);
 
-  void savePlan();
+  void savePlanReport();
 
   void placeProbeCallback();
 

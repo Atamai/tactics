@@ -51,6 +51,7 @@
 
 #include <QCursor>
 #include <QObject>
+#include <QString>
 
 #include <vector>
 
@@ -263,7 +264,10 @@ private:
   bool SavedState;
 
   //! Determines the recommended save/open path.
-  std::string FindRecommendedPath();
+  QString GetPlanFolder();
+
+  //! Remembers the save/open path.
+  void SetPlanFolder(const QString& p);
 
   //! Internal class to represent orthogonal slices.
   class Slice

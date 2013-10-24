@@ -71,6 +71,7 @@
 #include "vtkDataSetMapper.h"
 #include "vtkDummyViewPane.h"
 #include "vtkDynamicViewFrame.h"
+#include "vtkErrorCode.h"
 #include "vtkFiducialPointsTool.h"
 #include "vtkFollower.h"
 #include "vtkFollowerPlane.h"
@@ -174,6 +175,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
 {
   this->initializeProgress(0,1);
   this->dataKey = k;
+  this->SaveFile = "";
 
   // If this is not the first time rendering, clear stack actors
   for (int i = 0; i < this->Slices.size(); i++) {
@@ -1573,14 +1575,17 @@ void cbElectrodeView::ToggleProbeVisualizationMode(int s)
 void cbElectrodeView::ExportScreenshot()
 {
   // Create save dialog to get save location and filename
+  QString path = this->GetPlanFolder();
   QString fileName = QFileDialog::getSaveFileName(NULL, "Export Screenshot",
-                                                  "/untitled.png",
+                                                  path + "/untitled.png",
                                                   "Image Files (*.png)");
 
   if (fileName.isNull()) {
-    cbMainWindow::displayNoticeMessage(QString("Could not save file."));
     return;
   }
+
+  QFileInfo fileInfo(fileName);
+  this->SetPlanFolder(fileInfo.path());
 
   vtkRenderWindow *window = this->viewRect->GetRenderWindow();
   int *winsize = window->GetSize();
@@ -1602,6 +1607,11 @@ void cbElectrodeView::ExportScreenshot()
   writer->SetFileName(fileName.toStdString().c_str());
   writer->SetInputConnection(importer->GetOutputPort());
   writer->Write();
+
+  if (writer->GetErrorCode()) {
+    cbMainWindow::displayNoticeMessage(
+      QString("Unable to save file.  Check directory permissions."));
+  }
 }
 
 void cbElectrodeView::ToggleHelpAnnotations(int s)
@@ -1634,19 +1644,18 @@ void cbElectrodeView::Open()
     }
   }
 
-  std::string path = this->FindRecommendedPath();
-
   // Get the file path the user wants to save to
-  QString fileName = QFileDialog::getOpenFileName(NULL, "Open Plan",
-                                                  path.c_str(),
+  QString path = this->GetPlanFolder();
+  QString fileName = QFileDialog::getOpenFileName(NULL, "Open Plan", path,
                                                   "Plan Files (*.pln)");
 
   if (fileName.isNull()) {
     return;
   }
 
+  QFileInfo fileInfo(fileName);
+  this->SetPlanFolder(fileInfo.path());
   this->SaveFile = fileName.toStdString();
-  std::cout << "setting SaveFile to: " << this->SaveFile << std::endl;
 
   // Clear the current plan for a fresh state.
   emit ClearCurrentPlan();
@@ -1750,15 +1759,22 @@ void cbElectrodeView::Save()
 
 void cbElectrodeView::SaveAs()
 {
-  std::string path = this->FindRecommendedPath();
-  QString fileName = QFileDialog::getSaveFileName(NULL, "Save Plan",
-                                                  path.c_str(),
+  QString path;
+  if (this->SaveFile != "") {
+    path = this->SaveFile.c_str();
+  } else {
+    path = this->GetPlanFolder();
+  }
+
+  QString fileName = QFileDialog::getSaveFileName(NULL, "Save Plan", path,
                                                   "Plan Files (*.pln)");
   if (fileName.isNull()) {
     this->SetSavedState(false);
     return;
   }
 
+  QFileInfo fileInfo(fileName);
+  this->SetPlanFolder(fileInfo.path());
   this->SaveFile = fileName.toStdString();
   this->Save();
 }
@@ -1775,19 +1791,29 @@ void cbElectrodeView::SetSavedState(bool s)
   }
 }
 
-std::string cbElectrodeView::FindRecommendedPath()
+QString cbElectrodeView::GetPlanFolder()
 {
-  std::string path = "/untitled.pln";
+  const char *folderKey = "planFileFolder";
+  QSettings settings;
+  QString path;
 
-  vtkImageNode *node = this->dataManager->FindImageNode(this->dataKey);
-  if (node) {
-    std::string temp = node->GetFileURL();
-    if (!temp.empty()) {
-      unsigned found = temp.find_last_of("/\\");
-      path = temp.substr(0, found) + "/untitled.pln";
-    }
+  if (settings.value(folderKey).toString() != NULL) {
+    path = settings.value(folderKey).toString();
   }
+
+  if (path == "") {
+    path = QDir::homePath();
+  }
+
   return path;
+}
+
+void cbElectrodeView::SetPlanFolder(const QString& path)
+{
+  const char *folderKey = "planFileFolder";
+
+  QSettings settings;
+  settings.setValue(folderKey, path);
 }
 
 void cbElectrodeView::CreateMenu()
@@ -2061,16 +2087,27 @@ void cbElectrodeView::PaneScrollCallback(vtkObject *o, unsigned long, void *)
 
 void cbElectrodeView::OpenCT()
 {
-  std::string path = this->FindRecommendedPath();
+  QString path;
+
+  vtkImageNode *node = this->dataManager->FindImageNode(this->dataKey);
+  if (node) {
+    QFileInfo fileInfo(node->GetFileURL().c_str());
+    QFileInfo pathInfo(fileInfo.path());
+    path = pathInfo.path();
+    }
+
+  if (path == "")
+    {
+    path = this->GetPlanFolder();
+    }
 
   QString file_path = QFileDialog::getOpenFileName(NULL, "Open Secondary Series",
-                                                   path.c_str());
+                                                   path);
 
   if (file_path.isNull()) {
     return;
   }
 
-  std::cout << file_path.toStdString() << std::endl;
   emit OpenCTData(file_path.toStdString());
 }
 
