@@ -1106,6 +1106,13 @@ void cbElectrodeView::buildProbeMarker(vtkPolyData *probeData, cbProbe p)
 
   std::vector<double> point_list = spec.points();
 
+  /* if specification is missing, make a fully-highlighted probe */
+  if (point_list.size() < 2) {
+    point_list.clear();
+    point_list.push_back(0.0);
+    point_list.push_back(250.0);
+  }
+
   double table[2][4] = {
     {0.0, 0.0, 0.0, 1.0},
     {1.0, 1.0, 1.0, 1.0},
@@ -1255,7 +1262,8 @@ void cbElectrodeView::ProbePlacementCallback(vtkObject *o, unsigned long, void *
   this->bindToolCursorAction(this->lastTool, Qt::LeftButton);
 
   // Tell the stage that a new probe was requested at x/y/z
-  emit CreateProbeRequest(position[0], position[1], position[2], 90, 90, "", "");
+  emit CreateProbeRequest(position[0], position[1], position[2],
+                          90, 90, 0, "", "");
 }
 
 void cbElectrodeView::CreateProbeCallback(cbProbe p)
@@ -1264,7 +1272,7 @@ void cbElectrodeView::CreateProbeCallback(cbProbe p)
   p.GetPosition(position);
   p.GetOrientation(orientation);
 
-  double depth = p.depth();
+  double depth = p.GetDepth();
 
   // Create the poly data
   vtkSmartPointer<vtkPolyData> data =
@@ -1387,7 +1395,7 @@ void cbElectrodeView::UpdateProbeCallback(int index, cbProbe p)
   p.GetOrientation(orientation);
 
   // Update the probe's depth
-  double depth = p.depth();
+  double depth = p.GetDepth();
 
   // Build the transform necessary to build the user matrix for the probes
   vtkSmartPointer<vtkTransform> transform =
@@ -1707,13 +1715,13 @@ void cbElectrodeView::Open()
     std::istringstream iss(line);
 
     std::string name, spec;
-    double pos[3], orient[2];
+    double pos[3], orient[2], depth;
 
     iss >> name >> spec >> pos[0] >> pos[1] >> pos[2]
-        >> orient[0] >> orient[1];
+        >> orient[0] >> orient[1] >> depth;
 
     emit CreateProbeRequest(pos[0], pos[1], pos[2],
-                            orient[1], orient[0],
+                            orient[1], orient[0], depth,
                             name, spec);
   }
 

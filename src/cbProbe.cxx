@@ -40,7 +40,9 @@
 #include <math.h>
 
 // Constructor
-cbProbe::cbProbe(double x, double y, double z, double a, double d, const char *n) : specification_() {
+cbProbe::cbProbe(double x, double y, double z, double a, double d, double depth,
+                 const char *n) : specification_()
+{
   this->x_ = x;
   this->y_ = y;
   this->z_ = z;
@@ -50,11 +52,12 @@ cbProbe::cbProbe(double x, double y, double z, double a, double d, const char *n
 
   this->name_ = n;
 
-  this->depth_ = 0.0;
+  this->depth_ = depth;
 }
 
 // Constructor
-cbProbe::cbProbe() : specification_() {
+cbProbe::cbProbe() : specification_()
+{
   this->x_ = 0;
   this->y_ = 0;
   this->z_ = 0;
@@ -68,11 +71,13 @@ cbProbe::cbProbe() : specification_() {
 }
 
 // Destructor
-cbProbe::~cbProbe() {
+cbProbe::~cbProbe()
+{
 }
 
 // Copy Constructor
-cbProbe::cbProbe(const cbProbe& other) {
+cbProbe::cbProbe(const cbProbe& other)
+{
   double p[3];
   double o[2];
 
@@ -90,11 +95,12 @@ cbProbe::cbProbe(const cbProbe& other) {
 
   this->name_ = other.GetName();
 
-  this->depth_ = other.depth();
+  this->depth_ = other.GetDepth();
 }
 
 // Assignment Operator
-cbProbe& cbProbe::operator=(const cbProbe& rhs) {
+cbProbe& cbProbe::operator=(const cbProbe& rhs)
+{
   if (&rhs == this) {
     return *this;
   }
@@ -116,23 +122,31 @@ cbProbe& cbProbe::operator=(const cbProbe& rhs) {
 
   this->name_ = rhs.GetName();
 
-  this->depth_ = rhs.depth();
+  this->depth_ = rhs.GetDepth();
 
   return *this;
 }
 
-void cbProbe::GetPosition(double p[3]) const {
+void cbProbe::GetPosition(double p[3]) const
+{
   p[0] = this->x_;
   p[1] = this->y_;
   p[2] = this->z_;
 }
 
-void cbProbe::GetOrientation(double o[2]) const {
+void cbProbe::GetOrientation(double o[2]) const
+{
   o[0] = this->a_;
   o[1] = this->d_;
 }
 
-std::string cbProbe::ToString() const {
+double cbProbe::GetDepth() const
+{
+  return this->depth_;
+}
+
+std::string cbProbe::ToString() const
+{
   std::string temp;
   std::stringstream stream;
 
@@ -152,25 +166,32 @@ std::string cbProbe::ToString() const {
   return temp;
 }
 
-void cbProbe::SetPosition(const double p[3]) {
+void cbProbe::SetPosition(const double p[3])
+{
   this->x_ = p[0];
   this->y_ = p[1];
   this->z_ = p[2];
 }
 
-void cbProbe::SetOrientation(const double o[2]) {
+void cbProbe::SetOrientation(const double o[2])
+{
   this->a_ = o[0];
   this->d_ = o[1];
 }
 
-std::ostream& operator<<(std::ostream &os, const cbProbe& p) {
+void cbProbe::SetDepth(double depth)
+{
+  this->depth_ = depth;
+}
+
+std::ostream& operator<<(std::ostream &os, const cbProbe& p)
+{
   double position[3], orientation[2];
   p.GetPosition(position);
   p.GetOrientation(orientation);
+  double depth = p.GetDepth();
 
   std::string catalogue_number = p.specification().catalogue_number();
-
-  int depth = p.depth();
 
   return os << p.GetName() << " "
             << catalogue_number << " "
@@ -200,14 +221,4 @@ cbProbeSpecification cbProbe::specification() const
 void cbProbe::set_specification(cbProbeSpecification s)
 {
   this->specification_ = s;
-}
-
-void cbProbe::set_depth(double d)
-{
-  this->depth_ = d;
-}
-
-double cbProbe::depth() const
-{
-  return this->depth_;
 }

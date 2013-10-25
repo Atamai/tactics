@@ -109,8 +109,8 @@ public slots:
   void RemoveCurrentFromPlan();
 
   //! Incoming request from the view to create a new probe.
-  void CreateProbeRequest(int x, int y, int z, int a, int d,
-                          std::string n, std::string s);
+  void CreateProbeRequest(double x, double y, double z, double a, double d,
+                          double depth, std::string n, std::string s);
 
 private slots:
   void updateForCurrentSelection();

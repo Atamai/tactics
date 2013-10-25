@@ -392,7 +392,9 @@ void cbElectrodePlanStage::RemoveCurrentFromPlan()
   emit DestroyProbeCallback(pos);
 }
 
-void cbElectrodePlanStage::CreateProbeRequest(int x, int y, int z, int a, int d, std::string n, std::string s)
+void cbElectrodePlanStage::CreateProbeRequest(
+  double x, double y, double z, double a, double d, double depth,
+  std::string n, std::string s)
 {
   this->tabWidget->setEnabled(true);
 
@@ -411,7 +413,7 @@ void cbElectrodePlanStage::CreateProbeRequest(int x, int y, int z, int a, int d,
   }
 
   // Build the standard probe
-  cbProbe temp(x, y, z, a, d, name.c_str());
+  cbProbe temp(x, y, z, a, d, depth, name.c_str());
 
   // Get the specification from the catalogue using the query
   temp.set_specification(this->catalogue_.specification(query));
@@ -486,7 +488,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   temp.GetPosition(p);
   temp.GetOrientation(o);
 
-  double depth = temp.depth();
+  double depth = temp.GetDepth();
 
   if (this->xSpin->value() == static_cast<int>(p[0]) &&
       this->ySpin->value() == static_cast<int>(p[1]) &&
@@ -776,7 +778,7 @@ void cbElectrodePlanStage::updateCurrentProbeDepth()
   double depth = this->depthSlider->value();
 
   // Update the depth in the probe
-  this->Plan.at(pos).set_depth(depth);
+  this->Plan.at(pos).SetDepth(depth);
 
   // Update the listing
   QListWidgetItem *item = this->placedList->item(pos);

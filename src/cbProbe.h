@@ -44,7 +44,8 @@
 class cbProbe
 {
 public:
-  cbProbe(double x, double y, double z, double a, double d, const char *n = "noid");
+  cbProbe(double x, double y, double z, double a, double d, double depth,
+          const char *n = "noid");
   cbProbe();
   ~cbProbe();
 
@@ -55,12 +56,11 @@ public:
   void SetPosition(const double p[3]);
   void GetOrientation(double o[2]) const;
   void SetOrientation(const double o[2]);
+  double GetDepth() const;
+  void SetDepth(double depth);
 
   cbProbeSpecification specification() const;
   void set_specification(cbProbeSpecification s);
-
-  void set_depth(double d);
-  double depth() const;
 
   void SetName(const std::string n);
   std::string GetName() const;

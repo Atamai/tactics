@@ -131,8 +131,8 @@ int main(int argc, char *argv[])
                    &openStage, SLOT(OpenImage(std::string)));
 
   cbElectrodePlanStage planStage;
-  QObject::connect(&window, SIGNAL(CreateProbeRequest(int, int, int, int, int, std::string, std::string)),
-                   &planStage, SLOT(CreateProbeRequest(int, int, int, int, int, std::string, std::string)));
+  QObject::connect(&window, SIGNAL(CreateProbeRequest(double, double, double, double, double, double, std::string, std::string)),
+                   &planStage, SLOT(CreateProbeRequest(double, double, double, double, double, double, std::string, std::string)));
 
   QObject::connect(&window, SIGNAL(SavePlanToFile(std::string)),
                    &planStage, SLOT(SavePlanToFile(std::string)));

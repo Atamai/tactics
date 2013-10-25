@@ -181,7 +181,9 @@ signals:
   void jumpToLastStage();
 
   //! Outgoing signal to create a new probe.
-  void CreateProbeRequest(int, int, int, int, int, std::string, std::string);
+  void CreateProbeRequest(double x, double y, double z,
+                          double a, double d, double depth,
+                          std::string n, std::string s);
 
   //! Outgoing signal to save the probe plan to disk.
   void SavePlanToFile(std::string path);
