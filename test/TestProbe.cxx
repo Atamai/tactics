@@ -12,9 +12,9 @@ SUITE (TestProbe) {
   }
 
   TEST (ShouldRoundMembersAtPrint) {
-    cbProbe p(1.0, 2.1, 3.2, 4.5, 5.6, -1.4);
+    cbProbe p(1.04, 2.1, 3.16, 4.5, 5.6, -1.42);
 
-    std::string expected("noid |  | x:1 y:2 z:3 | AP:6 | LR:5 | D:-1");
+    std::string expected("noid |  | x:1.0 y:2.1 z:3.2 | AP:6 | LR:5 | D:-1.4");
     std::string actual = p.ToString();
 
     CHECK_EQUAL(0, expected.compare(actual));
@@ -92,7 +92,7 @@ SUITE (TestProbe) {
     cbProbe p(1.0, 2.0, 3.0, 5.0, 4.0, 1.0);
     std::string actual = p.ToString();
 
-    std::string expected("noid |  | x:1 y:2 z:3 | AP:4 | LR:5 | D:1");
+    std::string expected("noid |  | x:1.0 y:2.0 z:3.0 | AP:4 | LR:5 | D:1.0");
 
     CHECK_EQUAL(0, expected.compare(actual));
   }
@@ -137,7 +137,7 @@ SUITE (TestProbe) {
     cbProbe p(1.0, 2.0, 3.0, 5.0, 4.0, 1.0, "Ted");
 
     std::string actual = p.ToString();
-    std::string expected("Ted |  | x:1 y:2 z:3 | AP:4 | LR:5 | D:1");
+    std::string expected("Ted |  | x:1.0 y:2.0 z:3.0 | AP:4 | LR:5 | D:1.0");
 
     CHECK_EQUAL(0, expected.compare(actual));
   }
@@ -147,7 +147,7 @@ SUITE (TestProbe) {
     p.SetName("Bob");
 
     std::string actual = p.ToString();
-    std::string expected("Bob |  | x:1 y:2 z:3 | AP:4 | LR:5 | D:1");
+    std::string expected("Bob |  | x:1.0 y:2.0 z:3.0 | AP:4 | LR:5 | D:1.0");
 
     CHECK_EQUAL(0, expected.compare(actual));
   }

@@ -147,19 +147,23 @@ double cbProbe::GetDepth() const
 
 std::string cbProbe::ToString() const
 {
+  /* use a precision of 1 decimal place */
+  const double p = 0.1;
   std::string temp;
   std::stringstream stream;
 
   stream << std::fixed;
-  stream.precision(0);
   stream << this->name_ << " | "
-         << this->specification_.catalogue_number() << " | "
-         << "x:" << floor(this->x_ + 0.5) << " "
-         << "y:" << floor(this->y_ + 0.5) << " "
-         << "z:" << floor(this->z_ + 0.5) << " | "
-         << "AP:" << floor(this->d_ + 0.5) << " | "
-         << "LR:" << floor(this->a_ + 0.5) << " | "
-         << "D:" << floor(this->depth_ + 0.5);
+         << this->specification_.catalogue_number() << " | ";
+  stream.precision(1);
+  stream << "x:" << p*floor(this->x_ / p + 0.5) << " "
+         << "y:" << p*floor(this->y_ / p + 0.5) << " "
+         << "z:" << p*floor(this->z_ / p + 0.5) << " | ";
+  stream.precision(0);
+  stream << "AP:" << floor(this->d_ + 0.5) << " | "
+         << "LR:" << floor(this->a_ + 0.5) << " | ";
+  stream.precision(1);
+  stream << "D:" << p*floor(this->depth_ / p + 0.5);
 
   temp = stream.str();
 

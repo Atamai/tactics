@@ -43,7 +43,9 @@
 #include <fstream>
 #include <sstream>
 
-static const int sliderSubdivisions = 10;
+/* The sliderSubdivisions must be equal to 10^spinBoxDecimals */
+int cbElectrodePlanStage::sliderSubdivisions = 10;
+int cbElectrodePlanStage::spinBoxDecimals = 1;
 
 cbElectrodePlanStage::cbElectrodePlanStage()
   : cbStage(), Plan(), catalogue_(this->get_probe_dir())
@@ -69,9 +71,9 @@ cbElectrodePlanStage::cbElectrodePlanStage()
             depthSlider = new QSlider;
             QSpinBox *depthLabel = new QSpinBox;
           QGroupBox *posBox = new QGroupBox;
-            xSpin = new QSpinBox;
-            ySpin = new QSpinBox;
-            zSpin = new QSpinBox;
+            xSpin = new QDoubleSpinBox;
+            ySpin = new QDoubleSpinBox;
+            zSpin = new QDoubleSpinBox;
           QLabel *placedLabel = new QLabel("Probes:");
           QWidget *crudWidget = new QWidget;
             QPushButton *removeButton = new QPushButton("&Remove");
@@ -228,15 +230,21 @@ cbElectrodePlanStage::cbElectrodePlanStage()
 
   xSpin->setAccelerated(true);
   xSpin->setMinimum(0);
-  xSpin->setMaximum(200*sliderSubdivisions);
+  xSpin->setMaximum(200);
+  xSpin->setDecimals(spinBoxDecimals);
+  xSpin->setSingleStep(1.0/sliderSubdivisions);
 
   ySpin->setAccelerated(true);
   ySpin->setMinimum(0);
-  ySpin->setMaximum(200*sliderSubdivisions);
+  ySpin->setMaximum(200);
+  ySpin->setDecimals(spinBoxDecimals);
+  ySpin->setSingleStep(1.0/sliderSubdivisions);
 
   zSpin->setAccelerated(true);
   zSpin->setMinimum(0);
-  zSpin->setMaximum(200*sliderSubdivisions);
+  zSpin->setMaximum(200);
+  zSpin->setDecimals(spinBoxDecimals);
+  zSpin->setSingleStep(1.0/sliderSubdivisions);
 
   xSpin->setValue(0);
   ySpin->setValue(0);
@@ -246,11 +254,11 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   QRegExpValidator *validator = new QRegExpValidator(rx, this);
   nameEdit->setValidator(validator);
 
-  connect(xSpin, SIGNAL(valueChanged(int)),
+  connect(xSpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbePosition()));
-  connect(ySpin, SIGNAL(valueChanged(int)),
+  connect(ySpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbePosition()));
-  connect(zSpin, SIGNAL(valueChanged(int)),
+  connect(zSpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbePosition()));
   connect(nameEdit, SIGNAL(textChanged(QString)),
           this, SLOT(updateCurrentProbeName(QString)));
@@ -303,10 +311,10 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   depthSlider->setOrientation(Qt::Horizontal);
   depthSlider->setTracking(true);
   depthSlider->setTickInterval(1);
-  depthSlider->setMinimum(depthRange[0]*sliderSubdivisions);
-  depthSlider->setMaximum(depthRange[1]*sliderSubdivisions);
-  depthLabel->setMinimum(depthRange[0]*sliderSubdivisions);
-  depthLabel->setMaximum(depthRange[1]*sliderSubdivisions);
+  depthSlider->setMinimum(depthRange[0]);
+  depthSlider->setMaximum(depthRange[1]);
+  depthLabel->setMinimum(depthRange[0]);
+  depthLabel->setMaximum(depthRange[1]);
   connect(depthSlider,SIGNAL(valueChanged(int)),
           depthLabel, SLOT(setValue(int)));
   connect(depthLabel, SIGNAL(valueChanged(int)),
@@ -450,11 +458,11 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   // disconnect the updateCurrentProbePosition, updateCurrentProbeOrientation
   // slots as they will just cause a bunch of repetitive signals to be sent.
   // A single, uniform signal will be sent at the end
-  disconnect(this->xSpin, SIGNAL(valueChanged(int)),
+  disconnect(this->xSpin, SIGNAL(valueChanged(double)),
              this, SLOT(updateCurrentProbePosition()));
-  disconnect(this->ySpin, SIGNAL(valueChanged(int)),
+  disconnect(this->ySpin, SIGNAL(valueChanged(double)),
              this, SLOT(updateCurrentProbePosition()));
-  disconnect(this->zSpin, SIGNAL(valueChanged(int)),
+  disconnect(this->zSpin, SIGNAL(valueChanged(double)),
              this, SLOT(updateCurrentProbePosition()));
 
   disconnect(this->nameEdit, SIGNAL(textChanged(QString)),
@@ -494,25 +502,26 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   temp.GetOrientation(o);
 
   double depth = temp.GetDepth();
+  double tol = pow(0.1, spinBoxDecimals);
 
-  if (this->xSpin->value() == static_cast<int>(p[0]*sliderSubdivisions) &&
-      this->ySpin->value() == static_cast<int>(p[1]*sliderSubdivisions) &&
-      this->zSpin->value() == static_cast<int>(p[2]*sliderSubdivisions) &&
+  if (fabs(this->xSpin->value() - p[0]) < tol &&
+      fabs(this->ySpin->value() - p[1]) < tol &&
+      fabs(this->zSpin->value() - p[2]) < tol &&
       this->azimuthSlider->value() == static_cast<int>(o[0]) &&
       this->declinationSlider->value() == static_cast<int>(o[1]) &&
-      this->depthSlider->value() == static_cast<int>(depth*sliderSubdivisions)) {
+      this->depthSlider->value() == static_cast<int>(depth)) {
     // No need to update anything
     return;
   }
 
-  this->xSpin->setValue(p[0]*sliderSubdivisions);
-  this->ySpin->setValue(p[1]*sliderSubdivisions);
-  this->zSpin->setValue(p[2]*sliderSubdivisions);
+  this->xSpin->setValue(floor(p[0]/tol + 0.5)*tol);
+  this->ySpin->setValue(floor(p[1]/tol + 0.5)*tol);
+  this->zSpin->setValue(floor(p[2]/tol + 0.5)*tol);
 
   this->azimuthSlider->setValue(o[0]);
   this->declinationSlider->setValue(o[1]);
 
-  this->depthSlider->setValue(depth*sliderSubdivisions);
+  this->depthSlider->setValue(depth);
 
   this->nameEdit->setText(QString(temp.GetName().c_str()));
 
@@ -525,11 +534,11 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   this->updateCurrentProbeDepth();
 
   // Reconnect the slider signals, now that updating has occured.
-  connect(this->xSpin, SIGNAL(valueChanged(int)),
+  connect(this->xSpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbePosition()));
-  connect(this->ySpin, SIGNAL(valueChanged(int)),
+  connect(this->ySpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbePosition()));
-  connect(this->zSpin, SIGNAL(valueChanged(int)),
+  connect(this->zSpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbePosition()));
 
   connect(this->nameEdit, SIGNAL(textChanged(QString)),
@@ -557,9 +566,9 @@ void cbElectrodePlanStage::updateCurrentProbePosition()
   }
 
   double position[3];
-  position[0] = this->xSpin->value()*1.0/sliderSubdivisions;
-  position[1] = this->ySpin->value()*1.0/sliderSubdivisions;
-  position[2] = this->zSpin->value()*1.0/sliderSubdivisions;
+  position[0] = this->xSpin->value();
+  position[1] = this->ySpin->value();
+  position[2] = this->zSpin->value();
 
   // Update the position in the probe
   this->Plan.at(pos).SetPosition(position);
@@ -780,7 +789,7 @@ void cbElectrodePlanStage::updateCurrentProbeDepth()
     return;
   }
 
-  double depth = this->depthSlider->value()*1.0/sliderSubdivisions;
+  double depth = this->depthSlider->value();
 
   // Update the depth in the probe
   this->Plan.at(pos).SetDepth(depth);

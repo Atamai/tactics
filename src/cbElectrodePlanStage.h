@@ -47,7 +47,7 @@ class QComboBox;
 class QLineEdit;
 class QListWidget;
 class QSlider;
-class QSpinBox;
+class QDoubleSpinBox;
 class QTabWidget;
 
 //! Plan stage for the application. Provides a pipeline description.
@@ -138,9 +138,12 @@ private:
   QSlider *depthSlider;
   QSlider *opacitySlider;
 
-  QSpinBox *xSpin;
-  QSpinBox *ySpin;
-  QSpinBox *zSpin;
+  static int sliderSubdivisions;
+  static int spinBoxDecimals;
+
+  QDoubleSpinBox *xSpin;
+  QDoubleSpinBox *ySpin;
+  QDoubleSpinBox *zSpin;
 
   QTabWidget *tabWidget;
 
