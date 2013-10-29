@@ -45,10 +45,6 @@
 
 #include <math.h>
 
-/* The sliderSubdivisions must be equal to 10^spinBoxDecimals */
-int cbElectrodePlanStage::sliderSubdivisions = 10;
-int cbElectrodePlanStage::spinBoxDecimals = 1;
-
 cbElectrodePlanStage::cbElectrodePlanStage()
   : cbStage(), Plan(), catalogue_(this->get_probe_dir())
 {
@@ -71,7 +67,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
             QSpinBox *azimuthLabel = new QSpinBox;
           QGroupBox *depthGroup = new QGroupBox;
             depthSpin = new QDoubleSpinBox;
-            QSlider *depthSlider = new QSlider;
+            depthSlider = new QSlider;
           QGroupBox *posBox = new QGroupBox;
             xSpin = new QDoubleSpinBox;
             ySpin = new QDoubleSpinBox;
@@ -86,6 +82,9 @@ cbElectrodePlanStage::cbElectrodePlanStage()
           QGroupBox *opacityBox = new QGroupBox;
             QSpinBox *opacityLabel = new QSpinBox;
             opacitySlider = new QSlider;
+          QHBoxLayout *precisionLayout = new QHBoxLayout;
+            QComboBox *precisionSelect = new QComboBox();
+            QLabel *precisionLabel = new QLabel("Set plan coord precision.");
           QCheckBox *frameToggle = new QCheckBox("Show frame.");
           QCheckBox *axialToggle = new QCheckBox("Show axial plane.");
           QCheckBox *sagittalToggle = new QCheckBox("Show sagittal plane.");
@@ -93,6 +92,10 @@ cbElectrodePlanStage::cbElectrodePlanStage()
           QCheckBox *probeToggle = new QCheckBox("Show all probes.");
           QCheckBox *helpToggle = new QCheckBox("Show help annotation.");
           QCheckBox *patientToggle = new QCheckBox("Show patient information.");
+
+  // important state information: precision of plan coordinates
+  sliderSubdivisions = 1;
+  spinBoxDecimals = 0;
 
   desc->setReadOnly(true);
   desc->insertHtml(
@@ -129,7 +132,8 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   depthGroup->setLayout(new QFormLayout);
   posBox->setLayout(new QHBoxLayout);
   planWidget->setLayout(new QVBoxLayout);
-  optionWidget->setLayout(new QVBoxLayout);
+  QVBoxLayout *optionWidgetLayout = new QVBoxLayout;
+  optionWidget->setLayout(optionWidgetLayout);
 
   this->widget->setContentsMargins(0,0,0,0);
   vertical->setContentsMargins(0,0,0,0);
@@ -171,21 +175,32 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   planWidget->layout()->addWidget(saveButton);
   planWidget->layout()->addWidget(exportButton);
 
-  optionWidget->layout()->addWidget(opacityBox);
-  optionWidget->layout()->addWidget(frameToggle);
-  optionWidget->layout()->addWidget(axialToggle);
-  optionWidget->layout()->addWidget(sagittalToggle);
-  optionWidget->layout()->addWidget(coronalToggle);
-  optionWidget->layout()->addWidget(probeToggle);
-  optionWidget->layout()->addWidget(helpToggle);
-  optionWidget->layout()->addWidget(patientToggle);
+  precisionSelect->addItem("1.0");
+  precisionSelect->addItem("0.5");
+  precisionSelect->addItem("0.2");
+  precisionSelect->addItem("0.1");
+  precisionLayout->setContentsMargins(0,0,0,0);
+  precisionLayout->setSpacing(0);
+  precisionLayout->addWidget(precisionSelect);
+  precisionLayout->addSpacing(6);
+  precisionLayout->addWidget(precisionLabel, 1, Qt::AlignVCenter);
 
-  QVBoxLayout *optionLayout = qobject_cast<QVBoxLayout *>(optionWidget->layout());
-  optionLayout->addStretch();
+  optionWidgetLayout->addWidget(opacityBox);
+  optionWidgetLayout->addLayout(precisionLayout);
+  optionWidgetLayout->addWidget(frameToggle);
+  optionWidgetLayout->addWidget(axialToggle);
+  optionWidgetLayout->addWidget(sagittalToggle);
+  optionWidgetLayout->addWidget(coronalToggle);
+  optionWidgetLayout->addWidget(probeToggle);
+  optionWidgetLayout->addWidget(helpToggle);
+  optionWidgetLayout->addWidget(patientToggle);
+  optionWidgetLayout->addStretch();
 
   QFormLayout *opacity_layout = new QFormLayout;
   opacity_layout->addRow(opacityLabel, opacitySlider);
   opacity_layout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+  opacity_layout->setAlignment(opacitySlider, Qt::AlignVCenter);
+  opacity_layout->setContentsMargins(0,0,6,0);
   opacityBox->setContentsMargins(0,0,0,0);
   opacityBox->setTitle("Secondary Series Opacity");
   opacityBox->setLayout(opacity_layout);
@@ -204,6 +219,9 @@ cbElectrodePlanStage::cbElectrodePlanStage()
 
   tabWidget->addTab(planWidget, "&Planning");
   tabWidget->addTab(optionWidget, "&Options");
+
+  connect(precisionSelect, SIGNAL(currentIndexChanged(QString)),
+          this, SLOT(setPrecision(QString)));
 
   frameToggle->setChecked(true);
   axialToggle->setChecked(true);
@@ -788,6 +806,37 @@ void cbElectrodePlanStage::opacitySliderChanged(int o)
   int max = this->opacitySlider->maximum();
   double val = static_cast<double>(o)/static_cast<double>(max);
   emit SetCTOpacity(val);
+}
+
+void cbElectrodePlanStage::setPrecision(QString text)
+{
+  double precision = text.toDouble();
+  int oldSubdivisions = sliderSubdivisions;
+  sliderSubdivisions = static_cast<int>(1.0/precision + 0.5);
+  spinBoxDecimals = (sliderSubdivisions > 1 ? 1 : 0);
+
+  xSpin->setDecimals(spinBoxDecimals);
+  xSpin->setSingleStep(1.0/sliderSubdivisions);
+  ySpin->setDecimals(spinBoxDecimals);
+  ySpin->setSingleStep(1.0/sliderSubdivisions);
+  zSpin->setDecimals(spinBoxDecimals);
+  zSpin->setSingleStep(1.0/sliderSubdivisions);
+  depthSpin->setDecimals(spinBoxDecimals);
+  depthSpin->setSingleStep(1.0/sliderSubdivisions);
+
+  disconnect(depthSlider, SIGNAL(valueChanged(int)),
+             this, SLOT(updateDepthSpinBoxInt(int)));
+
+  double depthRange[2];
+  depthRange[0] = depthSlider->minimum()*1.0/oldSubdivisions;
+  depthRange[1] = depthSlider->maximum()*1.0/oldSubdivisions;
+  double depth = depthSlider->value()*1.0/oldSubdivisions;
+  depthSlider->setMinimum(floor(depthRange[0]*sliderSubdivisions + 0.5));
+  depthSlider->setMaximum(floor(depthRange[1]*sliderSubdivisions + 0.5));
+  depthSlider->setValue(floor(depth*sliderSubdivisions + 0.5));
+
+  connect(depthSlider, SIGNAL(valueChanged(int)),
+          this, SLOT(updateDepthSpinBoxInt(int)));
 }
 
 void cbElectrodePlanStage::placeProbeCallback()

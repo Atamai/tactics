@@ -129,7 +129,7 @@ private slots:
   void updateDepthSpinBoxInt(int);
 
   void opacitySliderChanged(int);
-
+  void setPrecision(QString);
   void toggleFrameVisualization(int);
 
   void savePlanReport();
@@ -147,13 +147,14 @@ private:
   QSlider *azimuthSlider;
   QSlider *opacitySlider;
 
-  static int sliderSubdivisions;
-  static int spinBoxDecimals;
+  int sliderSubdivisions;
+  int spinBoxDecimals;
 
   QDoubleSpinBox *xSpin;
   QDoubleSpinBox *ySpin;
   QDoubleSpinBox *zSpin;
   QDoubleSpinBox *depthSpin;
+  QSlider *depthSlider;
 
   QTabWidget *tabWidget;
 
