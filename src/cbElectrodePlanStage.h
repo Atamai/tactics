@@ -95,6 +95,12 @@ signals:
   //! Outgoing signal to save a screenshot of the render window.
   void ExportScreenshot();
 
+  //! Outgoing signal specifically for depth slider and nothing else.
+  void updateDepthSliderInt(int);
+
+  //! Outgoing signal specifically for depth label and nothing else.
+  void updateDepthSpinBoxDouble(double);
+
 public slots:
   //! Incoming signal to destroy all placed probes currently in plan.
   void ClearCurrentPlan();
@@ -119,6 +125,8 @@ private slots:
   void updateCurrentProbeName(QString);
   void updateCurrentProbeType(QString n);
   void updateCurrentProbeDepth();
+  void updateDepthSliderDouble(double);
+  void updateDepthSpinBoxInt(int);
 
   void opacitySliderChanged(int);
 
@@ -129,13 +137,14 @@ private slots:
   void placeProbeCallback();
 
 private:
+  void computeDepthVector(double depth, double vector[3]) const;
+
   QLineEdit *nameEdit;
   QComboBox *typeList;
   QListWidget *placedList;
 
   QSlider *declinationSlider;
   QSlider *azimuthSlider;
-  QSlider *depthSlider;
   QSlider *opacitySlider;
 
   static int sliderSubdivisions;
@@ -144,6 +153,7 @@ private:
   QDoubleSpinBox *xSpin;
   QDoubleSpinBox *ySpin;
   QDoubleSpinBox *zSpin;
+  QDoubleSpinBox *depthSpin;
 
   QTabWidget *tabWidget;
 

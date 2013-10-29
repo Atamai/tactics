@@ -43,6 +43,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <math.h>
+
 /* The sliderSubdivisions must be equal to 10^spinBoxDecimals */
 int cbElectrodePlanStage::sliderSubdivisions = 10;
 int cbElectrodePlanStage::spinBoxDecimals = 1;
@@ -68,8 +70,8 @@ cbElectrodePlanStage::cbElectrodePlanStage()
             azimuthSlider = new QSlider;
             QSpinBox *azimuthLabel = new QSpinBox;
           QGroupBox *depthGroup = new QGroupBox;
-            depthSlider = new QSlider;
-            QSpinBox *depthLabel = new QSpinBox;
+            depthSpin = new QDoubleSpinBox;
+            QSlider *depthSlider = new QSlider;
           QGroupBox *posBox = new QGroupBox;
             xSpin = new QDoubleSpinBox;
             ySpin = new QDoubleSpinBox;
@@ -274,11 +276,15 @@ cbElectrodePlanStage::cbElectrodePlanStage()
                                                         declinationSlider);
   qobject_cast<QFormLayout *>(aGroup->layout())->addRow(azimuthLabel,
                                                         azimuthSlider);
-  qobject_cast<QFormLayout *>(depthGroup->layout())->addRow(depthLabel,
+  qobject_cast<QFormLayout *>(depthGroup->layout())->addRow(depthSpin,
                                                         depthSlider);
   qobject_cast<QHBoxLayout *>(posBox->layout())->addWidget(xSpin);
   qobject_cast<QHBoxLayout *>(posBox->layout())->addWidget(ySpin);
   qobject_cast<QHBoxLayout *>(posBox->layout())->addWidget(zSpin);
+
+  dGroup->layout()->setAlignment(declinationSlider, Qt::AlignVCenter);
+  aGroup->layout()->setAlignment(azimuthSlider, Qt::AlignVCenter);
+  depthGroup->layout()->setAlignment(depthSlider, Qt::AlignVCenter);
 
   int declinationRange[2] = {0, 180};
   int azimuthRange[2] = {0, 180};
@@ -311,24 +317,32 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   depthSlider->setOrientation(Qt::Horizontal);
   depthSlider->setTracking(true);
   depthSlider->setTickInterval(1);
-  depthSlider->setMinimum(depthRange[0]);
-  depthSlider->setMaximum(depthRange[1]);
-  depthLabel->setMinimum(depthRange[0]);
-  depthLabel->setMaximum(depthRange[1]);
-  connect(depthSlider,SIGNAL(valueChanged(int)),
-          depthLabel, SLOT(setValue(int)));
-  connect(depthLabel, SIGNAL(valueChanged(int)),
+  depthSlider->setMinimum(depthRange[0]*sliderSubdivisions);
+  depthSlider->setMaximum(depthRange[1]*sliderSubdivisions);
+
+  depthSpin->setMinimum(depthRange[0]);
+  depthSpin->setMaximum(depthRange[1]);
+  depthSpin->setDecimals(spinBoxDecimals);
+  depthSpin->setSingleStep(1.0/sliderSubdivisions);
+
+  connect(depthSpin, SIGNAL(valueChanged(double)),
+          this, SLOT(updateDepthSliderDouble(double)));
+  connect(this, SIGNAL(updateDepthSliderInt(int)),
           depthSlider, SLOT(setValue(int)));
+  connect(depthSlider, SIGNAL(valueChanged(int)),
+          this, SLOT(updateDepthSpinBoxInt(int)));
+  connect(this, SIGNAL(updateDepthSpinBoxDouble(double)),
+          depthSpin, SLOT(setValue(double)));
 
   azimuthSlider->setValue(90);
   declinationSlider->setValue(90);
-  depthSlider->setValue(0);
+  depthSpin->setValue(0);
 
   connect(azimuthSlider, SIGNAL(valueChanged(int)),
           this, SLOT(updateCurrentProbeOrientation()));
   connect(declinationSlider, SIGNAL(valueChanged(int)),
           this, SLOT(updateCurrentProbeOrientation()));
-  connect(depthSlider, SIGNAL(valueChanged(int)),
+  connect(depthSpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbeDepth()));
 
   connect(removeButton, SIGNAL(clicked()), this, SLOT(RemoveCurrentFromPlan()));
@@ -475,7 +489,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
              this, SLOT(updateCurrentProbeOrientation()));
   disconnect(this->declinationSlider, SIGNAL(valueChanged(int)),
              this, SLOT(updateCurrentProbeOrientation()));
-  disconnect(this->depthSlider, SIGNAL(valueChanged(int)),
+  disconnect(this->depthSpin, SIGNAL(valueChanged(double)),
              this, SLOT(updateCurrentProbeDepth()));
 
   if (pos == -1 || this->placedList->count() <= 0) {
@@ -486,7 +500,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
     this->azimuthSlider->setValue(90);
     this->declinationSlider->setValue(90);
 
-    this->depthSlider->setValue(0);
+    this->depthSpin->setValue(0);
 
     this->nameEdit->setText(QString::number(0));
     this->typeList->setCurrentIndex(0);
@@ -509,7 +523,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
       fabs(this->zSpin->value() - p[2]) < tol &&
       this->azimuthSlider->value() == static_cast<int>(o[0]) &&
       this->declinationSlider->value() == static_cast<int>(o[1]) &&
-      this->depthSlider->value() == static_cast<int>(depth)) {
+      fabs(this->depthSpin->value() - depth) < tol) {
     // No need to update anything
     return;
   }
@@ -521,7 +535,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   this->azimuthSlider->setValue(o[0]);
   this->declinationSlider->setValue(o[1]);
 
-  this->depthSlider->setValue(depth);
+  this->depthSpin->setValue(depth);
 
   this->nameEdit->setText(QString(temp.GetName().c_str()));
 
@@ -551,7 +565,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
           this, SLOT(updateCurrentProbeOrientation()));
   connect(this->declinationSlider, SIGNAL(valueChanged(int)),
           this, SLOT(updateCurrentProbeOrientation()));
-  connect(this->depthSlider, SIGNAL(valueChanged(int)),
+  connect(this->depthSpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbeDepth()));
 }
 
@@ -621,8 +635,9 @@ void cbElectrodePlanStage::savePlanReport()
 
   QMessageBox box;
   box.setText(plan.str().c_str());
-  box.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
+  box.setStandardButtons(QMessageBox::Save | QMessageBox::Close);
   box.setDefaultButton(QMessageBox::Save);
+
   int ret = box.exec();
 
   if (ret != QMessageBox::Save) {
@@ -789,7 +804,13 @@ void cbElectrodePlanStage::updateCurrentProbeDepth()
     return;
   }
 
-  double depth = this->depthSlider->value();
+  double depth = this->depthSpin->value();
+  double v[3];
+  this->computeDepthVector(depth, v);
+  // round to 1 decimal place
+  for (int i = 0; i < 3; i++) {
+    v[i] = 0.1*floor(v[i]/0.1 + 0.5);
+  }
 
   // Update the depth in the probe
   this->Plan.at(pos).SetDepth(depth);
@@ -801,4 +822,31 @@ void cbElectrodePlanStage::updateCurrentProbeDepth()
   item->setText(str);
 
   emit UpdateProbeCallback(pos, this->Plan.at(pos));
+}
+
+void cbElectrodePlanStage::updateDepthSliderDouble(double depth)
+{
+  // round double into an integer after multiplying to account for
+  // the difference in resolution between spin box and slider
+  emit updateDepthSliderInt(
+    static_cast<int>(floor(depth*sliderSubdivisions + 0.5)));
+}
+
+void cbElectrodePlanStage::updateDepthSpinBoxInt(int depthInt)
+{
+  // divide integer to create a double with a higher resolution
+  emit updateDepthSpinBoxDouble(
+    static_cast<double>(depthInt)/sliderSubdivisions);
+}
+
+void cbElectrodePlanStage::computeDepthVector(double depth, double v[3]) const
+{
+  const double degreesPerRadian = 180.0/3.1415926535897931;
+
+  double theta = this->azimuthSlider->value()/degreesPerRadian;
+  double phi = this->declinationSlider->value()/degreesPerRadian;
+
+  v[0] = -depth*cos(theta);
+  v[1] = depth*sin(theta)*cos(phi);
+  v[2] = -depth*sin(theta)*sin(phi);
 }
