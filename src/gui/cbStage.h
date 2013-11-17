@@ -53,7 +53,7 @@ public:
   int ID() const { return id; }
 
   //! Returns the stage's name. ie: 'Open Study Data'.
-  virtual char *getStageName() const = 0;
+  virtual const char *getStageName() const = 0;
 
   //! Returns the stage's internal sidebar representation.
   virtual QWidget *Widget();
