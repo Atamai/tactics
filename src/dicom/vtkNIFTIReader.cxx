@@ -33,6 +33,7 @@
 
 // Header for NIFTI
 #include "vtkNIFTIHeader.h"
+#include "vtkNIFTIHeaderPrivate.h"
 
 // Header for zlib
 #include "vtk_zlib.h"
@@ -74,110 +75,14 @@ vtkNIFTIReader::~vtkNIFTIReader()
     {
     this->SFormMatrix->Delete();
     }
-  delete this->NIFTIHeader;
+  if (this->NIFTIHeader)
+    {
+    this->NIFTIHeader->Delete();
+    }
 }
 
 //----------------------------------------------------------------------------
 namespace { // anonymous namespace
-
-void vtkNIFTIReaderPrintHeader(
-  nifti_1_header *hdr, ostream& os, vtkIndent indent)
-{
-  os << indent << "sizeof_hdr: " << hdr->sizeof_hdr << "\n";
-  //os << "data_type: " << hdr->data_type << "\n";
-  //os << "db_name: " << hdr->db_name << "\n";
-  //os << "extents: " << hdr->extents << "\n";
-  //os << "session_error: " << hdr->session_error << "\n";
-  //os << "regular: " << static_cast<int>(hdr->regular) << "\n";
-  os.setf(std::ios::hex, std::ios::basefield);
-  os << indent << "dim_info: 0x" << static_cast<int>(hdr->dim_info) << "\n";
-  os.unsetf(std::ios::hex);
-  os << indent << "dim:";
-  for (int i = 0; i < 8; i++)
-    {
-    os << " " << hdr->dim[i];
-    }
-  os << "\n";
-  os << indent << "intent_p1: " << hdr->intent_p1 << "\n";
-  os << indent << "intent_p2: " << hdr->intent_p2 << "\n";
-  os << indent << "intent_p3: " << hdr->intent_p3 << "\n";
-  os << indent << "intent_code: " << hdr->intent_code << "\n";
-  os << indent << "datatype: " << hdr->datatype << "\n";
-  os << indent << "bitpix: " << hdr->bitpix << "\n";
-  os << indent << "slice_start: " << hdr->slice_start << "\n";
-  os << indent << "pixdim:";
-  for (int i = 0; i < 8; i++)
-    {
-    os << " " << hdr->pixdim[i];
-    }
-  os << "\n";
-  os << indent << "vox_offset: " << hdr->vox_offset << "\n";
-  os << indent << "scl_slope: " << hdr->scl_slope << "\n";
-  os << indent << "scl_inter: " << hdr->scl_inter << "\n";
-  os << indent << "slice_end: " << hdr->slice_end << "\n";
-  os << indent << "slice_code: " << static_cast<int>(hdr->slice_code) << "\n";
-  os.setf(std::ios::hex, std::ios::basefield);
-  os << indent << "xyzt_units: 0x" << static_cast<int>(hdr->xyzt_units) << "\n";
-  os.unsetf(std::ios::hex);
-  os << indent << "cal_max: " << hdr->cal_max << "\n";
-  os << indent << "cal_min: " << hdr->cal_min << "\n";
-  os << indent << "slice_duration: " << hdr->slice_duration << "\n";
-  os << indent << "toffset: " << hdr->toffset << "\n";
-  os << indent << "glmax: " << hdr->glmax << "\n";
-  os << indent << "glmin: " << hdr->glmin << "\n";
-  os << indent << "descrip: \"";
-  for (size_t j = 0; j < sizeof(hdr->descrip) && hdr->descrip[j] != '\0'; j++)
-    {
-    os << (isprint(hdr->descrip[j]) ? hdr->descrip[j] : '?');
-    }
-  os << "\"\n";
-  os << indent << "aux_file: \"";
-  for (size_t j = 0; j < sizeof(hdr->aux_file) && hdr->aux_file[j] != '\0'; j++)
-    {
-    os << (isprint(hdr->aux_file[j]) ? hdr->aux_file[j] : '?');
-    }
-  os << "\"\n";
-  os << indent << "qform_code: " << hdr->qform_code << "\n";
-  os << indent << "sform_code: " << hdr->sform_code << "\n";
-  os << indent << "quatern_b: " << hdr->quatern_b << "\n";
-  os << indent << "quatern_c: " << hdr->quatern_c << "\n";
-  os << indent << "quatern_d: " << hdr->quatern_d << "\n";
-  os << indent << "qoffset_x: " << hdr->qoffset_x << "\n";
-  os << indent << "qoffset_y: " << hdr->qoffset_y << "\n";
-  os << indent << "qoffset_z: " << hdr->qoffset_z << "\n";
-  os << indent << "srow_x:";
-  for (int i = 0; i < 4; i++)
-    {
-    os << " " << hdr->srow_x[i];
-    }
-  os << "\n";
-  os << indent << "srow_y:";
-  for (int i = 0; i < 4; i++)
-    {
-    os << " " << hdr->srow_y[i];
-    }
-  os << "\n";
-  os << indent << "srow_z:";
-  for (int i = 0; i < 4; i++)
-    {
-    os << " " << hdr->srow_z[i];
-    }
-  os << "\n";
-  os << indent << "intent_name: \"";
-  for (size_t j = 0;
-       j < sizeof(hdr->intent_name) && hdr->intent_name[j] != '\0';
-       j++)
-    {
-    os << (isprint(hdr->intent_name[j]) ? hdr->intent_name[j] : '?');
-    }
-  os << "\"\n";
-  os << indent << "magic: \"";
-  for (size_t j = 0; j < sizeof(hdr->magic) && hdr->magic[j] != '\0'; j++)
-    {
-    os << (isprint(hdr->magic[j]) ? hdr->magic[j] : '?');
-    }
-  os << "\"" << endl;
-}
 
 void vtkNIFTIReaderSwapHeader(nifti_1_header *hdr)
 {
@@ -220,6 +125,16 @@ void vtkNIFTIReaderSwapHeader(nifti_1_header *hdr)
 }
 
 } // end anonymous namespace
+
+//----------------------------------------------------------------------------
+vtkNIFTIHeader *vtkNIFTIReader::GetNIFTIHeader()
+{
+  if (!this->NIFTIHeader)
+    {
+    this->NIFTIHeader = vtkNIFTIHeader::New();
+    }
+  return this->NIFTIHeader;
+}
 
 //----------------------------------------------------------------------------
 void vtkNIFTIReader::PrintSelf(ostream& os, vtkIndent indent)
@@ -267,11 +182,6 @@ void vtkNIFTIReader::PrintSelf(ostream& os, vtkIndent indent)
     }
 
   os << indent << "NIFTIHeader:" << (this->NIFTIHeader ? "\n" : " (none)\n");
-  if (this->NIFTIHeader)
-    {
-    vtkNIFTIReaderPrintHeader(
-      this->NIFTIHeader, os, indent.GetNextIndent());
-    }
 }
 
 //----------------------------------------------------------------------------
@@ -408,10 +318,6 @@ int vtkNIFTIReader::RequestInformation(
   // Clear the error indicator.
   this->SetErrorCode(vtkErrorCode::NoError);
 
-  // Delete the previously stored header
-  delete this->NIFTIHeader;
-  this->NIFTIHeader = 0;
-
   const char *filename = this->GetFileName();
 
   if (!filename)
@@ -492,18 +398,6 @@ int vtkNIFTIReader::RequestInformation(
     vtkNIFTIReaderSwapHeader(hdr);
     isLittleEndian = !isLittleEndian;
     }
-
-#ifndef NDEBUG
-  if (this->GetDebug())
-    {
-    vtkIndent indent;
-    vtksys_ios::ostringstream ostr;
-    ostr << "\n";
-    vtkNIFTIReaderPrintHeader(hdr, ostr, indent);
-
-    vtkDebugMacro(<< ostr.str());
-    }
-#endif /* NDEBUG */
 
   // number of dimensions
   int ndim = hdr->dim[0];
@@ -943,7 +837,12 @@ int vtkNIFTIReader::RequestInformation(
     }
 
   // Save the header
-  this->NIFTIHeader = hdr;
+  if (!this->NIFTIHeader)
+    {
+    this->NIFTIHeader = vtkNIFTIHeader::New();
+    }
+  this->NIFTIHeader->SetHeader(hdr);
+  delete hdr;
 
   return 1;
 }

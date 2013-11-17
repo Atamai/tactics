@@ -18,6 +18,7 @@
 #include "vtkDICOMValue.h"
 
 class vtkDICOMItem;
+class vtkDICOMTagPath;
 
 //! A sequence of items according to the SQ representation.
 /*!
@@ -31,14 +32,22 @@ class VTK_DICOM_EXPORT vtkDICOMSequence
 {
 public:
   //! Construct a growable sequence with no items.
-  vtkDICOMSequence() {}
+  vtkDICOMSequence() {
+    this->V.AppendInit<vtkDICOMItem>(vtkDICOMVR::SQ); }
 
   //! Construct a sequence of fixed size.
   explicit vtkDICOMSequence(unsigned int n) {
-    if (n) { this->V.AllocateSequenceData(vtkDICOMVR::SQ, n); } }
+    this->V.AllocateSequenceData(vtkDICOMVR::SQ, n); }
 
   //! Clear a sequence, remove its contents and make it empty.
-  void Clear() { this->V.Clear(); }
+  void Clear() {
+    this->V.AppendInit<vtkDICOMItem>(vtkDICOMVR::SQ); }
+
+  //! Get a value from an item in the sequence.
+  const vtkDICOMValue &GetAttributeValue(
+    unsigned int i, vtkDICOMTag tag) const;
+  const vtkDICOMValue &GetAttributeValue(
+    unsigned int i, const vtkDICOMTagPath &p) const;
 
   //! Add an item to the sequence.
   /*!
@@ -48,7 +57,7 @@ public:
    *  sequence rather than a fixed-size sequence.
    */
   void AddItem(const vtkDICOMItem& item) {
-    this->V.AppendValue(vtkDICOMVR::SQ, item); }
+    this->V.AppendValue(item); }
 
   //! Get the number of items in the sequence.
   unsigned int GetNumberOfItems() const {
@@ -65,30 +74,33 @@ public:
   //! Get an item from the sequence.
   const vtkDICOMItem& GetItem(unsigned int i) const;
 
-  //! Get an iterator for the items in the sequence.
+  //! Get a pointer to the items in the sequence.
   const vtkDICOMItem *GetSequenceData() const {
     return this->V.GetSequenceData(); }
 
-  //! Use value copy constructor
+  //! Copy constructor.
   vtkDICOMSequence(const vtkDICOMSequence& o) : V(o.V) {}
 
-  //! Conversion from other value types is checked.
+  //! Conversion from value to sequence is type checked.
   vtkDICOMSequence(const vtkDICOMValue& o) : V(o) {
     if (o.GetVR() != vtkDICOMVR::SQ) { this->V.Clear(); } }
 
-  //! Use base class assignment operator.
+  //! Assignment operator.
   vtkDICOMSequence& operator=(const vtkDICOMSequence& o) {
     this->V = o.V; return *this; }
 
-  //! Assignment from other value types is checked
+  //! Assignment from value to sequence is type checked.
   vtkDICOMSequence& operator=(const vtkDICOMValue& o) {
-    if (o.GetVR() == vtkDICOMVR::SQ) { this->V = o; return *this; }
-    else { this->V.Clear(); } }
+    if (o.GetVR() == vtkDICOMVR::SQ) { this->V = o; }
+    else { this->V.Clear(); } return *this; }
 
 private:
   friend class vtkDICOMValue;
 
   vtkDICOMValue V;
+
+  //! An invalid value, for when one is needed.
+  static const vtkDICOMValue InvalidValue;
 };
 
 VTK_DICOM_EXPORT ostream& operator<<(ostream& os, const vtkDICOMSequence& v);

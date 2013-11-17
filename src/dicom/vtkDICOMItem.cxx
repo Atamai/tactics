@@ -12,12 +12,26 @@
 
 =========================================================================*/
 #include "vtkDICOMItem.h"
+#include "vtkDICOMDictionary.h"
+#include "vtkDICOMTagPath.h"
 
 #include <assert.h>
 
 //----------------------------------------------------------------------------
 // For use by methods that must return an invalid value
 const vtkDICOMValue vtkDICOMItem::InvalidValue;
+
+//----------------------------------------------------------------------------
+vtkDICOMItem::vtkDICOMItem(int delimited)
+{
+  this->L = new List;
+  this->L->NumberOfDataElements = 0;
+  this->L->Delimited = (delimited != 0);
+  this->L->Head.Prev = 0;
+  this->L->Head.Next = &this->L->Tail;
+  this->L->Tail.Prev = &this->L->Head;
+  this->L->Tail.Next = 0;
+}
 
 //----------------------------------------------------------------------------
 void vtkDICOMItem::FreeList()
@@ -55,6 +69,7 @@ void vtkDICOMItem::CopyList(const List *o, List *t)
     }
 
   t->NumberOfDataElements = o->NumberOfDataElements;
+  t->Delimited = o->Delimited;
 }
 
 //----------------------------------------------------------------------------
@@ -66,6 +81,7 @@ void vtkDICOMItem::SetAttributeValue(
     {
     this->L = new List;
     this->L->NumberOfDataElements = 0;
+    this->L->Delimited = 0;
     this->L->Head.Prev = 0;
     this->L->Head.Next = &this->L->Tail;
     this->L->Tail.Prev = &this->L->Head;
@@ -110,6 +126,28 @@ void vtkDICOMItem::SetAttributeValue(
 }
 
 //----------------------------------------------------------------------------
+template<class T>
+void vtkDICOMItem::SetAttributeValueT(vtkDICOMTag tag, T v)
+{
+  vtkDICOMVR vr = this->FindDictVR(tag);
+  assert(vr != vtkDICOMVR::UN);
+  if (vr != vtkDICOMVR::UN)
+    {
+    this->SetAttributeValue(tag, vtkDICOMValue(vr, v));
+    }
+}
+
+void vtkDICOMItem::SetAttributeValue(vtkDICOMTag tag, double v)
+{
+  this->SetAttributeValueT(tag, v);
+}
+
+void vtkDICOMItem::SetAttributeValue(vtkDICOMTag tag, const std::string& v)
+{
+  this->SetAttributeValueT(tag, v);
+}
+
+//----------------------------------------------------------------------------
 const vtkDICOMValue &vtkDICOMItem::GetAttributeValue(
   vtkDICOMTag tag) const
 {
@@ -127,6 +165,75 @@ const vtkDICOMValue &vtkDICOMItem::GetAttributeValue(
       }
     }
   return vtkDICOMItem::InvalidValue;
+}
+
+//----------------------------------------------------------------------------
+const vtkDICOMValue &vtkDICOMItem::GetAttributeValue(
+  const vtkDICOMTagPath &tagpath) const
+{
+  const vtkDICOMValue &v = this->GetAttributeValue(tagpath.GetHead());
+  if (!tagpath.HasTail())
+    {
+    return v;
+    }
+  if (v.IsValid())
+    {
+    unsigned int i = tagpath.GetIndex();
+    unsigned int n = v.GetNumberOfValues();
+    const vtkDICOMItem *items = v.GetSequenceData();
+    if (items != 0 && i < n)
+      {
+      return items[i].GetAttributeValue(tagpath.GetTail());
+      }
+    }
+  return vtkDICOMItem::InvalidValue;
+}
+
+//----------------------------------------------------------------------------
+vtkDICOMVR vtkDICOMItem::FindDictVR(vtkDICOMTag tag) const
+{
+  vtkDICOMVR vr = vtkDICOMVR::UN;
+  vtkDICOMDictEntry e = this->FindDictEntry(tag);
+
+  if (e.IsValid())
+    {
+    vr = e.GetVR();
+    // make sure the dict knows the concrete vr
+    if (vr == vtkDICOMVR::XS || vr == vtkDICOMVR::OX)
+      {
+      vr = vtkDICOMVR::UN;
+      }
+    }
+
+  return vr;
+}
+
+//----------------------------------------------------------------------------
+vtkDICOMDictEntry vtkDICOMItem::FindDictEntry(vtkDICOMTag tag) const
+{
+  unsigned short group = tag.GetGroup();
+  unsigned short element = tag.GetElement();
+
+  // note that there is similar code in vtkDICOMMetaData
+  const char *dict = 0;
+  if (group & 1)
+    {
+    unsigned short creatorElement = element;
+    if (element > 0x00ffu)
+      {
+      creatorElement = (element >> 8);
+      element = (0x1000u | (element & 0x00ffu));
+      }
+    else
+      {
+      element = 0x0010u;
+      }
+    tag = vtkDICOMTag(group, element);
+    vtkDICOMTag creatorTag(group, creatorElement);
+    dict = this->GetAttributeValue(creatorTag).GetCharData();
+    }
+
+  return vtkDICOMDictionary::FindDictEntry(tag, dict);
 }
 
 //----------------------------------------------------------------------------

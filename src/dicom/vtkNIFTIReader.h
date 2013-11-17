@@ -26,19 +26,19 @@
 // This class was contributed to VTK by the Calgary Image Processing and
 // Analysis Centre (CIPAC).
 // .SECTION See Also
-// vtkNIFTIWriter
+// vtkNIFTIWriter, vtkNIFTIHeader
 
 #ifndef __vtkNIFTIReader_h
 #define __vtkNIFTIReader_h
 
 #include <vtkImageReader2.h>
-//#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h"
 
+class vtkNIFTIHeader;
 class vtkMatrix4x4;
-struct nifti_1_header;
 
 //----------------------------------------------------------------------------
-class VTK_EXPORT vtkNIFTIReader : public vtkImageReader2
+class VTK_DICOM_EXPORT vtkNIFTIReader : public vtkImageReader2
 {
 public:
   // Description:
@@ -83,6 +83,8 @@ public:
   // Get the slope and intercept for rescaling the scalar values.
   // These values allow calibration of the data to real values.
   // Use the equation v = u*RescaleSlope + RescaleIntercept.
+  // This directly returns the values stored in the scl_slope and
+  // scl_inter fields in the NIFTI header.
   double GetRescaleSlope() { return this->RescaleSlope; }
   double GetRescaleIntercept() { return this->RescaleIntercept; }
 
@@ -124,6 +126,10 @@ public:
   // column of this matrix is multiplied by -1 and the Z offset is shifted
   // to compensate for the fact that the last slice has become the first.
   vtkMatrix4x4 *GetSFormMatrix() { return this->SFormMatrix; }
+
+  // Description:
+  // Get the raw header information from the NIfTI file.
+  vtkNIFTIHeader *GetNIFTIHeader();
 
 protected:
   vtkNIFTIReader();
@@ -179,7 +185,7 @@ protected:
 
   // Description:
   // A copy of the header from the file that was most recently read.
-  nifti_1_header *NIFTIHeader;
+  vtkNIFTIHeader *NIFTIHeader;
 
 private:
   vtkNIFTIReader(const vtkNIFTIReader&);  // Not implemented.

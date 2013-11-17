@@ -132,7 +132,7 @@ vtkDICOMValue::ValueT<char>::ValueT(vtkDICOMVR vr, unsigned int vn)
   this->VR = vr;
   this->Type = VTK_CHAR;
   this->VL = vn + (vn & 1); // pad VL to make it even
-  this->NumberOfValues = 1;
+  this->NumberOfValues = (vn > 0);
 }
 
 // Construct a "bytes" value.
@@ -215,7 +215,8 @@ T *vtkDICOMValue::Allocate(vtkDICOMVR vr, unsigned int vn)
   this->Clear();
   // Use C++ "placement new" to allocate a single block of memory that
   // includes both the Value struct and the array of values.
-  void *vp = ValueMalloc(sizeof(Value) + vn*sizeof(T));
+  unsigned int n = vn + !vn; // add one if zero
+  void *vp = ValueMalloc(sizeof(Value) + n*sizeof(T));
   ValueT<T> *v = new(vp) ValueT<T>(vr, vn);
   // Test the assumption that Data is at an offset of sizeof(Value)
   assert(static_cast<char *>(static_cast<void *>(v->Data)) ==
@@ -308,13 +309,17 @@ void vtkDICOMValue::ComputeNumberOfValuesForCharData()
 {
   if (this->V && this->V->Type == VTK_CHAR)
     {
-    if (this->V->VR == vtkDICOMVR::LT ||
-        this->V->VR == vtkDICOMVR::ST ||
-        this->V->VR == vtkDICOMVR::UT)
+    if (this->V->VL == 0)
+      {
+      this->V->NumberOfValues = 0;
+      }
+    else if (this->V->VR == vtkDICOMVR::LT ||
+             this->V->VR == vtkDICOMVR::ST ||
+             this->V->VR == vtkDICOMVR::UT)
       {
       this->V->NumberOfValues = 1;
       }
-    else if (this->V->VL > 0)
+    else
       {
       const char *ptr = static_cast<const ValueT<char> *>(this->V)->Data;
       unsigned int vl = this->V->VL;
@@ -525,6 +530,8 @@ void vtkDICOMValue::CreateValue<vtkDICOMTag>(
   assert(size*4 <= 0xffffffffu);
   unsigned int n = static_cast<unsigned int>(size);
 
+  this->V = 0;
+
   if (vr == VR::AT)
     {
     vtkDICOMTag *ptr = this->AllocateTagData(vr, n);
@@ -583,7 +590,7 @@ void vtkDICOMValue::CreateValue<char>(
     }
 
   // count the number of backslash-separated values
-  unsigned int n = 1;
+  unsigned int n = (m > 0);
   for (unsigned int i = 0; i < m; i++)
     {
     n += (data[i] == '\\');
@@ -707,6 +714,67 @@ vtkDICOMValue::vtkDICOMValue(
 }
 
 //----------------------------------------------------------------------------
+vtkDICOMValue::vtkDICOMValue(vtkDICOMVR vr)
+{
+  typedef vtkDICOMVR VR;
+
+  this->V = 0;
+
+  if (vr == VR::AE || vr == VR::AS || vr == VR::CS ||
+      vr == VR::DA || vr == VR::DS || vr == VR::DT ||
+      vr == VR::IS || vr == VR::LO || vr == VR::PN ||
+      vr == VR::SH || vr == VR::TM || vr == VR::UI ||
+      vr == VR::ST || vr == VR::LT || vr == VR::UT)
+    {
+    this->AllocateCharData(vr, 0);
+    }
+  else if (vr == VR::OW || vr == VR::OX)
+    {
+    this->AllocateShortData(vr, 0);
+    }
+  else if (vr == VR::OF)
+    {
+    this->AllocateFloatData(vr, 0);
+    }
+  else if (vr == VR::UN)
+    {
+    this->AllocateUnsignedCharData(vr, 0);
+    }
+  else if (vr == VR::FD)
+    {
+    this->AllocateDoubleData(vr, 0);
+    }
+  else if (vr == VR::FL)
+    {
+    this->AllocateFloatData(vr, 0);
+    }
+  else if (vr == VR::UL)
+    {
+    this->AllocateUnsignedIntData(vr, 0);
+    }
+  else if (vr == VR::SL)
+    {
+    this->AllocateIntData(vr, 0);
+    }
+  else if (vr == VR::US)
+    {
+    this->AllocateUnsignedShortData(vr, 0);
+    }
+  else if (vr == VR::SS || vr == VR::XS)
+    {
+    this->AllocateShortData(vr, 0);
+    }
+  else if (vr == VR::AT)
+    {
+    this->AllocateTagData(vr, 0);
+    }
+  else if (vr == VR::SQ)
+    {
+    this->AllocateSequenceData(vr, 0);
+    }
+}
+
+//----------------------------------------------------------------------------
 // It is necessary to check the Type so that the correct information can
 // be freed.  The constructor guarantees that Type is always set correctly.
 void vtkDICOMValue::FreeValue(Value *v)
@@ -737,17 +805,27 @@ void vtkDICOMValue::FreeValue(Value *v)
     ValueFree(v);
     }
 }
+//----------------------------------------------------------------------------
+template<class T>
+void vtkDICOMValue::AppendInit(vtkDICOMVR vr)
+{
+  this->Clear();
+  this->Allocate<T>(vr, 2);
+  // mark as empty but growable
+  this->V->NumberOfValues = 0;
+  this->V->VL = 0xffffffff;
+}
+
+template void vtkDICOMValue::AppendInit<vtkDICOMItem>(vtkDICOMVR vr);
 
 //----------------------------------------------------------------------------
 template<class T>
-void vtkDICOMValue::AppendValue(vtkDICOMVR vr, const T &item)
+void vtkDICOMValue::AppendValue(const T &item)
 {
-  // create value if it doesn't exist yet
+  // do nothing if not initialized yet
   if (this->V == 0)
     {
-    this->Allocate<T>(vr, 2);
-    this->V->NumberOfValues = 0;
-    this->V->VL = 0xffffffff;
+    return;
     }
 
   T *ptr = static_cast<vtkDICOMValue::ValueT<T> *>(this->V)->Data;
@@ -755,7 +833,6 @@ void vtkDICOMValue::AppendValue(vtkDICOMVR vr, const T &item)
   unsigned int n = this->V->NumberOfValues;
   unsigned int nn = 0;
   // reallocate if not unique reference, or not yet growable
-  assert(this->V->ReferenceCount == 1);
   if (this->V->ReferenceCount != 1 || this->V->VL != 0xffffffff)
     {
     // get next power of two that is greater than n
@@ -773,7 +850,7 @@ void vtkDICOMValue::AppendValue(vtkDICOMVR vr, const T &item)
     vtkDICOMValue::Value *v = this->V;
     ++(v->ReferenceCount);
     const T *cptr = ptr;
-    ptr = this->Allocate<T>(vr, nn);
+    ptr = this->Allocate<T>(v->VR, nn);
     this->V->NumberOfValues = n;
     for (unsigned int i = 0; i < n; i++)
       {
@@ -792,10 +869,7 @@ void vtkDICOMValue::AppendValue(vtkDICOMVR vr, const T &item)
 }
 
 template void vtkDICOMValue::AppendValue<vtkDICOMItem>(
-  vtkDICOMVR vr, const vtkDICOMItem& item);
-
-template void vtkDICOMValue::AppendValue<unsigned short>(
-  vtkDICOMVR vr, const unsigned short& item);
+  const vtkDICOMItem& item);
 
 //----------------------------------------------------------------------------
 template<class T>
@@ -824,9 +898,6 @@ void vtkDICOMValue::SetValue(unsigned int i, const T &item)
 
 template void vtkDICOMValue::SetValue<vtkDICOMItem>(
   unsigned int i, const vtkDICOMItem& item);
-
-template void vtkDICOMValue::SetValue<unsigned short>(
-  unsigned int i, const unsigned short& item);
 
 //----------------------------------------------------------------------------
 const char *vtkDICOMValue::GetCharData() const
@@ -1209,7 +1280,7 @@ vtkDICOMTag vtkDICOMValue::GetTag(unsigned int i) const
 unsigned char vtkDICOMValue::AsUnsignedChar() const
 {
   unsigned char v = 0;
-  if (this->V && this->V->NumberOfValues == 1)
+  if (this->V && this->V->NumberOfValues >= 1)
     {
     this->GetValuesT(&v, &v + 1, 0);
     }
@@ -1219,7 +1290,7 @@ unsigned char vtkDICOMValue::AsUnsignedChar() const
 short vtkDICOMValue::AsShort() const
 {
   short v = 0;
-  if (this->V && this->V->NumberOfValues == 1)
+  if (this->V && this->V->NumberOfValues >= 1)
     {
     this->GetValuesT(&v, &v + 1, 0);
     }
@@ -1229,7 +1300,7 @@ short vtkDICOMValue::AsShort() const
 unsigned short vtkDICOMValue::AsUnsignedShort() const
 {
   unsigned short v = 0;
-  if (this->V && this->V->NumberOfValues == 1)
+  if (this->V && this->V->NumberOfValues >= 1)
     {
     this->GetValuesT(&v, &v + 1, 0);
     }
@@ -1239,7 +1310,7 @@ unsigned short vtkDICOMValue::AsUnsignedShort() const
 int vtkDICOMValue::AsInt() const
 {
   int v = 0;
-  if (this->V && this->V->NumberOfValues == 1)
+  if (this->V && this->V->NumberOfValues >= 1)
     {
     this->GetValuesT(&v, &v + 1, 0);
     }
@@ -1249,7 +1320,7 @@ int vtkDICOMValue::AsInt() const
 unsigned int vtkDICOMValue::AsUnsignedInt() const
 {
   unsigned int v = 0;
-  if (this->V && this->V->NumberOfValues == 1)
+  if (this->V && this->V->NumberOfValues >= 1)
     {
     this->GetValuesT(&v, &v + 1, 0);
     }
@@ -1259,7 +1330,7 @@ unsigned int vtkDICOMValue::AsUnsignedInt() const
 float vtkDICOMValue::AsFloat() const
 {
   float v = 0.0;
-  if (this->V && this->V->NumberOfValues == 1)
+  if (this->V && this->V->NumberOfValues >= 1)
     {
     this->GetValuesT(&v, &v + 1, 0);
     }
@@ -1269,7 +1340,7 @@ float vtkDICOMValue::AsFloat() const
 double vtkDICOMValue::AsDouble() const
 {
   double v = 0.0;
-  if (this->V && this->V->NumberOfValues == 1)
+  if (this->V && this->V->NumberOfValues >= 1)
     {
     this->GetValuesT(&v, &v + 1, 0);
     }
@@ -1278,10 +1349,39 @@ double vtkDICOMValue::AsDouble() const
 
 std::string vtkDICOMValue::AsString() const
 {
-  std::string v;
-  if (this->V && this->V->NumberOfValues == 1)
+  const char *cp = this->GetCharData();
+  if (cp)
     {
-    this->AppendValueToString(v, 0);
+    size_t l = this->V->VL;
+    vtkDICOMVR vr = this->V->VR;
+    if (vr != vtkDICOMVR::ST &&
+        vr != vtkDICOMVR::LT &&
+        vr != vtkDICOMVR::UT)
+      {
+      while (l > 0 && (cp[l-1] == ' ' || cp[l-1] == '\0'))
+        {
+        l--;
+        }
+      }
+    return std::string(cp, l);
+    }
+
+  std::string v;
+  if (this->V && this->V->VR != vtkDICOMVR::UN &&
+      this->V->VR != vtkDICOMVR::SQ &&
+      this->V->VR != vtkDICOMVR::OW &&
+      this->V->VR != vtkDICOMVR::OB &&
+      this->V->VR != vtkDICOMVR::OF)
+    {
+    unsigned int n = this->V->NumberOfValues;
+    for (unsigned int i = 0; i < n; i++)
+      {
+      if (i > 0)
+        {
+        v.append("\\");
+        }
+      this->AppendValueToString(v, i);
+      }
     }
   return v;
 }
@@ -1290,7 +1390,7 @@ vtkDICOMTag vtkDICOMValue::AsTag() const
 {
   vtkDICOMTag v;
   if (this->V && this->V->VR == vtkDICOMVR::AT &&
-      this->V->NumberOfValues == 1)
+      this->V->NumberOfValues >= 1)
     {
     this->GetValuesT(&v, &v + 1, 0);
     }

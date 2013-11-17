@@ -13,8 +13,8 @@ endif()
 
 # Project version
 set(DICOM_MAJOR_VERSION 0)
-set(DICOM_MINOR_VERSION 1)
-set(DICOM_BUILD_VERSION 0)
+set(DICOM_MINOR_VERSION 3)
+set(DICOM_BUILD_VERSION 4)
 set(DICOM_SHORT_VERSION "${DICOM_MAJOR_VERSION}.${DICOM_MINOR_VERSION}")
 set(DICOM_VERSION "${DICOM_SHORT_VERSION}.${DICOM_BUILD_VERSION}")
 
@@ -38,9 +38,11 @@ set(LIB_SRCS
   vtkDICOMSequence.cxx
   vtkDICOMItem.cxx
   vtkDICOMSorter.cxx
+  vtkDICOMTagPath.cxx
   vtkDICOMReferenceCount.cxx
   vtkDICOMValue.cxx
   vtkDICOMToRAS.cxx
+  vtkDICOMUtilities.cxx
   vtkNIFTIReader.cxx
   vtkNIFTIWriter.cxx
 )
@@ -48,7 +50,7 @@ set(LIB_SRCS
 # Headers without a matching .cxx file are listed here
 set(LIB_HDRS
   vtkDICOMModule.h
-  vtkNIFTIHeader.h
+  vtkNIFTIHeaderPrivate.h
   ${DICOM_BINARY_DIR}/vtkDICOMConfig.h
 )
 

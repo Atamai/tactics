@@ -13,6 +13,8 @@
 =========================================================================*/
 #include "vtkDICOMMetaData.h"
 #include "vtkDICOMDictionary.h"
+#include "vtkDICOMItem.h"
+#include "vtkDICOMTagPath.h"
 
 #include <vtkObjectFactory.h>
 #include <vtkMatrix4x4.h>
@@ -26,10 +28,6 @@ vtkStandardNewMacro(vtkDICOMMetaData);
 
 // The hash table size, must be a power of two
 #define METADATA_HASH_SIZE 512
-
-//----------------------------------------------------------------------------
-// For use by methods that must return an invalid value
-const vtkDICOMValue vtkDICOMMetaData::InvalidValue;
 
 //----------------------------------------------------------------------------
 // Constructor
@@ -182,7 +180,7 @@ const vtkDICOMValue *vtkDICOMMetaData::FindAttributeValue(
 const vtkDICOMValue &vtkDICOMMetaData::GetAttributeValue(vtkDICOMTag tag)
 {
   const vtkDICOMValue *vptr = this->FindAttributeValue(0, tag);
-  return (vptr ? *vptr : vtkDICOMMetaData::InvalidValue);
+  return (vptr ? *vptr : this->Tail.Value);
 }
 
 //----------------------------------------------------------------------------
@@ -190,7 +188,88 @@ const vtkDICOMValue &vtkDICOMMetaData::GetAttributeValue(
   int idx, vtkDICOMTag tag)
 {
   const vtkDICOMValue *vptr = this->FindAttributeValue(idx, tag);
-  return (vptr ? *vptr : vtkDICOMMetaData::InvalidValue);
+  return (vptr ? *vptr : this->Tail.Value);
+}
+
+//----------------------------------------------------------------------------
+const vtkDICOMValue &vtkDICOMMetaData::GetAttributeValue(
+  int idx, const vtkDICOMTagPath &tagpath)
+{
+  const vtkDICOMValue *vptr = this->FindAttributeValue(idx, tagpath.GetHead());
+  if (vptr != 0 && tagpath.HasTail())
+    {
+    unsigned int i = tagpath.GetIndex();
+    unsigned int n = vptr->GetNumberOfValues();
+    const vtkDICOMItem *items = vptr->GetSequenceData();
+    if (items != 0 && i < n)
+      {
+      return items[i].GetAttributeValue(tagpath.GetTail());
+      }
+    vptr = 0;
+    }
+  return (vptr ? *vptr : this->Tail.Value);
+}
+
+//----------------------------------------------------------------------------
+const vtkDICOMValue &vtkDICOMMetaData::GetAttributeValue(
+  const vtkDICOMTagPath &tagpath)
+{
+  return this->GetAttributeValue(0, tagpath);
+}
+
+//----------------------------------------------------------------------------
+const vtkDICOMValue &vtkDICOMMetaData::GetAttributeValue(
+  int idx, int frame, const vtkDICOMTagPath &tagpath)
+{
+  // search PerFrame first
+  const vtkDICOMValue *seq =
+    this->FindAttributeValue(idx, DC::PerFrameFunctionalGroupsSequence);
+  for (int i = 0; i < 2; i++)
+    {
+    unsigned int f = (i == 0 ? frame : 0);
+    if (seq && f < seq->GetNumberOfValues())
+      {
+      // search for the item that matches the frame
+      const vtkDICOMItem *items = seq->GetSequenceData();
+      const vtkDICOMValue &v = items[f].GetAttributeValue(tagpath);
+      if (v.IsValid())
+        {
+        return v;
+        }
+      // search within all the sequences in the item
+      vtkDICOMDataElementIterator iter = items[f].Begin();
+      vtkDICOMDataElementIterator iterEnd = items[f].End();
+      while (iter != iterEnd)
+        {
+        const vtkDICOMValue &u = iter->GetValue();
+        if (u.GetNumberOfValues() == 1)
+          {
+          const vtkDICOMItem *item = u.GetSequenceData();
+          if (item)
+            {
+            const vtkDICOMValue &w = item->GetAttributeValue(tagpath);
+            if (w.IsValid())
+              {
+              return w;
+              }
+            }
+          }
+        ++iter;
+        }
+      }
+    // search Shared next
+    seq = this->FindAttributeValue(idx, DC::SharedFunctionalGroupsSequence);
+    }
+
+  // search root last of all
+  return this->GetAttributeValue(idx, tagpath);
+}
+
+//----------------------------------------------------------------------------
+const vtkDICOMValue &vtkDICOMMetaData::GetAttributeValue(
+  int idx, int frame, vtkDICOMTag tag)
+{
+  return this->GetAttributeValue(idx, frame, vtkDICOMTagPath(tag));
 }
 
 //----------------------------------------------------------------------------
@@ -277,14 +356,21 @@ vtkDICOMDataElement *vtkDICOMMetaData::FindDataElementOrInsert(
 void vtkDICOMMetaData::SetAttributeValue(
   vtkDICOMTag tag, const vtkDICOMValue& v)
 {
-  vtkDICOMDataElement *loc = this->FindDataElementOrInsert(tag);
-  if (loc == 0)
+  if (v.IsValid())
     {
-    vtkErrorMacro("SetAttributeValue: tag group number must not be zero.");
-    return;
+    vtkDICOMDataElement *loc = this->FindDataElementOrInsert(tag);
+    if (loc == 0)
+      {
+      vtkErrorMacro("SetAttributeValue: tag group number must not be zero.");
+      return;
+      }
+    loc->Tag = tag;
+    loc->Value = v;
     }
-  loc->Tag = tag;
-  loc->Value = v;
+  else
+    {
+    this->RemoveAttribute(tag);
+    }
 }
 
 template<class T>
@@ -324,18 +410,24 @@ void vtkDICOMMetaData::SetAttributeValue(
 
   assert(idx >= 0 && idx < this->NumberOfInstances);
 
-  // first value for this attribute
-  if (!vptr->IsValid())
-    {
-    *vptr = v;
-    return;
-    }
-
   // is this a sequence of values?
   vtkDICOMValue *sptr = vptr->GetMultiplexData();
   if (sptr)
     {
     sptr[idx] = v;
+    // if invalid value was added, make sure valid values remain
+    if (!v.IsValid())
+      {
+      bool valid = false;
+      for (int i = 0; i < this->NumberOfInstances; i++)
+        {
+        valid |= sptr[i].IsValid();
+        }
+      if (!valid)
+        {
+        this->RemoveAttribute(tag);
+        }
+      }
     }
   else if (v != *vptr)
     {
@@ -356,6 +448,10 @@ void vtkDICOMMetaData::SetAttributeValue(
         }
       }
     *vptr = l;
+    }
+  else if (!vptr->IsValid())
+    {
+    this->RemoveAttribute(tag);
     }
 }
 
@@ -381,11 +477,85 @@ void vtkDICOMMetaData::SetAttributeValue(
   this->SetAttributeValueT(idx, tag, v);
 }
 
+//----------------------------------------------------------------------------
+void vtkDICOMMetaData::CopyAttributes(vtkDICOMMetaData *o)
+{
+  // note: this method does not check for collisions between
+  // private tag blocks, so at most one of the two data sets
+  // can safely have private tags when this method is called.
+
+  if (o != 0 && o != this)
+    {
+    vtkDICOMDataElement **otable = o->Table;
+    if (otable != 0)
+      {
+      const vtkDICOMDataElement *iter = o->Head.Next;
+      const vtkDICOMDataElement *iterEnd = &o->Tail;
+      while (iter != iterEnd)
+        {
+        // if this is a per-instance element, then make a copy of it
+        const vtkDICOMValue *vptr = iter->Value.GetMultiplexData();
+        if (vptr == 0)
+          {
+          vtkDICOMDataElement *e = this->FindDataElementOrInsert(iter->Tag);
+          e->Tag = iter->Tag;
+          e->Value = iter->Value;
+          }
+        else if (this->NumberOfInstances == o->NumberOfInstances)
+          {
+          vtkDICOMDataElement *e = this->FindDataElementOrInsert(iter->Tag);
+          e->Tag = iter->Tag;
+          vtkDICOMValue *nvptr = e->Value.AllocateMultiplexData(
+            iter->Value.GetVR(), this->NumberOfInstances);
+          for (int i = 0; i < this->NumberOfInstances; i++)
+            {
+            nvptr[i] = vptr[i];
+            }
+          }
+        iter = iter->Next;
+        }
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkDICOMMetaData::ShallowCopy(vtkDataObject *source)
+{
+  vtkDICOMMetaData *o = vtkDICOMMetaData::SafeDownCast(source);
+  if (o != this)
+    {
+    this->Initialize();
+    if (o != 0)
+      {
+      this->NumberOfInstances = o->NumberOfInstances;
+      this->CopyAttributes(o);
+      }
+    this->vtkDataObject::ShallowCopy(source);
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkDICOMMetaData::DeepCopy(vtkDataObject *source)
+{
+  vtkDICOMMetaData *o = vtkDICOMMetaData::SafeDownCast(source);
+  if (o != this)
+    {
+    this->Initialize();
+    if (o != 0)
+      {
+      this->NumberOfInstances = o->NumberOfInstances;
+      this->CopyAttributes(o);
+      }
+    this->vtkDataObject::DeepCopy(source);
+    }
+}
+
+//----------------------------------------------------------------------------
 // should only be called from SetAttributeValue
 vtkDICOMVR vtkDICOMMetaData::FindDictVR(int idx, vtkDICOMTag tag)
 {
   vtkDICOMVR vr = vtkDICOMVR::UN;
-  vtkDICOMDictEntry e = vtkDICOMDictionary::FindDictEntry(tag);
+  vtkDICOMDictEntry e = this->FindDictEntry(tag);
 
   if (e.IsValid())
     {
@@ -447,6 +617,34 @@ vtkDICOMVR vtkDICOMMetaData::FindDictVR(int idx, vtkDICOMTag tag)
     }
 
   return vr;
+}
+
+//----------------------------------------------------------------------------
+vtkDICOMDictEntry vtkDICOMMetaData::FindDictEntry(vtkDICOMTag tag)
+{
+  unsigned short group = tag.GetGroup();
+  unsigned short element = tag.GetElement();
+
+  // note that there is similar code in vtkDICOMItem
+  const char *dict = 0;
+  if (group & 1)
+    {
+    unsigned short creatorElement = element;
+    if (element > 0x00ffu)
+      {
+      creatorElement = (element >> 8);
+      element = (0x1000u | (element & 0x00ffu));
+      }
+    else
+      {
+      element = 0x0010u;
+      }
+    tag = vtkDICOMTag(group, element);
+    vtkDICOMTag creatorTag(group, creatorElement);
+    dict = this->GetAttributeValue(creatorTag).GetCharData();
+    }
+
+  return vtkDICOMDictionary::FindDictEntry(tag, dict);
 }
 
 //----------------------------------------------------------------------------

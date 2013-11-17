@@ -26,6 +26,7 @@
 
 class vtkIntArray;
 class vtkTypeInt64Array;
+class vtkStringArray;
 class vtkMatrix4x4;
 class vtkDICOMMetaData;
 class vtkDICOMParser;
@@ -58,23 +59,75 @@ public:
   int CanReadFile(const char* filename);
 
   // Description:
+  // Set the Stack ID of the stack to load, for named stacks.
+  // If the series has multiple stacks, then by default the reader
+  // will only load the first stack.  This method allows you to select
+  // a different stack, if you know the DICOM StackID for the stack.
+  void SetDesiredStackID(const char *stackId);
+  const char *GetDesiredStackID() { return this->DesiredStackID; }
+
+  // Description:
+  // Get a list of the stacks that are present in the input files.
+  // A stack is a contiguous array of slices that form a volume.
+  vtkStringArray *GetStackIDs() { return this->StackIDs; }
+
+  // Description:
   // Get an array that converts slice index to input file index.
-  // If you used SetFileNames() to provide a list of files to the reader,
-  // use this array to find out which file provided which slice.
+  // If the reader has generated scalar components, then this will
+  // be a two-dimensional array and calling array->GetComponent(i,j)
+  // will return the file index for slice i and scalar component j
+  // for monochrome images, or for slice i and scalar component 3*j
+  // for RGB images (or more precisely, at scalar component N*j where
+  // N is the SamplesPerPixel value from the DICOM metadata).  If the
+  // data has just one component, then use j=0. If you used SetFileNames()
+  // to provide a list of files to the reader, then use this array to
+  // find out which file provided which slice, or to index into the
+  // MetaData object to get the metadata for a particular slice.
   vtkIntArray *GetFileIndexArray() { return this->FileIndexArray; }
 
   // Description:
+  // Get an array that converts slice index to frame index.
+  // The purpose of this array is to identify individual frames in
+  // multi-frame DICOM files.  The dimensions of this array are identical
+  // to the FileIndexArray.  Use FileIndexArray to identify the file,
+  // then use FrameIndexArray to identify the frame within that file.
+  vtkIntArray *GetFrameIndexArray() { return this->FrameIndexArray; }
+
+  // Description:
   // Get the meta data for the DICOM files.
-  // The GetAttributeValue() method of vtkDICOMMataData takes an optional
-  // index, which specifies the file to get the attribute from.  If you
-  // have a slice index rather than a file index, then use the FileIndexArray
-  // to convert the slice index into a file index.
+  // The GetAttributeValue() method of vtkDICOMMataData takes optional
+  // file and frame indices, which specify the file and the frame within
+  // that file to get the attribute from.  If you have a slice index rather
+  // than a file index and frame index, then use the FileIndexArray and
+  // FrameIndexArray to convert the slice index into file and frame indices.
   vtkDICOMMetaData *GetMetaData() { return this->MetaData; }
 
   // Description:
+  // If the files have been pre-sorted, the sorting can be disabled.
+  vtkGetMacro(Sorting, int);
+  vtkSetMacro(Sorting, int);
+  vtkBooleanMacro(Sorting, int)
+
+  // Description:
+  // Read the time dimension as scalar components (default: Off).
+  // If this is on, then each time point will be stored as a scalar
+  // component in the image data.  If the data has both a time dimension
+  // and a vector dimension, then the number of components will be the
+  // product of these two dimensions, i.e. the components will store
+  // a sequence of vectors, one vector for each time point.
+  vtkGetMacro(TimeAsVector, int);
+  vtkSetMacro(TimeAsVector, int);
+  vtkBooleanMacro(TimeAsVector, int);
+
+  // Description:
   // Get the time dimension if the DICOM series has one.
-  int GetTimeDimension() { return 1; }
-  double GetTimeSpacing() { return 1.0; }
+  int GetTimeDimension() { return this->TimeDimension; }
+  double GetTimeSpacing() { return this->TimeSpacing; }
+
+  // Description:
+  // Set the desired time index (set to -1 for all).
+  vtkSetMacro(DesiredTimeIndex, int);
+  vtkGetMacro(DesiredTimeIndex, int);
 
   // Description:
   // Get the slope and intercept for rescaling the scalar values.
@@ -127,26 +180,44 @@ protected:
 
   // Description:
   // Read one file.  Specify the offset to the PixelData.
-  bool ReadOneFile(
+  virtual bool ReadOneFile(
     const char *filename, int idx, char *buffer, vtkIdType bufferSize);
 
   // Description:
-  // Read an uncompressed DICOM file.
-  bool ReadUncompressedFile(
-    const char *filename, int idx, char *buffer, vtkIdType bufferSize);
+  // Unpack 1 bit to 8 bits or 12 bits to 16 bits.
+  void UnpackBits(
+    const void *source, void *buffer, vtkIdType bufferSize, int bits);
 
   // Description:
   // Read an uncompressed DICOM file.
-  bool ReadCompressedFile(
+  virtual bool ReadUncompressedFile(
     const char *filename, int idx, char *buffer, vtkIdType bufferSize);
+
+  // Description:
+  // Read a compressed DICOM file.
+  virtual bool ReadCompressedFile(
+    const char *filename, int idx, char *buffer, vtkIdType bufferSize);
+
+  // Description:
+  // Rescale the data in the buffer.
+  virtual void RescaleBuffer(
+    int idx, void *buffer, vtkIdType bufferSize);
 
   // Description:
   // Convert parser errors into reader errors.
   void RelayError(vtkObject *o, unsigned long e, void *data);
 
   // Description:
-  // Sort the input files, put the sort in the supplied array.
-  void SortFiles(vtkIntArray *result);
+  // Sort the input files, put the sort in the supplied arrays.
+  virtual void SortFiles(vtkIntArray *fileArray, vtkIntArray *frameArray);
+
+  // Description:
+  // Do not sort the files, just build the arrays.
+  void NoSortFiles(vtkIntArray *fileArray, vtkIntArray *frameArray);
+
+  // Description:
+  // Select whether to sort the files.
+  int Sorting;
 
   // Description:
   // Information for rescaling data to quantitative units.
@@ -174,8 +245,40 @@ protected:
   vtkIntArray *FileIndexArray;
 
   // Description:
+  // An array to convert slice indices to input frames
+  vtkIntArray *FrameIndexArray;
+
+  // Description:
+  // An array that holds the stack IDs.
+  vtkStringArray *StackIDs;
+
+  // Description:
   // The row order to use when storing the data in memory.
   int MemoryRowOrder;
+
+  // Description:
+  // This indicates that the data must be rescaled.
+  int NeedsRescale;
+
+  // Description:
+  // The number of packed pixel components in the input file.
+  // This is for packed, rather than planar, components.
+  int NumberOfPackedComponents;
+
+  // Description:
+  // The number of color planes in the file.
+  int NumberOfPlanarComponents;
+
+  // Description:
+  // Time dimension variables.
+  int TimeAsVector;
+  int TimeDimension;
+  int DesiredTimeIndex;
+  double TimeSpacing;
+
+  // Description:
+  // The stack to load.
+  char DesiredStackID[20];
 
 private:
   vtkDICOMReader(const vtkDICOMReader&);  // Not implemented.

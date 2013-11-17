@@ -20,6 +20,8 @@
 #include "vtkDICOMTag.h"
 #include "vtkDICOMReferenceCount.h"
 
+#include <string>
+
 // type constants
 #define VTK_DICOM_TAG    13
 #define VTK_DICOM_ITEM   14
@@ -96,6 +98,9 @@ public:
   vtkDICOMValue(vtkDICOMVR vr,
                 const vtkDICOMTag *data, const vtkDICOMTag *end);
 
+  //! Create an emtpy value.
+  explicit vtkDICOMValue(vtkDICOMVR vr);
+
   //! Copy constructor.
   vtkDICOMValue(const vtkDICOMValue &v) : V(v.V) {
     if (this->V) { ++(this->V->ReferenceCount); } }
@@ -136,7 +141,7 @@ public:
    *  - for UN, the number of bytes will be returned.
    *  - for attribute tags (VR is AT) the number of tags will be returned.
    *  - for sequences (SQ and XQ) the number of items in the sequence,
-   *    including any delimeters, will be returned.
+   *    excluding any delimeters, will be returned.
    */
   unsigned int GetNumberOfValues() const {
     return (this->V ? this->V->NumberOfValues : 0); }
@@ -177,9 +182,10 @@ public:
 
   //! Convert the value to a scalar value or string.
   /*!
-   *  If the NumberOfValues is one, then the value is converted to
-   *  the desired type, if possible, and returned.  Otherwise the
-   *  return value is zero (or an empty string).
+   *  The value is converted to the desired type, if possible, and returned.
+   *  Otherwise the return value is zero (or an empty string).  Conversion
+   *  to string always produces an empty string for values of type UN, SQ,
+   *  OB, OW, and OF.
    */
   std::string AsString() const;
   unsigned char AsUnsignedChar() const;
@@ -296,9 +302,13 @@ private:
   template<class T>
   void CreateValue(vtkDICOMVR vr, const T *data, const T *end);
 
+  //! Internal templated method to initialize for future appends.
+  template<class T>
+  void AppendInit(vtkDICOMVR vr);
+
   //! Internal templated method to grow the value.
   template<class T>
-  void AppendValue(vtkDICOMVR vr, const T &item);
+  void AppendValue(const T &item);
 
   //! Internal templated method to set a value.
   template<class T>

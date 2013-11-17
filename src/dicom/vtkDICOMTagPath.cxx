@@ -11,22 +11,25 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkDICOMDictEntry.h"
+#include "vtkDICOMTagPath.h"
 
-const vtkDICOMDictEntry::Entry vtkDICOMDictEntry::InvalidEntry = {
-  0, 0, 0, 0, 0, "" };
-
-ostream& operator<<(ostream& o, const vtkDICOMDictEntry& a)
+ostream& operator<<(ostream& o, const vtkDICOMTagPath& a)
 {
-  if (!a.IsValid())
+  o << "[";
+  o << a.GetHead();
+  if (a.HasTail())
     {
-    o << "INVALID";
+    vtkDICOMTagPath b = a;
+    while (b.HasTail())
+      {
+      o << ",";
+      o << b.GetIndex();
+      o << ",";
+      o << b.GetHead();
+      b = b.GetTail();
+      }
     }
-  else
-    {
-    o << a.GetTag() << "," << a.GetVR() << "," << a.GetVM() << ","
-      << "\"" << a.GetName() << "\"";
-    }
+  o << "]";
 
   return o;
 }

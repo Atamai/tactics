@@ -22,9 +22,9 @@
 
 /* Version number. */
 #define DICOM_MAJOR_VERSION 0
-#define DICOM_MINOR_VERSION 1
-#define DICOM_BUILD_VERSION 0
-#define DICOM_SHORT_VERSION "0.1"
-#define DICOM_VERSION "0.1.0"
+#define DICOM_MINOR_VERSION 3
+#define DICOM_BUILD_VERSION 4
+#define DICOM_SHORT_VERSION "0.3"
+#define DICOM_VERSION "0.3.4"
 
 #endif
