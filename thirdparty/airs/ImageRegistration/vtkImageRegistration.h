@@ -95,7 +95,7 @@ public:
   // Optimizer types
   enum
   {
-    Amoeba,
+    Amoeba
   };
 
   // Metric types
@@ -106,7 +106,7 @@ public:
     NormalizedCrossCorrelation,
     NeighborhoodCorrelation,
     MutualInformation,
-    NormalizedMutualInformation,
+    NormalizedMutualInformation
   };
 
   // Interpolator types
@@ -115,6 +115,7 @@ public:
     Nearest,
     Linear,
     Cubic,
+    Sinc
   };
 
   // Transform types
@@ -125,14 +126,14 @@ public:
     Similarity,
     ScaleSourceAxes,
     ScaleTargetAxes,
-    Affine,
+    Affine
   };
 
   // Initializer types
   enum
   {
     None,
-    Centered,
+    Centered
   };
 
   // Description:
@@ -175,7 +176,7 @@ public:
   // Set the transform type.  The default is Rigid.  The Similarity
   // transform type adds a universal scale factor, ScaleSourceAxes
   // allows scaling along all three source image axes, ScaleTargetAxes
-  // allows scaling along all three target image axes. 
+  // allows scaling along all three target image axes.
   vtkSetMacro(TransformType, int);
   void SetTransformTypeToRigid() {
     this->SetTransformType(Rigid); }
@@ -216,6 +217,16 @@ public:
   // The default size is 64 by 64.
   vtkSetVector2Macro(JointHistogramSize, int);
   vtkGetVector2Macro(JointHistogramSize, int);
+
+  // Description:
+  // Set the ranges of the two axes of the joint histogram.
+  // By default, the joint histogram covers the full range of data values
+  // present in the image (this default is used whenever the first value
+  // in the range is greater than the second value in the range).
+  vtkSetVector2Macro(SourceImageRange, double);
+  vtkSetVector2Macro(TargetImageRange, double);
+  vtkGetVector2Macro(SourceImageRange, double);
+  vtkGetVector2Macro(TargetImageRange, double);
 
   // Description:
   // Initialize the transform.  This will also initialize the
@@ -273,7 +284,8 @@ protected:
   vtkImageRegistration();
   ~vtkImageRegistration();
 
-  void ComputeImageRange(vtkImageData *data, double range[2]);
+  void ComputeImageRange(vtkImageData *data, vtkImageStencilData *stencil,
+                         double range[2]);
   int ExecuteRegistration();
 
   // Functions overridden from Superclass
@@ -299,11 +311,14 @@ protected:
   int                              InitializerType;
   int                              TransformDimensionality;
 
-  int                              JointHistogramSize[2];
   int                              MaximumNumberOfIterations;
   double                           MetricTolerance;
   double                           TransformTolerance;
   double                           MetricValue;
+
+  int                              JointHistogramSize[2];
+  double                           SourceImageRange[2];
+  double                           TargetImageRange[2];
 
   vtkTimeStamp                     ExecuteTime;
 
