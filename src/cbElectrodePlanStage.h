@@ -59,7 +59,7 @@ public:
   ~cbElectrodePlanStage();
 
   //! Returns the stages name (ie. "Plan")
-  virtual char *getStageName() const;
+  virtual const char *getStageName() const;
 
 signals:
   //! Outgoing signal to allow view to render a probe.

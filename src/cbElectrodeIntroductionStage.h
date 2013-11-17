@@ -48,7 +48,7 @@ public:
   ~cbElectrodeIntroductionStage();
 
   //! Returns the stages name (ie. "Introduction")
-  virtual char *getStageName() const;
+  virtual const char *getStageName() const;
 
 public slots:
   //! Actions to perform for the stage. (None in this case.)

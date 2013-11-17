@@ -48,7 +48,7 @@ public:
   ~cbElectrodeOpenStage();
 
   //! Returns the stages name (ie. "Introduction")
-  virtual char *getStageName() const;
+  virtual const char *getStageName() const;
 
 signals:
   //! Outgoing signal to open the image path.

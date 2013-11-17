@@ -71,7 +71,7 @@ void cbElectrodeIntroductionStage::Execute()
 {
 }
 
-char *cbElectrodeIntroductionStage::getStageName() const
+const char *cbElectrodeIntroductionStage::getStageName() const
 {
   return "Introduction";
 }

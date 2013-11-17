@@ -399,7 +399,7 @@ void cbElectrodePlanStage::Execute()
 {
 }
 
-char *cbElectrodePlanStage::getStageName() const
+const char *cbElectrodePlanStage::getStageName() const
 {
   return "Plan";
 }

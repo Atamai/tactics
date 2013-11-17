@@ -121,7 +121,7 @@ void cbElectrodeOpenStage::Execute()
   emit finished();
 }
 
-char *cbElectrodeOpenStage::getStageName() const
+const char *cbElectrodeOpenStage::getStageName() const
 {
   return "Open";
 }
