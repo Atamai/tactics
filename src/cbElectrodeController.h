@@ -94,6 +94,7 @@ private:
 
   vtkDataManager::UniqueKey dataKey;
   vtkDataManager::UniqueKey volumeKey;
+  vtkDataManager::UniqueKey ctKey;
 
   bool useAnteriorPosteriorFiducials;
 };

@@ -83,7 +83,7 @@ void ReadDICOMImage(
   vtkDICOMMetaData *meta, const char *file_folder);
 
 cbElectrodeController::cbElectrodeController(vtkDataManager *dataManager)
-: cbApplicationController(dataManager), dataKey(), volumeKey()
+: cbApplicationController(dataManager), dataKey(), volumeKey(), ctKey()
 {
   vtkSmartPointer<vtkImageNode> dataNode =
     vtkSmartPointer<vtkImageNode>::New();
@@ -381,8 +381,6 @@ void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
 
 void cbElectrodeController::OpenCTData(std::string path)
 {
-  vtkDataManager::UniqueKey k;
-
   vtkSmartPointer<vtkImageData> ct_data =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> ct_matrix =
@@ -413,14 +411,14 @@ void cbElectrodeController::OpenCTData(std::string path)
   vtkSmartPointer<vtkImageNode> ct_node =
     vtkSmartPointer<vtkImageNode>::New();
 
-  this->dataManager->AddDataNode(ct_node, k);
+  this->dataManager->AddDataNode(ct_node, this->ctKey);
 
-  this->dataManager->FindImageNode(k)->ShallowCopyImage(ct_data);
-  this->dataManager->FindImageNode(k)->SetMatrix(ct_matrix);
-  this->dataManager->FindImageNode(k)->SetMetaData(ct_meta);
-  this->dataManager->FindImageNode(k)->SetFileURL(path.c_str());
+  this->dataManager->FindImageNode(this->ctKey)->ShallowCopyImage(ct_data);
+  this->dataManager->FindImageNode(this->ctKey)->SetMatrix(ct_matrix);
+  this->dataManager->FindImageNode(this->ctKey)->SetMetaData(ct_meta);
+  this->dataManager->FindImageNode(this->ctKey)->SetFileURL(path.c_str());
 
-  emit DisplayCTData(k);
+  emit DisplayCTData(this->ctKey);
 }
 
 void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
@@ -472,8 +470,6 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 // Overloaded to include a pre-registered matrix
 void cbElectrodeController::OpenCTData(std::string path, vtkMatrix4x4 *m)
 {
-  vtkDataManager::UniqueKey k;
-
   vtkSmartPointer<vtkImageData> ct_data =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> ct_matrix =
@@ -523,14 +519,14 @@ void cbElectrodeController::OpenCTData(std::string path, vtkMatrix4x4 *m)
   vtkSmartPointer<vtkImageNode> ct_node =
     vtkSmartPointer<vtkImageNode>::New();
 
-  this->dataManager->AddDataNode(ct_node, k);
+  this->dataManager->AddDataNode(ct_node, this->ctKey);
 
-  this->dataManager->FindImageNode(k)->ShallowCopyImage(ct_data);
-  this->dataManager->FindImageNode(k)->SetMatrix(m);
-  this->dataManager->FindImageNode(k)->SetMetaData(ct_meta);
-  this->dataManager->FindImageNode(k)->SetFileURL(path.c_str());
+  this->dataManager->FindImageNode(this->ctKey)->ShallowCopyImage(ct_data);
+  this->dataManager->FindImageNode(this->ctKey)->SetMatrix(m);
+  this->dataManager->FindImageNode(this->ctKey)->SetMetaData(ct_meta);
+  this->dataManager->FindImageNode(this->ctKey)->SetFileURL(path.c_str());
 
-  emit DisplayCTData(k);
+  emit DisplayCTData(this->ctKey);
 }
 
 void cbElectrodeController::registerAntPost(int s)
