@@ -392,9 +392,9 @@ void cbElectrodeController::OpenCTData(std::string path)
   vtkSmartPointer<vtkDICOMMetaData> ct_meta =
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
-  unsigned found = path.find_last_of("/\\");
-  if (found == std::string::npos) {
-    emit displayErrorMessage(QString("Error openeing CT series. Please check the path."));
+  size_t found = path.find_last_of("/\\");
+  if (found >= path.length()) {
+    emit displayErrorMessage(QString("Error opening CT series. Please check the path."));
     return;
   }
   std::string dir = path.substr(0, found);
@@ -483,9 +483,9 @@ void cbElectrodeController::OpenCTData(std::string path, vtkMatrix4x4 *m)
   vtkSmartPointer<vtkDICOMMetaData> ct_meta =
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
-  unsigned found = path.find_last_of("/\\");
-  if (found == std::string::npos) {
-    emit displayErrorMessage(QString("Error openeing CT series. Please check the path."));
+  size_t found = path.find_last_of("/\\");
+  if (found >= path.length()) {
+    emit displayErrorMessage(QString("Error opening CT series. Please check the path."));
     return;
   }
   std::string dir = path.substr(0, found);
