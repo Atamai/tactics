@@ -37,6 +37,7 @@ set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
 set(APPLICATION_DATA_PATH "${MAINFOLDER}/share")
 set(APPLICATION_ICON_PATH
   "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Icons")
+
 #
 # Project Search Paths
 #
@@ -67,9 +68,7 @@ link_directories(${UnitTestPlusPlus_LIBRARY_DIRS})
 #
 # Application icon
 #
-if(APPLE)
-set(MACOSX_BUNDLE_ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/tactics.png)
-endif()
+set(TACTICS_ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/resources/Tactics.icns)
 
 #
 # Add Build Targets
@@ -100,7 +99,7 @@ foreach(ICONTYPE Icons Cursors)
     DEPENDS ${ALL_ICON_FILES})
 
   install(FILES ${ALL_ICON_FILES}
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/Icons/${ICONTYPE})
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/${PROJECT_NAME}.app/Contents/Icons/${ICONTYPE})
 endforeach()
 
 #

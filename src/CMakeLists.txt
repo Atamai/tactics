@@ -19,9 +19,77 @@ qt4_wrap_cpp(project_MOC_SRCS_GENERATED ${project_MOC_HEADERS})
 
 add_library(${project_LIB} STATIC ${project_SRCS} ${project_MOC_SRCS_GENERATED})
 target_link_libraries(${project_LIB} ${project_LIBS})
+set(project_BIN_SRCS ${project_MAIN})
 
-add_executable(${project_BIN} MACOSX_BUNDLE ${project_MAIN} ${MACOSX_BUNDLE_ICON_FILE})
+if(APPLE)
+  set(MACOSX_BUNDLE_ICON_FILE ${TACTICS_ICON_FILE}) 
+  # set where in the bundle to put the icns file
+  set_source_files_properties(${TACTICS_ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  set(project_BIN_SRCS ${project_BIN_SRCS} "${MACOSX_BUNDLE_ICON_FILE}")
+endif()
+add_executable(${project_BIN} MACOSX_BUNDLE ${project_BIN_SRCS})
 target_link_libraries(${project_BIN} ${project_LIB})
 set_target_properties(${project_BIN} PROPERTIES VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}" OUTPUT_NAME ${project_BIN} CLEAN_DIRECT_OUTPUT 1)
 
-install(TARGETS ${project_BIN} DESTINATION bin)
+#-------------------------------------------------------------------------------
+# Use BundleUtilities to get all other dependencies for the application to work.
+# It takes a bundle or executable along with possible plugins and inspects it
+# for dependencies.  If they are not system dependencies, they are copied.
+
+set(plugin_dest_dir bin)
+set(qtconf_dest_dir bin)
+set(APPS "\${CMAKE_INSTALL_PREFIX}/bin/Tactics")
+if(APPLE)
+  set(plugin_dest_dir bin/Tactics.app/Contents/MacOS)
+  set(qtconf_dest_dir bin/Tactics.app/Contents/Resources)
+  set(APPS "\${CMAKE_INSTALL_PREFIX}/bin/Tactics.app")
+endif()
+if(WIN32)
+  set(APPS "\${CMAKE_INSTALL_PREFIX}/bin/Tactics.exe")
+endif()
+
+# Install the project application, on Apple, the bundle is at the root of the
+# install tree, and on other platforms it'll go into the bin directory.
+install(TARGETS ${project_BIN}
+    BUNDLE DESTINATION bin COMPONENT Runtime
+    RUNTIME DESTINATION bin COMPONENT Runtime
+)
+
+# Install needed Qt plugins by copying directories from the qt installation
+# One can cull what gets copied by using 'REGEX "..." EXCLUDE'
+install(DIRECTORY "${QT_PLUGINS_DIR}/imageformats" 
+        DESTINATION ${plugin_dest_dir}/plugins COMPONENT Runtime)
+
+# install a qt.conf file
+# this inserts some cmake code into the install script to write the file
+install(CODE "
+    file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${qtconf_dest_dir}/qt.conf\" \"\")
+    " COMPONENT Runtime)
+
+# directories to look for dependencies
+set(DIRS ${QT_LIBRARY_DIRS}
+  ${VTK_DIR}
+  ${CMAKE_INSTALL_PREFIX}/lib)
+
+# Now the work of copying dependencies into the bundle/package
+# Quotes and dollar signs must be escaped.
+# An alternative is the do a configure_file() on a script and use
+# install(SCRIPT  ...).
+# The image plugins depend on QtSvg and QtXml
+install(CODE "
+file(GLOB_RECURSE QTPLUGINS
+  \"\${CMAKE_INSTALL_PREFIX}/${plugin_dest_dir}/plugins/*${CMAKE_SHARED_LIBRARY_SUFFIX}\")
+include(BundleUtilities)
+fixup_bundle(\"${APPS}\" \"\${QTPLUGINS}\" \"${DIRS}\")
+" COMPONENT Runtime)
+
+# Bundle version information
+set(CPACK_PACKAGE_VERSION_MAJOR ${APPLICATION_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${APPLICATION_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${APPLICATION_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION ${APPLICATION_VERSION_STRING})
+
+# To bundle, run "cpack -G DragNDrop CPackConfig.cmake" on Mac OS X
+# where CPackConfig.cmake is generated at configure time
+set(CPACK_BINARY_DRAGNDROP ON)
+include(CPack)
