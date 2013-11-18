@@ -99,7 +99,7 @@ foreach(ICONTYPE Icons Cursors)
     DEPENDS ${ALL_ICON_FILES})
 
   install(FILES ${ALL_ICON_FILES}
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/${PROJECT_NAME}.app/Contents/Icons/${ICONTYPE})
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/Icons/${ICONTYPE})
 endforeach()
 
 #

@@ -38,11 +38,11 @@ set_target_properties(${project_BIN} PROPERTIES VERSION "${APPLICATION_VERSION_M
 
 set(plugin_dest_dir bin)
 set(qtconf_dest_dir bin)
-set(APPS "\${CMAKE_INSTALL_PREFIX}/bin/Tactics")
+set(APPS "\${CMAKE_INSTALL_PREFIX}/Tactics")
 if(APPLE)
-  set(plugin_dest_dir bin/Tactics.app/Contents/MacOS)
-  set(qtconf_dest_dir bin/Tactics.app/Contents/Resources)
-  set(APPS "\${CMAKE_INSTALL_PREFIX}/bin/Tactics.app")
+  set(plugin_dest_dir Tactics.app/Contents/MacOS)
+  set(qtconf_dest_dir Tactics.app/Contents/Resources)
+  set(APPS "\${CMAKE_INSTALL_PREFIX}/Tactics.app")
 endif()
 if(WIN32)
   set(APPS "\${CMAKE_INSTALL_PREFIX}/bin/Tactics.exe")
@@ -51,7 +51,7 @@ endif()
 # Install the project application, on Apple, the bundle is at the root of the
 # install tree, and on other platforms it'll go into the bin directory.
 install(TARGETS ${project_BIN}
-    BUNDLE DESTINATION bin COMPONENT Runtime
+    BUNDLE DESTINATION . COMPONENT Runtime
     RUNTIME DESTINATION bin COMPONENT Runtime
 )
 
