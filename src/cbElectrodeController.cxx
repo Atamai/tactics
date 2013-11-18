@@ -68,6 +68,7 @@
 #include <QTime>
 #include <QDateTime>
 #include <QString>
+#include <QMessageBox>
 #include <QDebug>
 
 #include <vector>
@@ -373,10 +374,19 @@ void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
   regist->SetUseAnteriorFiducial(this->useAnteriorPosteriorFiducials);
   regist->Update();
 
-  vtkMatrix4x4 *registeredImageMatrix = vtkMatrix4x4::New();
-  registeredImageMatrix->DeepCopy(regist->GetImageToFrameMatrix());
+  if (regist->GetSuccess()) {
+    vtkMatrix4x4 *registeredImageMatrix = vtkMatrix4x4::New();
+    registeredImageMatrix->DeepCopy(regist->GetImageToFrameMatrix());
 
-  emit displayLeksellFrame(frameData, registeredImageMatrix);
+    emit displayLeksellFrame(frameData, registeredImageMatrix);
+  }
+  else {
+    QMessageBox box;
+    box.setText("No frame found in image.");
+    box.setInformativeText("Planning with this image is not possible.");
+    box.setStandardButtons(QMessageBox::Ok);
+    box.exec();
+  }
 }
 
 void cbElectrodeController::OpenCTData(std::string path)
