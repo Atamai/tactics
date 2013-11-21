@@ -22,14 +22,29 @@ target_link_libraries(${project_LIB} ${project_LIBS})
 set(project_BIN_SRCS ${project_MAIN})
 
 if(APPLE)
-  set(MACOSX_BUNDLE_ICON_FILE ${TACTICS_ICON_FILE}) 
   # set where in the bundle to put the icns file
   set_source_files_properties(${TACTICS_ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-  set(project_BIN_SRCS ${project_BIN_SRCS} "${MACOSX_BUNDLE_ICON_FILE}")
+  set(project_BIN_SRCS ${project_BIN_SRCS} ${TACTICS_ICON_FILE})
 endif()
+
 add_executable(${project_BIN} MACOSX_BUNDLE ${project_BIN_SRCS})
 target_link_libraries(${project_BIN} ${project_LIB})
-set_target_properties(${project_BIN} PROPERTIES VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}" OUTPUT_NAME ${project_BIN} CLEAN_DIRECT_OUTPUT 1)
+if(APPLE)
+  set_target_properties(${project_BIN} PROPERTIES
+    MACOSX_BUNDLE_BUNDLE_NAME Tactics
+    MACOSX_BUNDLE_BUNDLE_VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}"
+    MACOSX_BUNDLE_ICON_FILE Tactics
+    MACOSX_BUNDLE_GUI_IDENTIFIER com.atamai.Tactics
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}"
+    MACOSX_BUNDLE_LONG_VERSION_STRING "${APPLICATION_VERSION_STRING}"
+    MACOSX_BUNDLE_COPYRIGHT "Copyright 2013 Atamai Inc.")
+else()
+  set_target_properties(${project_BIN} PROPERTIES
+    VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}"
+    OUTPUT_NAME ${project_BIN}
+    CLEAN_DIRECT_OUTPUT 1)
+endif()
+
 
 #-------------------------------------------------------------------------------
 # Use BundleUtilities to get all other dependencies for the application to work.
@@ -57,7 +72,7 @@ install(TARGETS ${project_BIN}
 
 # Install needed Qt plugins by copying directories from the qt installation
 # One can cull what gets copied by using 'REGEX "..." EXCLUDE'
-install(DIRECTORY "${QT_PLUGINS_DIR}/imageformats" 
+install(DIRECTORY "${QT_PLUGINS_DIR}/imageformats"
         DESTINATION ${plugin_dest_dir}/plugins COMPONENT Runtime)
 
 # install a qt.conf file
