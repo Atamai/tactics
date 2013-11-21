@@ -44,7 +44,6 @@ set(APPLICATION_RESOURCE_PATH
 # Project Search Paths
 #
 list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
-set(CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
 include_directories("${MAINFOLDER}/src")
 
 find_package(Qt4 REQUIRED)
@@ -126,8 +125,3 @@ install(FILES ${ALL_PROBE_FILES}
 if(EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
     install(DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}" DESTINATION "include")
 endif(EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
-
-#
-# Add Documentation Targets
-#
-include(DocumentationTargets)
