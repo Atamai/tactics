@@ -30,6 +30,7 @@ SUITE (TestProbeCatalogue) {
     expected.push_back(std::string("AD08R-SP05X-000"));
     expected.push_back(std::string("CIPAC"));
     expected.push_back(std::string("MD01R-SP00X-000"));
+    expected.push_back(std::string("PiscesQuad-3487A"));
     expected.push_back(std::string("RD05R-SP35X-000"));
     expected.push_back(std::string("RD06R-SP05X-000"));
     expected.push_back(std::string("RD08R-SP04X-000"));
