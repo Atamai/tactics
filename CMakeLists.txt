@@ -37,6 +37,8 @@ set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
 set(APPLICATION_DATA_PATH "${MAINFOLDER}/share")
 set(APPLICATION_ICON_PATH
   "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Icons")
+set(APPLICATION_RESOURCE_PATH
+  "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Resources")
 
 #
 # Project Search Paths
@@ -101,6 +103,28 @@ foreach(ICONTYPE Icons Cursors)
   install(FILES ${ALL_ICON_FILES}
     DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/Icons/${ICONTYPE})
 endforeach()
+
+#
+# Copy probes
+#
+file(GLOB_RECURSE PROBE_FILES
+     RELATIVE ${CMAKE_SOURCE_DIR}/share
+     share/*.txt)
+set(ALL_PROBE_FILES)
+foreach(PROBE_FILE ${PROBE_FILES})
+  set(src ${CMAKE_SOURCE_DIR}/share/${PROBE_FILE})
+  set(tgt ${APPLICATION_RESOURCE_PATH}/Probes/${PROBE_FILE})
+  add_custom_command(DEPENDS ${src}
+                     COMMAND ${CMAKE_COMMAND} -E copy ${src} ${tgt}
+                     OUTPUT ${tgt}
+                     COMMENT "probe copy ${PROBE_FILE}")
+  set(ALL_PROBE_FILES ${ALL_PROBE_FILES} ${tgt})
+endforeach()
+
+add_custom_target(CopyProbes ALL echo "..." DEPENDS ${ALL_PROBE_FILES})
+
+install(FILES ${ALL_PROBE_FILES}
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/Resources/Probes)
 
 #
 # Add Install Targets
