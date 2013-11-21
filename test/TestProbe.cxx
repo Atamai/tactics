@@ -3,6 +3,7 @@
 #include "cbProbe.h"
 
 #include <iostream>
+#include <sstream>
 
 SUITE (TestProbe) {
 

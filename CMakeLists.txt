@@ -44,8 +44,6 @@ set(APPLICATION_RESOURCE_PATH
 # Project Search Paths
 #
 list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
-list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/tools")
-list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/thirdparty")
 set(CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
 include_directories("${MAINFOLDER}/src")
 
@@ -62,10 +60,6 @@ find_package(Cerebra REQUIRED)
 #INCLUDE(${Cerebra_USE_FILE})
 include_directories(${Cerebra_INCLUDE_DIRS})
 link_directories(${Cerebra_LIBRARY_DIRS})
-
-find_package(UnitTestPlusPlus REQUIRED)
-include_directories(${UnitTestPlusPlus_INCLUDE_DIRS})
-link_directories(${UnitTestPlusPlus_LIBRARY_DIRS})
 
 #
 # Application icon
