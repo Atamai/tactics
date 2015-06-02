@@ -1,0 +1,29 @@
+#-----------------------------------------------------------------------------
+#
+# CerebraConfig.cmake - cmake configuration file for external projects.
+#
+#-----------------------------------------------------------------------------
+@Cerebra_CONFIG_CODE@
+
+# The C and C++ flags added to the cmake-configured flags.
+set(Cerebra_REQUIRED_C_FLAGS "@Cerebra_REQUIRED_C_FLAGS@")
+set(Cerebra_REQUIRED_CXX_FLAGS "@Cerebra_REQUIRED_CXX_FLAGS@")
+
+# Dependencies
+set(Cerebra_VTK_DIR "@VTK_DIR@")
+
+# Get the current directory
+get_filename_component(Cerebra_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+
+# The location of the "use" file.
+set(Cerebra_USE_FILE "${Cerebra_CMAKE_DIR}/UseCerebra.cmake")
+
+if(NOT TARGET Cerebra AND NOT EXECUTABLE_OUTPUT_PATH)
+  include("${Cerebra_CMAKE_DIR}/CerebraTargets.cmake")
+endif()
+
+# Compute paths
+set(Cerebra_INCLUDE_DIRS "@INCLUDE_OUTPUT_PATH@")
+set(Cerebra_LIBRARY_DIRS "@LIBRARY_OUTPUT_PATH@")
+
+SET (Cerebra_LIBRARIES "@Cerebra_LIBRARIES@")

@@ -30,6 +30,12 @@ set(CMAKE_VERBOSE_MAKEFILE 0) # Use 1 for debugging, 0 for release
 set(MAINFOLDER ${PROJECT_SOURCE_DIR})
 set(EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
 set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
+set(CONFIGURE_OUTPUT_PATH "${MAINFOLDER}/build")
+
+file(MAKE_DIRECTORY
+ "${EXECUTABLE_OUTPUT_PATH}"
+ "${LIBRARY_OUTPUT_PATH}"
+ "${CONFIGURE_OUTPUT_PATH}")
 
 #
 # Project Data Path
@@ -41,24 +47,53 @@ set(APPLICATION_RESOURCE_PATH
   "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Resources")
 
 #
+# FIXME: These directories should append themselves to the list
+# (apart from thirdparty applications that are compiled into libraries)
+#
+set(INCLUDE_OUTPUT_PATH
+  "${MAINFOLDER}/include"
+  "${MAINFOLDER}/thirdparty/toolcursor"
+  "${MAINFOLDER}/thirdparty/airs/ImageRegistration/"
+  "${MAINFOLDER}/thirdparty/airs/ImageSegmentation/"
+  "${MAINFOLDER}/thirdparty/upstream/vtk/"
+  "${MAINFOLDER}/thirdparty/upstream/airs/"
+  )
+
+include_directories(${INCLUDE_OUTPUT_PATH})
+include_directories("${MAINFOLDER}/src/view")
+include_directories("${MAINFOLDER}/src/data")
+include_directories("${MAINFOLDER}/src/gui")
+include_directories("${MAINFOLDER}/src/processing")
+include_directories("${MAINFOLDER}/src/dicom")
+include_directories("${MAINFOLDER}/src/tactics")
+
+#
+# Libraries built
+#
+set(Cerebra_LIBRARIES "vtkToolCursor" ${VTK_LIBRARIES} ${QT_LIBRARIES})
+
+#
 # Project Search Paths
 #
 list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
-include_directories("${MAINFOLDER}/src/tactics")
+list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/tools")
+list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/thirdparty")
+set(CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
 
-find_package(Qt4 REQUIRED)
-include(UseQt4)
-
+#
+# Locate Project Prerequisites
+#
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
 find_package(ITK REQUIRED)
 include(${ITK_USE_FILE})
 
-find_package(Cerebra REQUIRED)
-#INCLUDE(${Cerebra_USE_FILE})
-include_directories(${Cerebra_INCLUDE_DIRS})
-link_directories(${Cerebra_LIBRARY_DIRS})
+find_package(ItkVtkGlue REQUIRED)
+include(${ItkVtkGlue_USE_FILE})
+
+find_package(Qt4 REQUIRED)
+include(UseQt4)
 
 #
 # Application icon
@@ -68,6 +103,12 @@ set(TACTICS_ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/resources/Tactics.icns)
 #
 # Add Build Targets
 #
+add_subdirectory(thirdparty)
+add_subdirectory(src/gui)
+add_subdirectory(src/data)
+add_subdirectory(src/view)
+add_subdirectory(src/dicom)
+add_subdirectory(src/processing)
 add_subdirectory(src/tactics)
 add_subdirectory(test)
 
@@ -125,3 +166,8 @@ install(FILES ${ALL_PROBE_FILES}
 if(EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
     install(DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}" DESTINATION "include")
 endif(EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
+
+#
+# Add Documentation Targets
+#
+include(DocumentationTargets)

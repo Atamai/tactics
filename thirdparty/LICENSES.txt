@@ -1,0 +1,18 @@
+== LICENSES ==
+
+ * Software Name: Example Software Entry1
+   ** License Name: Simplified BSD License
+   ** License File: share/licenses/BSD-SIMPLIFIED.txt
+   ** Files List:
+     1.) bin/example1
+     2.) lib/libexample1.a
+     3.) lib/libexample1.so
+     4.) include/example1/**
+
+ * Software Name: Example Software Entry2
+   ** License Name: MIT License
+   ** License File: share/licenses/MIT.txt
+   ** Files List:
+     1.) bin/example2
+     2.) lib/*example2.*
+     3.) include/example2/**
