@@ -44,7 +44,7 @@ set(APPLICATION_RESOURCE_PATH
 # Project Search Paths
 #
 list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
-include_directories("${MAINFOLDER}/src")
+include_directories("${MAINFOLDER}/src/tactics")
 
 find_package(Qt4 REQUIRED)
 include(UseQt4)
@@ -68,7 +68,7 @@ set(TACTICS_ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/resources/Tactics.icns)
 #
 # Add Build Targets
 #
-add_subdirectory(src)
+add_subdirectory(src/tactics)
 add_subdirectory(test)
 
 #

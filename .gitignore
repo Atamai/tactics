@@ -7,4 +7,4 @@ docs/*.css
 docs/*.js
 docs/search/*
 
-src/appinfo.h
+src/tactics/appinfo.h
