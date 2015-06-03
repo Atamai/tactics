@@ -89,9 +89,6 @@ include(${VTK_USE_FILE})
 find_package(ITK REQUIRED)
 include(${ITK_USE_FILE})
 
-find_package(ItkVtkGlue REQUIRED)
-include(${ItkVtkGlue_USE_FILE})
-
 find_package(Qt4 REQUIRED)
 include(UseQt4)
 

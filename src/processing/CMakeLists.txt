@@ -17,10 +17,8 @@ set(LIB_DEPS
   ${ITK_LIBRARIES}
   vtkImaging
   vtkCommon
-  ItkVtkGlue
   cbAIRS
   cbVTK
-  cbITK
 )
 
 set(LIB_SRCS
