@@ -27,7 +27,6 @@ set(LIB_DEPS
   cbView
   cbData
   vtkToolCursor
-  cbITK
   cbVTK
   )
 

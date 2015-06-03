@@ -20,18 +20,13 @@ endif()
 set(LIB_NAME cbVTK)
 set(LIB_DEPS vtkCommon vtkImaging vtkFiltering vtkViews vtkInfovis vtkHybrid)
 set(LIB_SRCS
-  vtkBitArray2.cxx
   vtkContourToPolygonFilter.cxx
-  vtkCornerAnnotation2.cxx
   vtkProgressAccumulator.cxx
   vtkImageGaussianInterpolator.cxx
-  vtkImageThresholdConnectivity2.cxx
-  vtkImageAutoCrop.cxx
 )
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../Replacement/VTK
 )
 
 # Create a list of header files (source files that end in .h)
