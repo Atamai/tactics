@@ -25,8 +25,8 @@ This project requires:
 * [GNU Make or equivalent.](https://www.gnu.org/software/make/)
 * [GCC or an alternative, reasonably conformant C++ compiler.](https://gcc.gnu.org/)
 * [Qt Framework v4.7+](http://www.qt.io/)
-* [VTK](http://www.vtk.org/)
-* [ITK](http://www.itk.org/)
+* [VTK v5.10 (incompatible with v6+)](http://www.vtk.org/)
+* [ITK v4.5+](http://www.itk.org/)
 
 If you have installed *vtk* and *itk* at `~/vtk/bin` and `~/itk/bin`,
 then Tactics can be built with:
