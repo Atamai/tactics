@@ -18,7 +18,7 @@ b) by providing an intuitive 3D interface to allow the surgeon to
 visualize the positions of the electrodes relative to the structures
 in the brain.
 
-# Installation
+# Dependencies and Building
 
 This project requires:
 * [Cross-platform Make (CMake) v2.8.9+](http://www.cmake.org/)
@@ -27,6 +27,15 @@ This project requires:
 * [Qt Framework v4.7+](http://www.qt.io/)
 * [VTK](http://www.vtk.org/)
 * [ITK](http://www.itk.org/)
+
+If you have installed *vtk* and *itk* at `~/vtk/bin` and `~/itk/bin`,
+then Tactics can be built with:
+
+    ./configure -DVTK_DIR="~/vtk/bin" -DITK_DIR="~/itk/bin"
+    make -j4
+
+If the build was successful, executables for testing and running the
+program can be found in `bin/`.
 
 # Contribution
 
