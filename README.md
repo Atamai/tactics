@@ -1,6 +1,6 @@
 # Overview
 
-![Tactics used to target the subgenual singulate for treatment of depression.](docs/pictures/dbs.png)
+![Tactics used to target the subgenual singulate for treatment of depression.](resources/pictures/dbs.png)
 
 Tactics is a prototype application for assigning target coordinates to
 locations within the brain, so that neurosurgeons can easily and
