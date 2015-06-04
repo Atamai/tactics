@@ -1,6 +1,6 @@
 # Overview
 
-![Tactics used to target the subgenual singulate for treatment of depression.](resources/images/dbs.png)
+![Tactics used to target the hippocampus for investigation and treatment of epilepsy](resources/images/hippocampus.png)
 
 Tactics is a prototype application for assigning target coordinates to
 locations within the brain, so that neurosurgeons can easily and
