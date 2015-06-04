@@ -1,5 +1,3 @@
-== README ==
-
 This is a fork of Michael Aaron Safyan's cpp-project-template, available at: https://code.google.com/p/cpp-project-template/.
 
  1.) Prerequisites
