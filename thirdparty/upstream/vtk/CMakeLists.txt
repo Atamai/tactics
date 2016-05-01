@@ -22,7 +22,6 @@ set(LIB_DEPS vtkCommon vtkImaging vtkFiltering vtkViews vtkInfovis vtkHybrid)
 set(LIB_SRCS
   vtkContourToPolygonFilter.cxx
   vtkProgressAccumulator.cxx
-  vtkImageGaussianInterpolator.cxx
 )
 
 include_directories(

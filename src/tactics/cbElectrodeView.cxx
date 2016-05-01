@@ -75,7 +75,6 @@
 #include "vtkFiducialPointsTool.h"
 #include "vtkFollower.h"
 #include "vtkFollowerPlane.h"
-#include "vtkFrameRegistration.h"
 #include "vtkImageData.h"
 #include "vtkImageHistogramStatistics.h"
 #include "vtkImageImport.h"
