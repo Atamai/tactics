@@ -90,6 +90,11 @@ include(${VTK_USE_FILE})
 find_package(Qt4 REQUIRED)
 include(UseQt4)
 
+find_package(GDCM)
+include(${GDCM_USE_FILE})
+set(GDCM_LIBS gdcmMSFF gdcmIOD gdcmDSED gdcmDICT)
+set(USE_GDCM ON)
+
 #
 # Application icon
 #
