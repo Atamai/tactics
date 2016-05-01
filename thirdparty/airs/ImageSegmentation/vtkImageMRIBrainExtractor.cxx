@@ -50,6 +50,10 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkSmoothPolyDataFilter.h"
 #include "vtkCleanPolyData.h"
 #include "vtkImageIterator.h"
+#include "vtkInformation.h"
+#include "vtkInformationVector.h"
+#include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkVersion.h"
 
 #include <math.h>
 #include <iostream>
@@ -57,6 +61,17 @@ POSSIBILITY OF SUCH DAMAGES.
 #include <vector>
 #include <algorithm>
 #include <numeric>
+
+// A macro to assist VTK 5 backwards compatibility
+#if VTK_MAJOR_VERSION >= 6
+#define SET_INPUT_DATA SetInputData
+#define SET_SOURCE_DATA SetSourceData
+#define SET_STENCIL_DATA SetStencilData
+#else
+#define SET_INPUT_DATA SetInput
+#define SET_SOURCE_DATA SetSource
+#define SET_STENCIL_DATA SetStencil
+#endif
 
 namespace {
 
@@ -211,8 +226,15 @@ static void vtkBECalculateInitialParameters(
   int scalarTypeMin = static_cast<int>(inData->GetScalarTypeMin());
   int scalarTypeMax = static_cast<int>(inData->GetScalarTypeMax());
 
+  // Initialize the values to output
+  T2 = scalarTypeMin;
+  Tm = scalarTypeMin + 0.5;
+  T98 = scalarTypeMin + 1.0;
+  COG[0] = COG[1] = COG[2] = 0.0;
+  R = 1.0;
+
   int nBins = scalarTypeMax - scalarTypeMin + 1;
-  vtkIdType *hist = new vtkIdType[nBins];
+  size_t *hist = new size_t[nBins];
 
   // initialize the histogram
   for (int j = 0; j < nBins; j++)
@@ -220,12 +242,12 @@ static void vtkBECalculateInitialParameters(
     hist[j] = 0;
     }
 
-  vtkIdType voxelCount = (extent[1] - extent[0] + 1);
+  size_t voxelCount = (extent[1] - extent[0] + 1);
   voxelCount *= (extent[3] - extent[2] + 1);
   voxelCount *= (extent[5] - extent[4] + 1);
 
-  vtkIdType lowerThreshold = static_cast<vtkIdType>(0.02*voxelCount);
-  vtkIdType upperThreshold = static_cast<vtkIdType>(0.98*voxelCount);
+  size_t lowerThreshold = static_cast<size_t>(0.02*voxelCount + 0.5);
+  size_t upperThreshold = static_cast<size_t>(0.98*voxelCount + 0.5);
 
   // accumulate histogram bins
   vtkImageIterator<IT> inIter(inData, extent);
@@ -243,11 +265,11 @@ static void vtkBECalculateInitialParameters(
     }
 
   // compute thresholds
-  vtkIdType histogramSum = 0;
+  size_t histogramSum = 0;
 
   for (int bin = 0; bin < nBins; bin++)
     {
-    int f = hist[bin];
+    size_t f = hist[bin];
     histogramSum += f;
     int v = bin + scalarTypeMin;
 
@@ -304,8 +326,6 @@ static void vtkBECalculateInitialParameters(
   if (totalMass == 0)
     {
     vtkGenericWarningMacro("In vtkMRIBrainExtractor, image is all black");
-    COG[0] = COG[1] = COG[2] = 0.0;
-    Tm = 0.0;
     return;
     }
 
@@ -360,7 +380,7 @@ static void vtkBECalculateInitialParameters(
     }
 
   histogramSum = 0;
-  vtkIdType medianThreshold = voxelCount/2;
+  size_t medianThreshold = voxelCount/2;
   for (int bin = 0; bin < nBins; bin++)
     {
     int f = hist[bin];
@@ -400,7 +420,7 @@ static void vtkBEBuildAndLinkPolyData(
   // Subdivide each triangle into 4.
   vtkLinearSubdivisionFilter *subdivideSphere =
     vtkLinearSubdivisionFilter::New();
-  subdivideSphere->SetInput(icosahedron->GetOutput());
+  subdivideSphere->SET_INPUT_DATA(icosahedron->GetOutput());
   subdivideSphere->SetNumberOfSubdivisions(Nsubs);
   subdivideSphere->Update();
 
@@ -414,8 +434,8 @@ static void vtkBEBuildAndLinkPolyData(
 
   // Smooth the subdivided sphere
   vtkSmoothPolyDataFilter *smoothSphere = vtkSmoothPolyDataFilter::New();
-  smoothSphere->SetInput(subdivideSphere->GetOutput());
-  smoothSphere->SetSource(constraintSphere->GetOutput());
+  smoothSphere->SET_INPUT_DATA(subdivideSphere->GetOutput());
+  smoothSphere->SET_SOURCE_DATA(constraintSphere->GetOutput());
   smoothSphere->Update();
 
   // The brain sphere
@@ -645,7 +665,7 @@ void vtkImageMRIBrainExtractorExecute(
   vtkPoints *originalPoints = vtkPoints::New();
   for (ptIter = brainPoints.begin();
        ptIter != brainPoints.end();
-       ptIter++, nIter++)
+       ptIter++)
     {
     target = *ptIter;
     originalPoints->InsertNextPoint(target.xyz);
@@ -914,7 +934,7 @@ void vtkImageMRIBrainExtractorExecute(
 
   // Aviod ugly poly data - unnecessary?
   vtkCleanPolyData *cleanPoly = vtkCleanPolyData::New();
-  cleanPoly->SetInput( brainPolyData );
+  cleanPoly->SET_INPUT_DATA(brainPolyData);
   cleanPoly->Update();
 
   self->GetBrainMesh()->ShallowCopy(cleanPoly->GetOutput());
@@ -923,13 +943,12 @@ void vtkImageMRIBrainExtractorExecute(
   vtkPolyDataToImageStencil *theStencil = vtkPolyDataToImageStencil::New();
   vtkImageStencil *imageStencil = vtkImageStencil::New();
 
-  theStencil->SetInput(self->GetBrainMesh());
-  theStencil->SetOutputSpacing(inData->GetSpacing());
-  theStencil->SetOutputOrigin(inData->GetOrigin());
-  theStencil->SetOutputWholeExtent(inData->GetWholeExtent());
+  theStencil->SET_INPUT_DATA(self->GetBrainMesh());
+  theStencil->SetInformationInput(inData);
+  theStencil->Update();
 
-  imageStencil->SetStencil(theStencil->GetOutput());
-  imageStencil->SetInput(inData);
+  imageStencil->SET_STENCIL_DATA(theStencil->GetOutput());
+  imageStencil->SET_INPUT_DATA(inData);
   imageStencil->SetBackgroundValue(T2);
   imageStencil->Update();
 
@@ -947,14 +966,28 @@ void vtkImageMRIBrainExtractorExecute(
 } // end anonymous namespace
 
 //----------------------------------------------------------------------------
-// This is the superclasses style of Execute method.  Convert it into
-// an imaging style Execute method, and don't multi-thread.
-void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
+int vtkImageMRIBrainExtractor::RequestData(
+  vtkInformation *, vtkInformationVector **inputVector,
+  vtkInformationVector *outputVector)
 {
-  vtkImageData *outData = this->AllocateOutputData(out);
-  vtkImageData *inData = this->GetInput();
+  vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
+  vtkInformation *outInfo = outputVector->GetInformationObject(0);
+
+  vtkImageData *inData = vtkImageData::SafeDownCast(
+    inInfo->Get(vtkDataObject::DATA_OBJECT()));
+  vtkImageData *outData = vtkImageData::SafeDownCast(
+    outInfo->Get(vtkDataObject::DATA_OBJECT()));
+
   int outExt[6];
-  outData->GetUpdateExtent(outExt);
+  outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), outExt);
+
+#if VTK_MAJOR_VERSION >= 6
+  this->AllocateOutputData(outData, outInfo, outExt);
+#else
+  this->AllocateOutputData(outData, outExt);
+#endif
+
+  
   void *inPtr = inData->GetScalarPointerForExtent(outExt);
 
   if (inData->GetScalarType() != outData->GetScalarType())
@@ -963,7 +996,7 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
                   << outData->GetScalarType()
                   << ", must Input ScalarType "
                   << inData->GetScalarType());
-    return;
+    return 0;
     }
 
   switch (inData->GetScalarType())
@@ -983,8 +1016,10 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
     default:
       vtkErrorMacro(<< "Execute: "
         "Requires short, unsigned short, or unsigned char");
-      return;
+      return 0;
     }
+
+  return 1;
 }
 
 //----------------------------------------------------------------------------

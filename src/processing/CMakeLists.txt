@@ -16,7 +16,7 @@ set(LIB_NAME ${PROJECT_NAME})
 set(LIB_DEPS
   vtkImaging
   vtkCommon
-  cbAIRS
+  vtkImageRegistration
   cbVTK
 )
 

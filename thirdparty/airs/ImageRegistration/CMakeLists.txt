@@ -2,31 +2,26 @@
 
 SET(KIT ImageRegistration)
 SET(UKIT ImageRegistration)
-SET(KIT_LIBS vtkHybrid vtkImaging vtkImageAnalysis)
+IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  SET(KIT_LIBS vtkHybrid vtkImaging)
+ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  SET(KIT_LIBS vtkImagingStatistics)
+ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 
 SET(VTK_WRAP_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/hints)
 
 SET ( Kit_SRCS
-vtkCalcCentroid.cxx
-vtkCenteredTransform.cxx
 vtkFrameFinder.cxx
-vtkImage3DNoiseSource.cxx
-vtkImageDataStatistics.cxx
-vtkImageFastBlur.cxx
 vtkImageMutualInformation.cxx
-vtkImageSingleMutualInformation.cxx
 vtkImageSquaredDifference.cxx
-vtkCalcCrossCorrelation.cxx
-vtkImageAmoebaGrid.cxx
-vtkImageGridStatistics.cxx
-vtkFunctionMinimizer.cxx
+vtkMorphologicalInterpolator.cxx
+vtkLabelInterpolator.cxx
+vtkGaussianInterpolator.cxx
+vtkImageCorrelationRatio.cxx
 vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
-vtkImageMean3D.cxx
 vtkITKXFMReader.cxx
 vtkITKXFMWriter.cxx
-vtkMNIXFMReader.cxx
-vtkMNIXFMWriter.cxx
 vtkPowellMinimizer.cxx
 )
 

@@ -27,6 +27,7 @@
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkTemplateAliasMacro.h"
+#include "vtkVersion.h"
 
 #include <stack>
 #include <algorithm>
@@ -37,13 +38,17 @@ vtkStandardNewMacro(vtkImageIslandRemoval);
 // Constructor sets default values
 vtkImageIslandRemoval::vtkImageIslandRemoval()
 {
-  this->UpperThreshold = VTK_LARGE_FLOAT;
-  this->LowerThreshold = -VTK_LARGE_FLOAT;
+  this->UpperThreshold = VTK_DOUBLE_MAX;
+  this->LowerThreshold = VTK_DOUBLE_MIN;
   this->ReplaceIn = 0;
   this->InValue = 0.0;
   this->ReplaceOut = 0;
   this->OutValue = 0.0;
+#if VTK_MAJOR_VERSION >= 6
+  this->LargestIsland = VTK_ID_MAX;
+#else
   this->LargestIsland = VTK_LARGE_ID;
+#endif
   this->SmallestIsland = 0;
   this->IslandsSortedBySize = 0;
 
@@ -93,10 +98,10 @@ void vtkImageIslandRemoval::SetOutValue(double val)
 // The values greater than or equal to the value match.
 void vtkImageIslandRemoval::ThresholdByUpper(double thresh)
 {
-  if (this->LowerThreshold != thresh || this->UpperThreshold < VTK_LARGE_FLOAT)
+  if (this->LowerThreshold != thresh || this->UpperThreshold < VTK_DOUBLE_MAX)
     {
     this->LowerThreshold = thresh;
-    this->UpperThreshold = VTK_LARGE_FLOAT;
+    this->UpperThreshold = VTK_DOUBLE_MAX;
     this->Modified();
     }
 }
@@ -107,10 +112,10 @@ void vtkImageIslandRemoval::ThresholdByLower(
   double thresh)
 {
   if (this->UpperThreshold != thresh ||
-      this->LowerThreshold > -VTK_LARGE_FLOAT)
+      this->LowerThreshold > VTK_DOUBLE_MIN)
     {
     this->UpperThreshold = thresh;
-    this->LowerThreshold = -VTK_LARGE_FLOAT;
+    this->LowerThreshold = VTK_DOUBLE_MIN;
     this->Modified();
     }
 }
@@ -146,9 +151,13 @@ int vtkImageIslandRemoval::FillInputPortInformation(
 }
 
 //----------------------------------------------------------------------------
-void vtkImageIslandRemoval::SetStencil(vtkImageStencilData *stencil)
+void vtkImageIslandRemoval::SetStencilData(vtkImageStencilData *stencil)
 {
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputData(1, stencil);
+#else
   this->SetInput(1, stencil);
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -655,7 +664,11 @@ void vtkImageIslandRemovalExecute(
   maskData->SetOrigin(inData->GetOrigin());
   maskData->SetSpacing(inData->GetSpacing());
   maskData->SetExtent(extent);
-  maskData->AllocateScalars(/*VTK_UNSIGNED_CHAR, 1*/);
+#if VTK_MAJOR_VERSION >= 6
+  maskData->AllocateScalars(VTK_UNSIGNED_CHAR, 1);
+#else
+  maskData->AllocateScalars();
+#endif
 
   unsigned char *maskPtr =
     static_cast<unsigned char *>(maskData->GetScalarPointerForExtent(extent));
@@ -711,9 +724,10 @@ void vtkImageIslandRemovalExecute(
 
     if (iter.IsInStencil())
       {
-      int xIdx = iter.GetIndexX() - extent[0];
-      int yIdx = iter.GetIndexY() - extent[2];
-      int zIdx = iter.GetIndexZ() - extent[4];
+      const int *idx = iter.GetIndex();
+      int xIdx = idx[0] - extent[0];
+      int yIdx = idx[1] - extent[2];
+      int zIdx = idx[2] - extent[4];
 
       IT *inPtr0 = inPtr + (xIdx*inInc[0] + yIdx*inInc[1] + zIdx*inInc[2]);
 
@@ -837,7 +851,11 @@ int vtkImageIslandRemoval::RequestData(
 
   int outExt[6];
   outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), outExt);
-  this->AllocateOutputData(outData/*, outInfo*/, outExt);
+#if VTK_MAJOR_VERSION >= 6
+  this->AllocateOutputData(outData, outInfo, outExt);
+#else
+  this->AllocateOutputData(outData, outExt);
+#endif
 
   // get scalar pointers
   void *inPtr = inData->GetScalarPointerForExtent(outExt);

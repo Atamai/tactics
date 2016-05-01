@@ -22,6 +22,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkMultiThreader.h"
 #include "vtkTemplateAliasMacro.h"
+#include "vtkVersion.h"
 
 // turn off 64-bit ints when templating over all types
 # undef VTK_USE_INT64
@@ -62,9 +63,14 @@ void vtkImageNeighborhoodCorrelation::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-void vtkImageNeighborhoodCorrelation::SetStencil(vtkImageStencilData *stencil)
+void vtkImageNeighborhoodCorrelation::SetStencilData(
+  vtkImageStencilData *stencil)
 {
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputData(2, stencil);
+#else
   this->SetInput(2, stencil);
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -447,19 +453,19 @@ void vtkImageNeighborhoodCorrelation2D(
     {
     // use the row buffer
     headPtr = rowPtr;
-    if (idZMin == idZMax)
-      {
-      // or, if only one row, set headPtr to that row
-      headPtr = workPtr;
-      }
     }
 
   // filter in both X and Z directions
   for (int idZ = idZMin; idZ <= idZMax; idZ++)
     {
-    // use the row buffer if beyond the end of the main buffer
-    if (headPtr == endPtr || headPtr == checkPtr)
+    if (idZMin == idZMax)
       {
+      // if only one row, set headPtr to that row
+      headPtr = workPtr;
+      }
+    else if (headPtr == endPtr || headPtr == checkPtr)
+      {
+      // use the row buffer when beyond the end of the main buffer
       headPtr = rowPtr;
       }
 
@@ -468,15 +474,16 @@ void vtkImageNeighborhoodCorrelation2D(
       inPtr1, inPtr2, inInc1, inInc2, extent, stencil,
       radiusX, idY, idZ, headPtr);
 
-    inPtr1 += inInc1[2];
-    inPtr2 += inInc2[2];
-
     if (idZMin == idZMax)
       {
       // only one row needed
       return;
       }
-    else if (idZ == idZMin)
+
+    inPtr1 += inInc1[2];
+    inPtr2 += inInc2[2];
+
+    if (idZ == idZMin)
       {
       // initialize first row
       U *tmpPtr = workPtr;
@@ -553,6 +560,12 @@ void vtkImageNeighborhoodCorrelation2D(
         }
       while (--k);
       }
+    }
+
+  // if workPtr was never incremented, we're done
+  if (workPtr == lastWorkPtr)
+    {
+    return;
     }
 
   // finish up the final bit
@@ -1031,17 +1044,49 @@ void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
 
   // only used for tracking progress
   vtkAlgorithm *progress = (threadId == 0 ? this : 0);
-  // specifies the type to use for computing sums
-  double workVal = 0;
 
-  switch (inData0->GetScalarType())
+  int scalarType = inData0->GetScalarType();
+
+  if (scalarType == VTK_FLOAT || scalarType == VTK_DOUBLE)
     {
-    vtkTemplateAliasMacro(
+    // use a floating-point type for computing sums
+    double workVal = 0;
+
+    if (scalarType == VTK_FLOAT)
+      {
       vtkImageNeighborhoodCorrelation3D(
-        static_cast<VTK_TT *>(inPtr0), static_cast<VTK_TT *>(inPtr1),
+        static_cast<float *>(inPtr0), static_cast<float *>(inPtr1),
         inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
-        &workVal, &this->ThreadOutput[threadId], progress));
-    default:
-      vtkErrorMacro(<< "Execute: Unknown ScalarType");
+        &workVal, &this->ThreadOutput[threadId], progress);
+      }
+    else
+      {
+      vtkImageNeighborhoodCorrelation3D(
+        static_cast<double *>(inPtr0), static_cast<double *>(inPtr1),
+        inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
+        &workVal, &this->ThreadOutput[threadId], progress);
+      }
+    }
+  else
+    {
+    // use an integer type for computing sums
+    vtkTypeInt64 workVal = 0;
+
+    // turn off floats in the vtkTemplateAliasMacro
+#undef VTK_USE_FLOAT64
+#define VTK_USE_FLOAT64 0
+#undef VTK_USE_FLOAT32
+#define VTK_USE_FLOAT32 0
+
+    switch (scalarType)
+      {
+      vtkTemplateAliasMacro(
+        vtkImageNeighborhoodCorrelation3D(
+          static_cast<VTK_TT *>(inPtr0), static_cast<VTK_TT *>(inPtr1),
+          inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
+          &workVal, &this->ThreadOutput[threadId], progress));
+      default:
+        vtkErrorMacro(<< "Execute: Unknown ScalarType");
+      }
     }
 }

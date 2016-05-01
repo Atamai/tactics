@@ -13,7 +13,7 @@
 
 =========================================================================*/
 
-#include "vtkImageRegionIterator.txx"
+#include "vtkImageRegionIterator.h"
 
 #ifndef VTK_NO_EXPLICIT_TEMPLATE_INSTANTIATION
 

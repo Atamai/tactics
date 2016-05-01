@@ -24,10 +24,6 @@ INCLUDE(${CMAKE_ROOT}/Modules/CMakeExportBuildSettings.cmake)
 CMAKE_EXPORT_BUILD_SETTINGS(
   ${AIRS_BINARY_DIR}/AIRSBuildSettings.cmake)
 
-# The target file
-SET(AIRS_TARGET_FILE_CONFIG
-  ${AIRS_BINARY_DIR}/AIRSTargets.cmake)
-
 # The "use" file.
 SET(AIRS_USE_FILE_CONFIG
   ${AIRS_BINARY_DIR}/UseAIRS.cmake)
@@ -35,6 +31,10 @@ SET(AIRS_USE_FILE_CONFIG
 # The build settings file.
 SET(AIRS_BUILD_SETTINGS_FILE_CONFIG
   ${AIRS_BINARY_DIR}/AIRSBuildSettings.cmake)
+
+# The target file
+SET(AIRS_TARGET_FILE_CONFIG
+  ${AIRS_BINARY_DIR}/AIRSTargets.cmake)
 
 # The library directories.
 SET(AIRS_LIBRARY_DIRS_CONFIG ${AIRS_LIBRARY_DIR})

@@ -96,19 +96,6 @@ public:
   double GetFunctionValue() { return this->FunctionValue; };
 
   // Description:
-  // Set the amoeba contraction ratio.  The default value of 0.5 gives
-  // fast convergence, but larger values such as 0.6 or 0.7 provide
-  // greater stability.
-  vtkSetClampMacro(ContractionRatio,double,0.5,1.0);
-  vtkGetMacro(ContractionRatio,double);
-
-  // Description:
-  // Set the amoeba expansion ratio.  The default value is 2.0, which
-  // provides rapid expansion.  Values between 1.1 and 2.0 are valid.
-  vtkSetClampMacro(ExpansionRatio,double,1.0,2.0);
-  vtkGetMacro(ExpansionRatio,double);
-
-  // Description:
   // Specify the value tolerance to aim for during the minimization.
   vtkSetMacro(Tolerance,double);
   vtkGetMacro(Tolerance,double);
@@ -151,9 +138,6 @@ protected:
   double *ParameterScales;
   double FunctionValue;
 
-  double ContractionRatio;
-  double ExpansionRatio;
-
   double Tolerance;
   double ParameterTolerance;
   int MaxIterations;
@@ -162,10 +146,17 @@ protected:
 
 private:
   // Description:
-  // Perform a golden-section search for a minimum.
-  double PowellGolden(
+  // Use Brent's method to search for a minimum.
+  double PowellBrent(
     const double *p0, double y0, const double *v, double *p, int n,
-    double gtol, bool *failed);
+    const double bracket[3], double gtol);
+
+  // Description:
+  // Bracket a minimum, given a starting point.  Return the function
+  // value at the center point of the bracket.
+  double PowellBracket(
+    const double *p0, double y0, const double *v, double *p, int n,
+    double bracket[3], bool *failed);
 
   // Description:
   // Initialize the workspace required for the method.

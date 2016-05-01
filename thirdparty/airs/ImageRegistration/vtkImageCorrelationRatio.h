@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkImageSquaredDifference.h
+  Module:    vtkImageCorrelationRatio.h
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,26 +12,44 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkImageSquaredDifference - Squared difference between images
+// .NAME vtkImageCorrelationRatio - Correlation ratio similarity metric.
 // .SECTION Description
-// vtkImageSquaredDifference computes the average squared difference of
-// pixel values between two images. The images must have the same origin
-// and spacing.
+// vtkImageCorrelationRatio computes the correlation ratio for one image
+// with respect to a second image.  Unlike many other image similarity
+// metrics, it is not symmetrical. It assumes that there is a functional
+// dependence of the first image on the second image, but does not assume
+// that the reverse is true.  It is an efficient and robust method for
+// multi-modal image registration.  For more information, please read
+// the reference.
+//
+// References:
+//
+//  [1] A. Roche, G. Malandain, X. Pennec and N. Ayache,
+//      The Correlation Ratio as a New Similarity Measure for Multimodal
+//      Image Registration, MICCAI '98, LNCS 1496:1115-1124, 1998.
 
-#ifndef __vtkImageSquaredDifference_h
-#define __vtkImageSquaredDifference_h
+#ifndef __vtkImageCorrelationRatio_h
+#define __vtkImageCorrelationRatio_h
 
 #include "vtkThreadedImageAlgorithm.h"
 
 class vtkImageStencilData;
 
-class VTK_EXPORT vtkImageSquaredDifference : public vtkThreadedImageAlgorithm
+class VTK_EXPORT vtkImageCorrelationRatio : public vtkThreadedImageAlgorithm
 {
 public:
-  static vtkImageSquaredDifference *New();
-  vtkTypeMacro(vtkImageSquaredDifference,vtkThreadedImageAlgorithm);
+  static vtkImageCorrelationRatio *New();
+  vtkTypeMacro(vtkImageCorrelationRatio,vtkThreadedImageAlgorithm);
 
   void PrintSelf(ostream& os, vtkIndent indent);
+
+  // Description:
+  // Set the range of the data for the first input.
+  // This is used to set the size of the array of partial sums that is used
+  // to compute the metric.  The default range is (0, 255), which is only
+  // suitable for 8-bit images.  For all other image types, a data range
+  // must be provided.
+  vtkSetVector2Macro(DataRange, double);
 
   // Description:
   // Use a stencil to limit the calculations to a specific region of
@@ -42,9 +60,9 @@ public:
   vtkImageStencilData *GetStencil();
 
   // Description:
-  // Get the cross correlation of the two images, with no normalization.
+  // Get the correlation ratio between the two images.
   // The result is only valid after the filter has executed.
-  vtkGetMacro(SquaredDifference, double);
+  vtkGetMacro(CorrelationRatio, double);
 
   // Description:
   // This is part of the executive, but is public so that it can be accessed
@@ -55,8 +73,8 @@ public:
                                    vtkImageData ***inData,
                                    vtkImageData **outData, int ext[6], int id);
 protected:
-  vtkImageSquaredDifference();
-  ~vtkImageSquaredDifference();
+  vtkImageCorrelationRatio();
+  ~vtkImageCorrelationRatio();
 
   virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request),
                                  vtkInformationVector **inInfo,
@@ -71,13 +89,22 @@ protected:
   virtual int FillInputPortInformation(int port, vtkInformation *info);
   virtual int FillOutputPortInformation(int port, vtkInformation *info);
 
-  double SquaredDifference;
+  double DataRange[2];
 
-  double ThreadOutput[VTK_MAX_THREADS][2];
+  int NumberOfBins;
+  double BinOrigin;
+  double BinSpacing;
+
+  int OutputScalarType;
+
+  double CorrelationRatio;
+
+  double *ThreadOutput[VTK_MAX_THREADS];
+  bool ThreadExecuted[VTK_MAX_THREADS];
 
 private:
-  vtkImageSquaredDifference(const vtkImageSquaredDifference&);  // Not implemented.
-  void operator=(const vtkImageSquaredDifference&);  // Not implemented.
+  vtkImageCorrelationRatio(const vtkImageCorrelationRatio&);  // Not implemented.
+  void operator=(const vtkImageCorrelationRatio&);  // Not implemented.
 };
 
 #endif

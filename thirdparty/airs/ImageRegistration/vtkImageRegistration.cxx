@@ -56,17 +56,32 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkInformationVector.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkAmoebaMinimizer.h"
+#include "vtkPowellMinimizer.h"
 #include "vtkImageHistogramStatistics.h"
+#include "vtkImageBSplineCoefficients.h"
+#include "vtkImageBSplineInterpolator.h"
 #include "vtkImageSincInterpolator.h"
+#include "vtkLabelInterpolator.h"
+#include "vtkVersion.h"
 
 // Image metric header files
 #include "vtkImageSquaredDifference.h"
 #include "vtkImageMutualInformation.h"
+#include "vtkImageCorrelationRatio.h"
 #include "vtkImageCrossCorrelation.h"
 #include "vtkImageNeighborhoodCorrelation.h"
 
 // C header files
 #include <math.h>
+
+// A macro to assist VTK 5 backwards compatibility
+#if VTK_MAJOR_VERSION >= 6
+#define SET_INPUT_DATA SetInputData
+#define SET_STENCIL_DATA SetStencilData
+#else
+#define SET_INPUT_DATA SetInput
+#define SET_STENCIL_DATA SetStencil
+#endif
 
 // A helper class for the optimizer
 struct vtkImageRegistrationInfo
@@ -105,8 +120,8 @@ vtkImageRegistration* vtkImageRegistration::New()
 //----------------------------------------------------------------------------
 vtkImageRegistration::vtkImageRegistration()
 {
-  this->OptimizerType = vtkImageRegistration::Amoeba;
-  this->MetricType = vtkImageRegistration::NormalizedMutualInformation;
+  this->OptimizerType = vtkImageRegistration::Powell;
+  this->MetricType = vtkImageRegistration::MutualInformation;
   this->InterpolatorType = vtkImageRegistration::Linear;
   this->TransformType = vtkImageRegistration::Rigid;
   this->InitializerType = vtkImageRegistration::None;
@@ -137,8 +152,9 @@ vtkImageRegistration::vtkImageRegistration()
 
   this->InitialTransformMatrix = vtkMatrix4x4::New();
   this->ImageReslice = vtkImageReslice::New();
-  this->TargetImageQuantizer = vtkImageShiftScale::New();
-  this->SourceImageQuantizer = vtkImageShiftScale::New();
+  this->ImageBSpline = vtkImageBSplineCoefficients::New();
+  this->TargetImageTypecast = vtkImageShiftScale::New();
+  this->SourceImageTypecast = vtkImageShiftScale::New();
 
   this->MetricValue = 0.0;
 
@@ -185,13 +201,17 @@ vtkImageRegistration::~vtkImageRegistration()
     {
     this->ImageReslice->Delete();
     }
-  if (this->SourceImageQuantizer)
+  if (this->SourceImageTypecast)
     {
-    this->SourceImageQuantizer->Delete();
+    this->SourceImageTypecast->Delete();
     }
-  if (this->TargetImageQuantizer)
+  if (this->TargetImageTypecast)
     {
-    this->TargetImageQuantizer->Delete();
+    this->TargetImageTypecast->Delete();
+    }
+  if (this->ImageBSpline)
+    {
+    this->ImageBSpline->Delete();
     }
 }
 
@@ -232,7 +252,11 @@ int vtkImageRegistration::GetNumberOfEvaluations()
 void vtkImageRegistration::SetTargetImage(vtkImageData *input)
 {
   // Ask the superclass to connect the input.
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputDataInternal(1, input);
+#else
   this->SetNthInputConnection(1, 0, (input ? input->GetProducerPort() : 0));
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -249,7 +273,11 @@ vtkImageData* vtkImageRegistration::GetTargetImage()
 void vtkImageRegistration::SetSourceImage(vtkImageData *input)
 {
   // Ask the superclass to connect the input.
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputDataInternal(0, input);
+#else
   this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -266,8 +294,12 @@ vtkImageData* vtkImageRegistration::GetSourceImage()
 void vtkImageRegistration::SetSourceImageStencil(vtkImageStencilData *stencil)
 {
   // if stencil is null, then set the input port to null
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputDataInternal(2, stencil);
+#else
   this->SetNthInputConnection(2, 0,
     (stencil ? stencil->GetProducerPort() : 0));
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -341,8 +373,8 @@ void vtkTransformRotation(
 
 void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
 {
-  vtkAmoebaMinimizer* optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(registrationInfo->Optimizer);
+  vtkPowellMinimizer* optimizer =
+    vtkPowellMinimizer::SafeDownCast(registrationInfo->Optimizer);
   vtkTransform* transform =
     vtkTransform::SafeDownCast(registrationInfo->Transform);
   vtkMatrix4x4 *initialMatrix = registrationInfo->InitialMatrix;
@@ -446,8 +478,8 @@ void vtkEvaluateFunction(void * arg)
 
   double val = 0.0;
 
-  vtkAmoebaMinimizer* optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(registrationInfo->Optimizer);
+  vtkPowellMinimizer* optimizer =
+    vtkPowellMinimizer::SafeDownCast(registrationInfo->Optimizer);
   vtkImageMutualInformation *miMetric =
     vtkImageMutualInformation::SafeDownCast(registrationInfo->Metric);
   vtkImageCrossCorrelation *ccMetric =
@@ -456,6 +488,8 @@ void vtkEvaluateFunction(void * arg)
     vtkImageSquaredDifference::SafeDownCast(registrationInfo->Metric);
   vtkImageNeighborhoodCorrelation *ncMetric =
     vtkImageNeighborhoodCorrelation::SafeDownCast(registrationInfo->Metric);
+  vtkImageCorrelationRatio *crMetric =
+    vtkImageCorrelationRatio::SafeDownCast(registrationInfo->Metric);
 
   vtkSetTransformParameters(registrationInfo);
 
@@ -474,6 +508,9 @@ void vtkEvaluateFunction(void * arg)
       break;
     case vtkImageRegistration::NeighborhoodCorrelation:
       val = ncMetric->GetValueToMinimize();
+      break;
+    case vtkImageRegistration::CorrelationRatio:
+      val = - crMetric->GetCorrelationRatio();
       break;
     case vtkImageRegistration::MutualInformation:
       val = - miMetric->GetMutualInformation();
@@ -496,8 +533,8 @@ void vtkImageRegistration::ComputeImageRange(
 {
   vtkImageHistogramStatistics *hist =
     vtkImageHistogramStatistics::New();
-  hist->SetStencil(stencil);
-  hist->SetInput(data);
+  hist->SET_STENCIL_DATA(stencil);
+  hist->SET_INPUT_DATA(data);
   hist->SetActiveComponent(0);
   hist->Update();
 
@@ -509,7 +546,7 @@ void vtkImageRegistration::ComputeImageRange(
     range[1] = range[0] + 1.0;
     }
 
-  hist->SetInput(NULL);
+  hist->SET_INPUT_DATA(NULL);
   hist->Delete();
 }
 
@@ -614,10 +651,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   targetImageRange[0] = this->TargetImageRange[0];
   targetImageRange[1] = this->TargetImageRange[1];
 
-  if (this->MetricType ==
-      vtkImageRegistration::MutualInformation ||
-      this->MetricType ==
-      vtkImageRegistration::NormalizedMutualInformation) 
+  if (this->MetricType == vtkImageRegistration::MutualInformation ||
+      this->MetricType == vtkImageRegistration::NormalizedMutualInformation)
     {
     if (sourceImageRange[0] >= sourceImageRange[1])
       {
@@ -644,8 +679,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       // round the value, instead of truncating it.
       double sourceShift = (-sourceImageRange[0] + 0.5/sourceScale);
 
-      vtkImageShiftScale *sourceQuantizer = this->SourceImageQuantizer;
-      sourceQuantizer->SetInput(sourceImage);
+      vtkImageShiftScale *sourceQuantizer = this->SourceImageTypecast;
+      sourceQuantizer->SET_INPUT_DATA(sourceImage);
       sourceQuantizer->SetOutputScalarTypeToUnsignedChar();
       sourceQuantizer->ClampOverflowOn();
       sourceQuantizer->SetShift(sourceShift);
@@ -657,8 +692,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
         (targetImageRange[1] - targetImageRange[0]));
       double targetShift = (-targetImageRange[0] + 0.5/targetScale);
 
-      vtkImageShiftScale *targetQuantizer = this->TargetImageQuantizer;
-      targetQuantizer->SetInput(targetImage);
+      vtkImageShiftScale *targetQuantizer = this->TargetImageTypecast;
+      targetQuantizer->SET_INPUT_DATA(targetImage);
       targetQuantizer->SetOutputScalarTypeToUnsignedChar();
       targetQuantizer->ClampOverflowOn();
       targetQuantizer->SetShift(targetShift);
@@ -674,10 +709,98 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       }
     }
 
+  // make sure source range is computed for CorrelationRatio
+  if (this->MetricType == vtkImageRegistration::CorrelationRatio)
+    {
+    if (sourceImageRange[0] >= sourceImageRange[1])
+      {
+      this->ComputeImageRange(sourceImage, this->GetSourceImageStencil(),
+        sourceImageRange);
+      }
+    }
+
+  // apply b-spline prefilter if b-spline interpolator is used
+  if (this->InterpolatorType == vtkImageRegistration::BSpline)
+    {
+    int scalarType = VTK_FLOAT;
+    if (targetImage->GetScalarType() == VTK_DOUBLE ||
+        sourceImage->GetScalarType() == VTK_DOUBLE)
+      {
+      scalarType = VTK_DOUBLE;
+      }
+
+    if (sourceImage->GetScalarType() != scalarType)
+      {
+      vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
+      sourceCast->SET_INPUT_DATA(sourceImage);
+      sourceCast->SetOutputScalarType(scalarType);
+      sourceCast->ClampOverflowOff();
+      sourceCast->SetShift(0.0);
+      sourceCast->SetScale(1.0);
+      sourceCast->Update();
+      sourceImage = sourceCast->GetOutput();
+      }
+
+    vtkImageBSplineCoefficients *bspline = this->ImageBSpline;
+    bspline->SET_INPUT_DATA(targetImage);
+    bspline->SetOutputScalarType(scalarType);
+    bspline->Update();
+    targetImage = bspline->GetOutput();
+    }
+
+  // coerce types if NeighborhoodCorrelation
+  if (sourceImage->GetScalarType() != targetImage->GetScalarType() &&
+      this->MetricType == vtkImageRegistration::NeighborhoodCorrelation)
+    {
+    // coerce the types to make them compatible
+    int sourceType = sourceImage->GetScalarType();
+    int targetType = targetImage->GetScalarType();
+    int sourceSize = sourceImage->GetScalarSize();
+    int targetSize = targetImage->GetScalarSize();
+    int coercedType = VTK_DOUBLE;
+
+    if (sourceSize < targetSize)
+      {
+      coercedType = targetType;
+      }
+    else if (sourceSize > targetSize)
+      {
+      coercedType = sourceType;
+      }
+    else if (sourceSize < 8 && targetSize < 8)
+      {
+      coercedType = VTK_FLOAT;
+      }
+
+    if (sourceType != coercedType)
+      {
+      vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
+      sourceCast->SET_INPUT_DATA(sourceImage);
+      sourceCast->SetOutputScalarType(coercedType);
+      sourceCast->ClampOverflowOff();
+      sourceCast->SetShift(0.0);
+      sourceCast->SetScale(1.0);
+      sourceCast->Update();
+      sourceImage = sourceCast->GetOutput();
+      }
+
+    if (targetType != coercedType)
+      {
+      vtkImageShiftScale *targetCast = this->TargetImageTypecast;
+      targetCast->SET_INPUT_DATA(targetImage);
+      targetCast->SetOutputScalarType(coercedType);
+      targetCast->ClampOverflowOff();
+      targetCast->SetShift(0.0);
+      targetCast->SetScale(1.0);
+      targetCast->Update();
+      targetImage = targetCast->GetOutput();
+      }
+    }
+
   vtkImageReslice *reslice = this->ImageReslice;
-  reslice->SetInput(targetImage);
   reslice->SetInformationInput(sourceImage);
-  reslice->SetStencil(this->GetSourceImageStencil());
+  reslice->SET_INPUT_DATA(targetImage);
+  reslice->SET_STENCIL_DATA(this->GetSourceImageStencil());
   reslice->SetResliceTransform(this->Transform);
   reslice->GenerateStencilOutputOn();
   reslice->SetInterpolator(0);
@@ -692,10 +815,33 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     case vtkImageRegistration::Cubic:
       reslice->SetInterpolationModeToCubic();
       break;
+    case vtkImageRegistration::BSpline:
+      {
+      vtkImageBSplineInterpolator *interp = vtkImageBSplineInterpolator::New();
+      reslice->SetInterpolator(interp);
+      interp->Delete();
+      }
+      break;
     case vtkImageRegistration::Sinc:
       {
       vtkImageSincInterpolator *interp = vtkImageSincInterpolator::New();
       interp->SetWindowFunctionToBlackman();
+      reslice->SetInterpolator(interp);
+      interp->Delete();
+      }
+      break;
+    case vtkImageRegistration::ASinc:
+      {
+      vtkImageSincInterpolator *interp = vtkImageSincInterpolator::New();
+      interp->SetWindowFunctionToBlackman();
+      interp->AntialiasingOn();
+      reslice->SetInterpolator(interp);
+      interp->Delete();
+      }
+      break;
+    case vtkImageRegistration::Label:
+      {
+      vtkLabelInterpolator *interp = vtkLabelInterpolator::New();
       reslice->SetInterpolator(interp);
       interp->Delete();
       }
@@ -715,7 +861,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageSquaredDifference *metric = vtkImageSquaredDifference::New();
       this->Metric = metric;
 
-      metric->SetInput(sourceImage);
+      metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       }
@@ -727,7 +873,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageCrossCorrelation *metric = vtkImageCrossCorrelation::New();
       this->Metric = metric;
 
-      metric->SetInput(sourceImage);
+      metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       }
@@ -739,9 +885,22 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
         vtkImageNeighborhoodCorrelation::New();
       this->Metric = metric;
 
-      metric->SetInput(sourceImage);
+      metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+      }
+      break;
+
+    case vtkImageRegistration::CorrelationRatio:
+      {
+      vtkImageCorrelationRatio *metric = vtkImageCorrelationRatio::New();
+      this->Metric = metric;
+
+      metric->SET_INPUT_DATA(sourceImage);
+      metric->SetInputConnection(1, reslice->GetOutputPort());
+      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+
+      metric->SetDataRange(sourceImageRange);
       }
       break;
 
@@ -751,7 +910,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageMutualInformation *metric = vtkImageMutualInformation::New();
       this->Metric = metric;
 
-      metric->SetInput(sourceImage);
+      metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       metric->SetNumberOfBins(this->JointHistogramSize);
@@ -772,7 +931,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     this->Optimizer->Delete();
     }
 
-  vtkAmoebaMinimizer *optimizer = vtkAmoebaMinimizer::New();
+  vtkPowellMinimizer *optimizer = vtkPowellMinimizer::New();
   this->Optimizer = optimizer;
   optimizer->SetTolerance(this->MetricTolerance);
   optimizer->SetParameterTolerance(this->TransformTolerance);
@@ -795,9 +954,16 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->RegistrationInfo->Center[1] = center[1];
   this->RegistrationInfo->Center[2] = center[2];
 
-  // use golden ratio for amoeba
-  optimizer->SetExpansionRatio(1.618);
-  optimizer->SetContractionRatio(0.618);
+  /*
+  vtkAmoebaOptimizer *amoeba = vtkAmoebaOptimizer::SafeDownCast(optimizer);
+  if (amoeba)
+    {
+    // use golden ratio for amoeba
+    amoeba->SetExpansionRatio(1.618);
+    amoeba->SetContractionRatio(0.618);
+    }
+  */
+
   optimizer->SetFunction(&vtkEvaluateFunction,
                          (void*)(this->RegistrationInfo));
 
@@ -912,8 +1078,8 @@ int vtkImageRegistration::ExecuteRegistration()
 
   int converged = 0;
 
-  vtkAmoebaMinimizer *optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(this->Optimizer);
+  vtkPowellMinimizer *optimizer =
+    vtkPowellMinimizer::SafeDownCast(this->Optimizer);
 
   if (optimizer)
     {
@@ -949,8 +1115,8 @@ int vtkImageRegistration::ExecuteRegistration()
 //--------------------------------------------------------------------------
 int vtkImageRegistration::Iterate()
 {
-  vtkAmoebaMinimizer *optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(this->Optimizer);
+  vtkPowellMinimizer *optimizer =
+    vtkPowellMinimizer::SafeDownCast(this->Optimizer);
 
   if (optimizer)
     {

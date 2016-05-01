@@ -26,6 +26,14 @@ Module:    DifferenceRegistration.cxx
 #include <vtkDICOMImageReader.h>
 #include <vtkMNITransformWriter.h>
 
+// optional readers
+#ifdef AIRS_USE_DICOM
+#define AIRS_USE_NIFTI
+#include <vtkNIFTIReader.h>
+#include <vtkNIFTIWriter.h>
+#include <vtkDICOMReader.h>
+#endif
+
 #include <vtkRenderer.h>
 #include <vtkCamera.h>
 #include <vtkRenderWindow.h>
@@ -40,8 +48,16 @@ Module:    DifferenceRegistration.cxx
 #include <vtkImageShiftScale.h>
 
 #include <vtkTimerLog.h>
+#include <vtkVersion.h>
 
 #include <vtkImageRegistration.h>
+
+// A macro to assist VTK 5 backwards compatibility
+#if VTK_MAJOR_VERSION >= 6
+#define SET_INPUT_DATA SetInputData
+#else
+#define SET_INPUT_DATA SetInput
+#endif
 
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
@@ -139,6 +155,63 @@ void ReadMINCImage(
   matrix->Modified();
 }
 
+#ifdef AIRS_USE_NIFTI
+void ReadNIFTIImage(
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName)
+{
+  // read the image
+  vtkSmartPointer<vtkNIFTIReader> reader =
+    vtkSmartPointer<vtkNIFTIReader>::New();
+
+  reader->SetFileName(fileName);
+  reader->Update();
+
+  double spacing[3];
+  reader->GetOutput()->GetSpacing(spacing);
+  spacing[0] = fabs(spacing[0]);
+  spacing[1] = fabs(spacing[1]);
+  spacing[2] = fabs(spacing[2]);
+
+  // flip the image rows into a DICOM-style ordering
+  vtkSmartPointer<vtkImageReslice> flip =
+    vtkSmartPointer<vtkImageReslice>::New();
+
+  flip->SetInputConnection(reader->GetOutputPort());
+  flip->SetResliceAxesDirectionCosines(
+    -1,0,0, 0,-1,0, 0,0,1);
+  flip->SetOutputSpacing(spacing);
+  flip->Update();
+
+  //vtkImageData *image = flip->GetOutput();
+  vtkImageData *image = reader->GetOutput();
+
+  // get the data
+  data->CopyStructure(image);
+  data->GetPointData()->PassData(image->GetPointData());
+
+  // get the SForm or QForm matrix if present
+  static double nMatrix[16] =
+    { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
+  if (reader->GetSFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(nMatrix, reader->GetSFormMatrix());
+    }
+  else if (reader->GetQFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(nMatrix, reader->GetQFormMatrix());
+    }
+
+  // generate the matrix, but modify to use DICOM coords
+  static double xyFlipMatrix[16] =
+    { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
+  // correct for the flip that was done earlier
+  vtkMatrix4x4::Multiply4x4(nMatrix, xyFlipMatrix, *matrix->Element);
+  // do the left/right, up/down dicom-to-minc transformation
+  vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
+  matrix->Modified();
+}
+#endif /* AIRS_USE_NIFTI */
+
 void SetViewFromMatrix(
   vtkRenderer *renderer,
   vtkInteractorStyleImage *istyle,
@@ -161,9 +234,9 @@ void SetViewFromMatrix(
 
 void printUsage(const char *cmdname)
 {
-    cout << "Usage 1: " << cmdname << " --nodisplay -o output.xfm source.mnc target.mnc"
+    cout << "Usage 1: " << cmdname << " --nodisplay -o output.nii source.nii target.nii"
          << endl;
-    cout << "Usage 2: " << cmdname << " --nodisplay -o output.xfm dicomdir1/ dicomdir2/"
+    cout << "Usage 2: " << cmdname << " --nodisplay -o output.nii dicomdir1/ dicomdir2/"
          << endl;
 }
 
@@ -179,6 +252,7 @@ int main (int argc, char *argv[])
   // the files
   int argi = 1;
   const char *xfmfile = NULL;
+  const char *outputfile = NULL;
   const char *sourcefile;
   const char *targetfile;
   bool display = true;
@@ -192,16 +266,18 @@ int main (int argc, char *argv[])
     {
     if (argc <= argi + 1)
       {
-      cerr << argv[0] << " : missing .xfm file after -o\n" << endl;
+      cerr << argv[0] << " : missing output file after -o\n" << endl;
       return EXIT_FAILURE;
       }
+    // is the output an xfm file or an image file?
     xfmfile = argv[argi + 1];
     argi += 2;
     size_t m = strlen(xfmfile);
     if (m < 4 || strcmp(&xfmfile[m-4], ".xfm") != 0)
       {
-      cerr << argv[0] << " : transform file must end in .xfm\n" << endl;
-      return EXIT_FAILURE;
+      // it isn't an .xfm file, assume that it is an image file
+      outputfile = xfmfile;
+      xfmfile = NULL;
       }
     }
 
@@ -236,6 +312,13 @@ int main (int argc, char *argv[])
     {
     ReadMINCImage(sourceImage, sourceMatrix, sourcefile);
     }
+#ifdef AIRS_USE_NIFTI
+  else if ((n > 4 && strcmp(&sourcefile[n-4], ".nii") == 0) ||
+           (n > 7 && strcmp(&sourcefile[n-7], ".nii.gz") == 0))
+    {
+    ReadNIFTIImage(sourceImage, sourceMatrix, sourcefile);
+    }
+#endif
   else
     {
     ReadDICOMImage(sourceImage, sourceMatrix, sourcefile);
@@ -251,6 +334,13 @@ int main (int argc, char *argv[])
     {
     ReadMINCImage(targetImage, targetMatrix, targetfile);
     }
+#ifdef AIRS_USE_NIFTI
+  else if ((n > 4 && strcmp(&targetfile[n-4], ".nii") == 0) ||
+           (n > 7 && strcmp(&targetfile[n-7], ".nii.gz") == 0))
+    {
+    ReadNIFTIImage(targetImage, targetMatrix, targetfile);
+    }
+#endif
   else
     {
     ReadDICOMImage(targetImage, targetMatrix, targetfile);
@@ -280,7 +370,7 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> sourceProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  sourceMapper->SetInput(sourceImage);
+  sourceMapper->SET_INPUT_DATA(sourceImage);
   sourceMapper->SliceAtFocalPointOn();
   sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
@@ -288,7 +378,7 @@ int main (int argc, char *argv[])
   double sourceRange[2];
   vtkSmartPointer<vtkImageHistogramStatistics> autoRange =
     vtkSmartPointer<vtkImageHistogramStatistics>::New();
-  autoRange->SetInput(sourceImage);
+  autoRange->SET_INPUT_DATA(sourceImage);
   autoRange->Update();
   autoRange->GetAutoRange(sourceRange);
 
@@ -309,13 +399,13 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> targetProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  targetMapper->SetInput(targetImage);
+  targetMapper->SET_INPUT_DATA(targetImage);
   targetMapper->SliceAtFocalPointOn();
   targetMapper->SliceFacesCameraOn();
   targetMapper->ResampleToScreenPixelsOff();
 
   double targetRange[2];
-  autoRange->SetInput(targetImage);
+  autoRange->SET_INPUT_DATA(targetImage);
   autoRange->Update();
   autoRange->GetAutoRange(targetRange);
 
@@ -390,7 +480,7 @@ int main (int argc, char *argv[])
   // reduce the source resolution
   vtkSmartPointer<vtkImageResize> sourceBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  sourceBlur->SetInput(sourceImage);
+  sourceBlur->SET_INPUT_DATA(sourceImage);
   sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
   sourceBlur->InterpolateOn();
@@ -403,7 +493,7 @@ int main (int argc, char *argv[])
   // keep target at full resolution
   vtkSmartPointer<vtkImageResize> targetBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  targetBlur->SetInput(targetImage);
+  targetBlur->SET_INPUT_DATA(targetImage);
   targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
   targetBlur->InterpolateOn();
@@ -571,7 +661,7 @@ int main (int argc, char *argv[])
 
   vtkSmartPointer<vtkImageReslice> resample =
     vtkSmartPointer<vtkImageReslice>::New();
-  resample->SetInput(sourceImage);
+  resample->SET_INPUT_DATA(sourceImage);
   resample->SetInformationInput(targetImage);
   resample->SetInterpolator(sincInterpolator);
   resample->SetResliceTransform(registration->GetTransform()->GetInverse());
@@ -581,21 +671,21 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkImageShiftScale>::New();
   shiftScale->SetShift(iShift);
   shiftScale->SetScale(iScale);
-  shiftScale->SetInput(resample->GetOutput());
+  shiftScale->SET_INPUT_DATA(resample->GetOutput());
   shiftScale->ClampOverflowOn();
   shiftScale->Update();
 
   vtkSmartPointer<vtkImageMathematics> difference =
     vtkSmartPointer<vtkImageMathematics>::New();
   difference->SetOperationToSubtract();
-  difference->SetInput(0, shiftScale->GetOutput());
-  difference->SetInput(1, targetImage);
+  difference->SET_INPUT_DATA(0, shiftScale->GetOutput());
+  difference->SET_INPUT_DATA(1, targetImage);
   difference->Update();
 
-  sourceMapper->SetInput(difference->GetOutput());
+  sourceMapper->SET_INPUT_DATA(difference->GetOutput());
 
   double differenceRange[2];
-  autoRange->SetInput(difference->GetOutput());
+  autoRange->SET_INPUT_DATA(difference->GetOutput());
   autoRange->Update();
   autoRange->GetAutoRange(differenceRange);
   differenceRange[0] = 0.0;
@@ -604,6 +694,36 @@ int main (int argc, char *argv[])
   sourceProperty->SetColorWindow((differenceRange[1]-differenceRange[0]));
   sourceProperty->SetColorLevel(0.5*(differenceRange[0]+differenceRange[1]));
   sourceProperty->CheckerboardOff();
+
+#ifdef AIRS_USE_NIFTI
+  // -------------------------------------------------------
+  // write the subtracted image
+  if (outputfile)
+    {
+    double outputSpacing[3];
+    difference->GetOutput()->GetSpacing(outputSpacing);
+    outputSpacing[0] = fabs(outputSpacing[0]);
+    outputSpacing[1] = fabs(outputSpacing[1]);
+    outputSpacing[2] = fabs(outputSpacing[2]);
+
+    // first, flip the image rows into a DICOM-style ordering
+    vtkSmartPointer<vtkImageReslice> flip =
+      vtkSmartPointer<vtkImageReslice>::New();
+    flip->SetInputConnection(difference->GetOutputPort());
+    flip->SetResliceAxesDirectionCosines(
+      -1,0,0, 0,-1,0, 0,0,1);
+    flip->SetOutputSpacing(outputSpacing);
+    flip->Update();
+
+    // next, write the image
+    vtkSmartPointer<vtkNIFTIWriter> writer =
+      vtkSmartPointer<vtkNIFTIWriter>::New();
+    writer->SetInputConnection(flip->GetOutputPort());
+    writer->SetQFormMatrix(targetMatrix);
+    writer->SetFileName(outputfile);
+    writer->Write();
+    }
+#endif
 
   // -------------------------------------------------------
   // allow user to interact

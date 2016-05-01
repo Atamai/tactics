@@ -33,10 +33,32 @@ ELSE (NOT AIRS_BINARY_DIR)
   SET(AIRS_EXAMPLES_TEMP_DIR ${AIRS_BINARY_DIR}/Testing/Temporary)
 ENDIF (NOT AIRS_BINARY_DIR)
 
+IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  SET(VTK_LIBS vtkRendering vtkIO)
+ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  SET(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
+      vtkRenderingFreeType vtkIOImage vtkIOMINC
+      vtkImagingStencil vtkImagingMath vtkFiltersSources vtksys)
+  SET(VTK_EXTRA_LIBS vtkIOMPIImage
+      vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
+      vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
+  FOREACH(TMP_LIB ${VTK_EXTRA_LIBS})
+    LIST(FIND VTK_LIBRARIES ${TMP_LIB} TMP_INDEX)
+    IF(TMP_INDEX GREATER -1)
+      SET(VTK_LIBS ${VTK_LIBS} ${TMP_LIB})
+    ENDIF(TMP_INDEX GREATER -1)
+  ENDFOREACH(TMP_LIB ${VTK_EXTRA_LIBS})
+ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+
 ADD_EXECUTABLE(RigidImageRegistration RigidImageRegistration.cxx)
-TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration vtkRendering vtkIO ${DICOM_LIBRARIES})
+TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
 ADD_EXECUTABLE(DifferenceRegistration DifferenceRegistration.cxx)
-TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration vtkRendering vtkIO)
+TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+
+#IF(${VTK_MAJOR_VERSION} VERSION_GREATER 5)
+#  ADD_EXECUTABLE(WarpAnts WarpAnts.cxx)
+#  TARGET_LINK_LIBRARIES(WarpAnts vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+#ENDIF(${VTK_MAJOR_VERSION} VERSION_GREATER 5)
 
 ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
-TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration vtkRendering vtkIO)
+TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})

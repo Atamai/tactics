@@ -51,6 +51,7 @@ class vtkLinearTransform;
 class vtkMatrix4x4;
 class vtkImageReslice;
 class vtkImageShiftScale;
+class vtkImageBSplineCoefficients;
 
 struct vtkImageRegistrationInfo;
 
@@ -95,7 +96,8 @@ public:
   // Optimizer types
   enum
   {
-    Amoeba
+    Amoeba,
+    Powell
   };
 
   // Metric types
@@ -105,6 +107,7 @@ public:
     CrossCorrelation,
     NormalizedCrossCorrelation,
     NeighborhoodCorrelation,
+    CorrelationRatio,
     MutualInformation,
     NormalizedMutualInformation
   };
@@ -115,7 +118,10 @@ public:
     Nearest,
     Linear,
     Cubic,
-    Sinc
+    BSpline,
+    Sinc,
+    ASinc,
+    Label
   };
 
   // Transform types
@@ -137,8 +143,7 @@ public:
   };
 
   // Description:
-  // Set the image registration metric.  The default is normalized
-  // cross correlation.
+  // Set the image registration metric.  The default is mutual information.
   vtkSetMacro(MetricType, int);
   void SetMetricTypeToSquaredDifference() {
     this->SetMetricType(SquaredDifference); }
@@ -155,10 +160,12 @@ public:
   vtkGetMacro(MetricType, int);
 
   // Description:
-  // Set the optimizer.  The default is Amoeba (Nelder-Mead Simplex).
+  // Set the optimizer.  The default is Powell.
   vtkSetMacro(OptimizerType, int);
   void SetOptimizerTypeToAmoeba() {
     this->SetOptimizerType(Amoeba); }
+  void SetOptimizerTypeToPowell() {
+    this->SetOptimizerType(Powell); }
   vtkGetMacro(OptimizerType, int);
 
   // Description:
@@ -170,6 +177,14 @@ public:
     this->SetInterpolatorType(Linear); }
   void SetInterpolatorTypeToCubic() {
     this->SetInterpolatorType(Cubic); }
+  void SetInterpolatorTypeToBSpline() {
+    this->SetInterpolatorType(BSpline); }
+  void SetInterpolatorTypeToSinc() {
+    this->SetInterpolatorType(Sinc); }
+  void SetInterpolatorTypeToASinc() {
+    this->SetInterpolatorType(ASinc); }
+  void SetInterpolatorTypeToLabel() {
+    this->SetInterpolatorType(Label); }
   vtkGetMacro(InterpolatorType, int);
 
   // Description:
@@ -329,8 +344,9 @@ protected:
 
   vtkMatrix4x4                    *InitialTransformMatrix;
   vtkImageReslice                 *ImageReslice;
-  vtkImageShiftScale              *SourceImageQuantizer;
-  vtkImageShiftScale              *TargetImageQuantizer;
+  vtkImageBSplineCoefficients     *ImageBSpline;
+  vtkImageShiftScale              *SourceImageTypecast;
+  vtkImageShiftScale              *TargetImageTypecast;
 
   vtkImageRegistrationInfo        *RegistrationInfo;
 

@@ -48,6 +48,8 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkMatrix4x4.h"
 #include "vtkPoints.h"
 #include "vtkCellArray.h"
+#include "vtkFloatArray.h"
+#include "vtkPointData.h"
 #include "vtkVersion.h"
 #include "vtkMath.h"
 #include "vtkSmartPointer.h"
@@ -134,7 +136,7 @@ int vtkFrameFinder::FillOutputPortInformation(
 }
 
 //----------------------------------------------------------------------------
-void vtkFrameFinder::SetInput(vtkDataObject* input)
+void vtkFrameFinder::SetInputData(vtkDataObject* input)
 {
 #if VTK_MAJOR_VERSION <= 5
   if (input)
@@ -409,13 +411,13 @@ Blob MakeBlob(
     AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
-    AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y + 1, z,
+    AddPixelIfAboveThreshold(array, curPt.x - 1, curPt.y, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
     AddPixelIfAboveThreshold(array, curPt.x, curPt.y + 1, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
-    AddPixelIfAboveThreshold(array, curPt.x - 1, curPt.y + 1, z,
+    AddPixelIfAboveThreshold(array, curPt.x, curPt.y - 1, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
     }
@@ -606,7 +608,7 @@ void UpdateBlobs(
   // threshold at half of the 98th percentile within the box
   const double fthresh = 0.5;
   const double fraction = 0.98;
-  double thresh98; // to be computed by ComputePercentile
+  double thresh98 = 0.0; // to be computed by ComputePercentile
 
   // find the 98th percentile threshold
   switch (dataType)
@@ -628,17 +630,38 @@ void UpdateBlobs(
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-// This histogram class bins according to position, rather than intensity.
-class Histogram
+// Select blobs according to their position when projected onto a line.
+// The goal is to reduce a 3D search to a simple 1D search, to make it
+// easy to search for the clusters of blobs that correspond to the desired
+// features in the image.
+class Selector
 {
 public:
-  Histogram(std::vector<Blob> *blobs, const double direction[3]);
+  // The "blobs" are all the blobs to select from, and the "direction" is
+  // the direction of the line onto which the blob positions are projected.
+  // Use either the SelectTwo() or the SelectOne() method to search for the
+  // desired blob clusters, and use GetClusters() to return them.
+  Selector(std::vector<Blob> *blobs, const double direction[3]);
+
+  // The minimum intesity value for all the blobs.
   double GetMinimum() { return this->Minimum; }
+
+  // The maximum intensity value for all the blobs.
   double GetMaximum() { return this->Maximum; }
+
+  // The average bin value, for use as a selection threshold.
   double GetAverage() { return this->Average; }
-  bool CollapseTwo(double distance, double threshold, int maxWidth);
-  bool CollapseOne(double position, double threshold, int maxWidth);
-  bool CollapseOne(double threshold, int maxWidth);
+
+  // Search for two peaks that are separated by the given distance and
+  // which have the given maximum width above threshold.
+  bool SelectTwo(double distance, double threshold, int maxWidth);
+
+  // Search for one peak at the given position and with the given
+  // maximum width above threshold.
+  bool SelectOne(double position, double threshold, int maxWidth);
+
+  // Search for the one peak with the given maximum width above threshold.
+  bool SelectOne(double threshold, int maxWidth);
 
   // Each bin has a value (the sum of all the blobs that went into that
   // bin) and the slice range that the blobs cover.
@@ -649,8 +672,10 @@ public:
     double sum;
   };
 
-  // A cluster is a peak in the histogram.  The lowest and highest bin
-  // in the cluster are stored.
+  // A cluster is a peak in the intensity versus position plot, where
+  // "position" means the position along the direction selected in the
+  // constructor.  The lowest and highest bin in the cluster are stored,
+  // and these can be used to find the blobs that belong to the cluster.
   struct Cluster
   {
     int lowest;
@@ -660,7 +685,8 @@ public:
     double sum;
   };
 
-  std::vector<Cluster> *GetClusters() { return &this->Clusters; }
+  // Get the clusters that were selected by SelectOne() or SelectTwo().
+  std::vector<Cluster> *GetClusters();
 
 private:
   void ReturnCluster(double keepThreshold, Cluster *cluster);
@@ -675,7 +701,7 @@ private:
 
 //----------------------------------------------------------------------------
 // Sort the blob points according to location along vector
-Histogram::Histogram(std::vector<Blob> *blobs, const double vec[3])
+Selector::Selector(std::vector<Blob> *blobs, const double vec[3])
 {
   std::map<int, Bin> *bins = &this->Bins;
 
@@ -716,10 +742,10 @@ Histogram::Histogram(std::vector<Blob> *blobs, const double vec[3])
 }
 
 //----------------------------------------------------------------------------
-// Find the largest peak in the histogram, store it in the Cluster,
-// and then erase the bins from the histogram.  This method can be
-// called repeatedly to get all the peaks in order.
-void Histogram::ReturnCluster(double threshold, Cluster *cluster)
+// Find the largest peak, store it in the Cluster, and then erase the bins
+// from the Selector.  This method can be called repeatedly to get all the
+// peaks in order.
+void Selector::ReturnCluster(double threshold, Cluster *cluster)
 {
   // first find the peak bin
   std::map<int, Bin> *bins = &this->Bins;
@@ -784,7 +810,7 @@ void Histogram::ReturnCluster(double threshold, Cluster *cluster)
 //----------------------------------------------------------------------------
 // Find all clusters that are above the given threshold and that are
 // less than the specified maximum width
-void Histogram::BuildClusters(double threshold, int maxWidth)
+void Selector::BuildClusters(double threshold, int maxWidth)
 {
   std::vector<Cluster> *clusters = &this->Clusters;
   std::map<int, Bin> *bins = &this->Bins;
@@ -805,11 +831,10 @@ void Histogram::BuildClusters(double threshold, int maxWidth)
 //----------------------------------------------------------------------------
 // Identify two clusters that are separated by the given distance.
 // Remove all other clusters.
-bool Histogram::CollapseTwo(
+bool Selector::SelectTwo(
   double distance, double threshold, int maxWidth)
 {
-  // distance = ideal distance between histogram peaks in
-  // data coordinates
+  // distance = ideal distance between peaks, in data coordinates
 
   this->BuildClusters(threshold, maxWidth);
   std::vector<Cluster> *clusters = &this->Clusters;
@@ -890,7 +915,7 @@ bool Histogram::CollapseTwo(
 //----------------------------------------------------------------------------
 // Identify the cluster that is at the given position.
 // Remove all other clusters.
-bool Histogram::CollapseOne(
+bool Selector::SelectOne(
   double position, double threshold, int maxWidth)
 {
   this->BuildClusters(threshold, maxWidth);
@@ -953,7 +978,7 @@ bool Histogram::CollapseOne(
 
 //----------------------------------------------------------------------------
 // Identify the cluster with the highest value.
-bool Histogram::CollapseOne(double threshold, int maxWidth)
+bool Selector::SelectOne(double threshold, int maxWidth)
 {
   this->BuildClusters(threshold, maxWidth);
   std::vector<Cluster> *clusters = &this->Clusters;
@@ -982,6 +1007,13 @@ bool Histogram::CollapseOne(double threshold, int maxWidth)
   clusters->push_back(cluster);
 
   return true;
+}
+
+//----------------------------------------------------------------------------
+// Get the selected clusters.
+std::vector<Selector::Cluster> *Selector::GetClusters()
+{
+  return &this->Clusters;
 }
 
 //----------------------------------------------------------------------------
@@ -1320,32 +1352,32 @@ bool FiducialPlate::LocateBars(
   int clusterWidthD = static_cast<int>(clusterWidth/hspacing*1.4 + 0.5);
   int clusterWidthH = static_cast<int>(clusterWidth/hspacing + 0.5);
 
-  // generate histograms along the horiz and diagonal directions
-  Histogram hist1(blobs, dvec);
-  Histogram hist2(blobs, hvec);
+  // generate cluster selectors along the horiz and diagonal directions
+  Selector selector1(blobs, dvec);
+  Selector selector2(blobs, hvec);
 
   // the cluster identification threshold
-  clusterThreshold *= hist2.GetMaximum();
+  clusterThreshold *= selector2.GetMaximum();
 
   // locate the diagonal bar
-  if (!hist1.CollapseOne(clusterThreshold, clusterWidthD))
+  if (!selector1.SelectOne(clusterThreshold, clusterWidthD))
     {
     return false;
     }
 
   // locate the two vertical bars
-  if (!hist2.CollapseTwo(barSeparation, clusterThreshold, clusterWidthH))
+  if (!selector2.SelectTwo(barSeparation, clusterThreshold, clusterWidthH))
     {
     return false;
     }
 
   // get the clusters for the three bars
-  std::vector<Histogram::Cluster>::iterator clusters[3];
-  clusters[0] = hist1.GetClusters()->begin();
-  clusters[1] = hist2.GetClusters()->begin();
-  clusters[2] = hist2.GetClusters()->begin() + 1;
+  std::vector<Selector::Cluster>::iterator clusters[3];
+  clusters[0] = selector1.GetClusters()->begin();
+  clusters[1] = selector2.GetClusters()->begin();
+  clusters[2] = selector2.GetClusters()->begin() + 1;
 
-  // the histogram directions for the bars
+  // the cluster selector directions for the bars
   const double *vecs[3];
   vecs[0] = dvec;
   vecs[1] = hvec;
@@ -1365,7 +1397,7 @@ bool FiducialPlate::LocateBars(
     // loop through the three bars (diagonal first!)
     for (int i = 0; i < 3; i++)
       {
-      // compute the histogram index for the point
+      // compute the bin index for the point
       const double *vec = vecs[i];
       double x = it->x*vec[0] + it->y*vec[1] + it->slice*vec[2];
       int idx = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
@@ -1476,14 +1508,14 @@ bool PositionFrame(
   BuildMatrix(xvec, yvec, zvec, centre, frameCentre, direction, matrix);
 
   // find the side plates of the leksell frame
-  Histogram xHistogram(blobs, xvec);
-  if (!xHistogram.CollapseTwo(plateSeparationX/spacing[0],
-                              plateClusterThreshold*xHistogram.GetAverage(),
-                              clusterWidthX))
+  Selector xSelector(blobs, xvec);
+  if (!xSelector.SelectTwo(plateSeparationX/spacing[0],
+                           plateClusterThreshold*xSelector.GetAverage(),
+                           clusterWidthX))
     {
     return false;
     }
-  std::vector<Histogram::Cluster> *xClusters = xHistogram.GetClusters();
+  std::vector<Selector::Cluster> *xClusters = xSelector.GetClusters();
 
   // for computing min and max slice for side plates
   int zMin = 10000;
@@ -1588,23 +1620,23 @@ bool PositionFrame(
   dvec[1] = 0.0;
   dvec[2] = -sqrt(0.5)*spacing[2]/spacing[0]*direction[0]*direction[2];
 
-  Histogram yHistogramLow(&yBlobs[0], yvec);
-  Histogram yHistogramHigh(&yBlobs[1], yvec);
-  Histogram *yHistogram[2];
-  yHistogram[0] = &yHistogramLow;
-  yHistogram[1] = &yHistogramHigh;
+  Selector ySelectorLow(&yBlobs[0], yvec);
+  Selector ySelectorHigh(&yBlobs[1], yvec);
+  Selector *ySelector[2];
+  ySelector[0] = &ySelectorLow;
+  ySelector[1] = &ySelectorHigh;
 
   for (int j = 0; j < 2; j++)
     {
     if ((useAP && useAP[j] == 0) ||
-        !yHistogram[j]->CollapseOne(
+        !ySelector[j]->SelectOne(
           (yPlatePos[j] - origin[1])/spacing[1],
-          plateClusterThreshold*xHistogram.GetAverage(), clusterWidthY))
+          plateClusterThreshold*xSelector.GetAverage(), clusterWidthY))
       {
       foundPlate[2+j] = false;
       continue;
       }
-    std::vector<Histogram::Cluster> *yClusters = yHistogram[j]->GetClusters();
+    std::vector<Selector::Cluster> *yClusters = ySelector[j]->GetClusters();
 
     for (std::vector<Blob>::iterator it = yBlobs[j].begin();
          it != yBlobs[j].end();
@@ -1745,6 +1777,11 @@ int vtkFrameFinder::FindFrame(
     {
     // generate the frame data
     vtkSmartPointer<vtkPoints> points;
+    vtkSmartPointer<vtkFloatArray> scalars =
+      vtkSmartPointer<vtkFloatArray>::New();
+    vtkSmartPointer<vtkFloatArray> vectors =
+      vtkSmartPointer<vtkFloatArray>::New();
+    vectors->SetNumberOfComponents(3);
     if (poly->GetPoints())
       {
       points = poly->GetPoints();
@@ -1762,6 +1799,7 @@ int vtkFrameFinder::FindFrame(
     // activate this to see all the blobs, not just frame blobs
     // (for debugging purposes only)
 #if 0
+    points->SetNumberOfPoints(0);
     for (std::vector<Blob>::iterator it = blobs.begin();
          it != blobs.end();
          ++it)
@@ -1772,6 +1810,11 @@ int vtkFrameFinder::FindFrame(
       point[2] = origin[2] + it->slice*spacing[2];
       vtkIdType ptId = points->InsertNextPoint(point);
       cells->InsertCellPoint(ptId);
+      float s = it->val;
+      float r = sqrt(it->count/3.14159);
+      float v[3] = { r, r, 1.0 };
+      scalars->InsertNextTuple(&s);
+      vectors->InsertNextTuple(v);
       //cout << "blob " << numVerts << " " << point[0] << " " << point[1] << " " << point[2] << "\n";
       numVerts++;
       }
@@ -1779,6 +1822,8 @@ int vtkFrameFinder::FindFrame(
     cells->UpdateCellCount(numVerts);
     poly->SetPoints(points);
     poly->SetVerts(cells);
+    poly->GetPointData()->SetScalars(scalars);
+    poly->GetPointData()->SetVectors(vectors);
     }
 #else
     for (std::vector<Point>::iterator it = framePoints.begin();

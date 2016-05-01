@@ -2,20 +2,36 @@
 
 SET(KIT ImageSegmentation)
 SET(UKIT IMAGESEGMENTATION)
-SET(KIT_LIBS vtkHybrid)
+IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  SET(KIT_LIBS vtkHybrid)
+ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  SET(KIT_LIBS vtkImagingStencil vtkFiltersModeling)
+ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 
 # Set your list of sources here.  Do not change the name of the
 # Kit_SRCS variable.
 SET(Kit_SRCS
-  vtkImageFloodFill.cxx
+  vtkImageConnectivityFilter.cxx
   vtkImageIslandRemoval.cxx
   vtkImageMRIBrainExtractor.cxx
+  vtkImageExtractPoints.cxx
+  vtkImageRegionIteratorBase.cxx
   vtkImageRegionIterator.cxx
+  vtkImagePointsIterator.cxx
 )
 
 SET_SOURCE_FILES_PROPERTIES(
+  vtkImageRegionIteratorBase
   vtkImageRegionIterator
+  vtkImagePointsIterator
   WRAP_EXCLUDE
+)
+
+SET_SOURCE_FILES_PROPERTIES(
+  vtkImageRegionIteratorBase
+  vtkImageRegionIterator
+  vtkImagePointsIterator
+  WRAP_PYTHON_EXCLUDE
 )
 
 SET(Kit_EXTRA_SRCS)
