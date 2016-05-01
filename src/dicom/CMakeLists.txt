@@ -13,63 +13,114 @@ endif()
 
 # Project version
 set(DICOM_MAJOR_VERSION 0)
-set(DICOM_MINOR_VERSION 3)
-set(DICOM_BUILD_VERSION 4)
+set(DICOM_MINOR_VERSION 7)
+set(DICOM_PATCH_VERSION 7)
 set(DICOM_SHORT_VERSION "${DICOM_MAJOR_VERSION}.${DICOM_MINOR_VERSION}")
-set(DICOM_VERSION "${DICOM_SHORT_VERSION}.${DICOM_BUILD_VERSION}")
+set(DICOM_VERSION "${DICOM_SHORT_VERSION}.${DICOM_PATCH_VERSION}")
+
+# Configuration header
+set(DICOM_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(DICOM_BUILD_TESTING ${BUILD_TESTING})
+set(DICOM_USE_GDCM ${USE_GDCM})
+set(DICOM_USE_DCMTK ${USE_DCMTK})
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/vtkDICOMConfig.h.in
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkDICOMConfig.h" @ONLY)
+
+# Include directories
+set(DICOM_INCLUDE_DIRS
+  ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${DICOM_INCLUDE_DIRS})
 
 # The library name, dependencies, and source files
 # Use ITK to get gdcm
 set(LIB_NAME ${PROJECT_NAME})
 set(LIB_DEPS vtkIO vtkzlib ${ITK_LIBRARIES})
 
+if(WIN32)
+  set(REFCOUNT_SRC vtkDICOMReferenceCount.cxx)
+else()
+  set(REFCOUNT_HDR vtkDICOMReferenceCount.h)
+endif()
+
 # Sources in the current directory (library sources only!)
 set(LIB_SRCS
   vtkDICOMMetaData.cxx
   vtkDICOMDictionary.cxx
+  vtkDICOMFilePath.cxx
+  vtkDICOMFile.cxx
+  vtkDICOMFileDirectory.cxx
   vtkDICOMTag.cxx
+  vtkDICOMTagPath.cxx
   vtkDICOMVR.cxx
   vtkDICOMVM.cxx
+  vtkDICOMCharacterSet.cxx
   vtkDICOMDataElement.cxx
   vtkDICOMDictHash.cxx
   vtkDICOMDictEntry.cxx
+  vtkDICOMDictPrivate.cxx
+  vtkDICOMDirectory.cxx
+  vtkDICOMFileSorter.cxx
+  vtkDICOMGenerator.cxx
+  vtkDICOMImageCodec.cxx
+  vtkDICOMSCGenerator.cxx
+  vtkDICOMCTGenerator.cxx
+  vtkDICOMMRGenerator.cxx
   vtkDICOMParser.cxx
+  vtkDICOMCompiler.cxx
   vtkDICOMReader.cxx
+  vtkDICOMSliceSorter.cxx
   vtkDICOMSequence.cxx
   vtkDICOMItem.cxx
   vtkDICOMSorter.cxx
-  vtkDICOMTagPath.cxx
-  vtkDICOMReferenceCount.cxx
-  vtkDICOMValue.cxx
-  vtkDICOMToRAS.cxx
+  ${REFCOUNT_SRC}
   vtkDICOMUtilities.cxx
+  vtkDICOMUtilitiesUIDTable.cxx
+  vtkDICOMValue.cxx
+  vtkDICOMWriter.cxx
+  vtkDICOMAlgorithm.cxx
+  vtkDICOMLookupTable.cxx
+  vtkDICOMApplyPalette.cxx
+  vtkDICOMApplyRescale.cxx
+  vtkDICOMToRAS.cxx
+  vtkDICOMCTRectifier.cxx
+  vtkDICOMMetaDataAdapter.cxx
+  vtkNIFTIHeader.cxx
   vtkNIFTIReader.cxx
   vtkNIFTIWriter.cxx
 )
 
 # Headers without a matching .cxx file are listed here
 set(LIB_HDRS
-  vtkDICOMModule.h
-  vtkNIFTIHeaderPrivate.h
-  ${DICOM_BINARY_DIR}/vtkDICOMConfig.h
+  ${REFCOUNT_HDR}
+  vtkNIFTIPrivate.h
+  ${CMAKE_CURRENT_BINARY_DIR}/vtkDICOMBuild.h
+  ${CMAKE_CURRENT_BINARY_DIR}/vtkDICOMConfig.h
+  ${CMAKE_CURRENT_BINARY_DIR}/vtkDICOMModule.h
 )
 
-set(DICOM_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${DICOM_INCLUDE_DIRS})
+# Internal headers (not installed)
+set(LIB_PRIVATE_HDRS
+  vtkNIFTIPrivate.h
+  ${CMAKE_CURRENT_BINARY_DIR}/vtkDICOMBuild.h
+)
 
-# Create a list of header files (source files that end in .h)
-set(LIB_HDRS)
-foreach(source_file ${LIB_SRCS})
-  get_filename_component(file_extension ${source_file} EXT)
-  if("${file_extension}" STREQUAL ".h")
-    set(LIB_HDRS ${LIB_HDRS} ${source_file})
-  endif()
-endforeach()
+set_source_files_properties(${LIB_PRIVATE_HDRS}
+  PROPERTIES SKIP_HEADER_INSTALL ON)
 
 # Let CMake know which sources have .h without a .cxx
-if(LIB_HDRS)
-  set_source_files_properties(${LIB_HDRS} HEADER_FILE_ONLY)
-endif()
+set_source_files_properties(${LIB_HDRS} HEADER_FILE_ONLY)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/vtkDICOMModule.h.in
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkDICOMModule.h" COPYONLY)
+
+# Automatically find the header for each cxx file
+foreach(arg ${LIB_SRCS})
+  get_filename_component(src "${arg}" ABSOLUTE)
+  string(REGEX REPLACE "\\.(cxx|c|mm|m)$" ".h" hdr "${src}")
+  if("${hdr}" MATCHES "\\.h$" AND EXISTS "${hdr}")
+    list(APPEND LIB_HDRS "${hdr}")
+  endif()
+endforeach()
 
 # Create the library
 add_library(${LIB_NAME} STATIC ${LIB_SRCS})

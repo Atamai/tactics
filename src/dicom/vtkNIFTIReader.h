@@ -12,11 +12,12 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkNIFTIReader - Read NIfTI medical image files
+// .NAME vtkNIFTIReader - Read NIfTI-1 and NIfTI-2 medical image files
 // .SECTION Description
 // This class reads NIFTI files, either in .nii format or as separate
-// .img and .hdr files.  If the files are gzipped, then they will be
-// decompressed on-the-fly while they are being read.  Files that contain
+// .img and .hdr files.  If two files are used, then they can be passed
+// by using SetFileNames() instead of SetFileName().  Files ending in .gz
+// are decompressed on-the-fly while they are being read.  Files with
 // complex numbers or vector dimensions will be read as multi-component
 // images.  If a NIFTI file has a time dimension, then by default only the
 // first image in the time series will be read, but the TimeAsVector
@@ -28,17 +29,19 @@
 // .SECTION See Also
 // vtkNIFTIWriter, vtkNIFTIHeader
 
-#ifndef __vtkNIFTIReader_h
-#define __vtkNIFTIReader_h
+#ifndef vtkNIFTIReader_h
+#define vtkNIFTIReader_h
 
 #include <vtkImageReader2.h>
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 
 class vtkNIFTIHeader;
 class vtkMatrix4x4;
 
+struct nifti_1_header;
+
 //----------------------------------------------------------------------------
-class VTK_DICOM_EXPORT vtkNIFTIReader : public vtkImageReader2
+class VTKDICOM_EXPORT vtkNIFTIReader : public vtkImageReader2
 {
 public:
   // Description:
@@ -77,7 +80,7 @@ public:
   // Description:
   // Get the time dimension that was stored in the NIFTI header.
   int GetTimeDimension() { return this->Dim[4]; }
-  int GetTimeSpacing() { return this->PixDim[4]; }
+  double GetTimeSpacing() { return this->PixDim[4]; }
 
   // Description:
   // Get the slope and intercept for rescaling the scalar values.
@@ -87,6 +90,16 @@ public:
   // scl_inter fields in the NIFTI header.
   double GetRescaleSlope() { return this->RescaleSlope; }
   double GetRescaleIntercept() { return this->RescaleIntercept; }
+
+  // Description:
+  // Read planar RGB (separate R, G, and B planes), rather than packed RGB.
+  // The NIFTI format should always use packed RGB.  The Analyze format,
+  // however, was used to store both planar RGB and packed RGB depending
+  // on the software, without any indication in the header about which
+  // convention was being used.  Use this if you have a planar RGB file.
+  vtkGetMacro(PlanarRGB, bool);
+  vtkSetMacro(PlanarRGB, bool);
+  vtkBooleanMacro(PlanarRGB, bool);
 
   // Description:
   // QFac gives the slice order in the NIFTI file versus the VTK image.
@@ -120,11 +133,11 @@ public:
   // matrix can contain scaling information and can even (rarely) have
   // a negative determinant, i.e. a flip.  This matrix is modified slightly
   // as compared to the sform matrix stored in the NIFTI header: the pixdim
-  // pixel spacing is factored out.  Also, if qform_code is set and QFac is -1,
-  // then the VTK slices are in reverse order as compared to the NIFTI slices,
-  // hence as compared to the sform matrix stored in the header, the third
-  // column of this matrix is multiplied by -1 and the Z offset is shifted
-  // to compensate for the fact that the last slice has become the first.
+  // pixel spacing is factored out.  Also, if QFac is -1, then the VTK slices
+  // are in reverse order as compared to the NIFTI slices, hence as compared
+  // to the sform matrix stored in the header, the third column of this matrix
+  // is multiplied by -1 and the Z offset is shifted to compensate for the
+  // fact that the last slice has become the first.
   vtkMatrix4x4 *GetSFormMatrix() { return this->SFormMatrix; }
 
   // Description:
@@ -148,6 +161,12 @@ protected:
     vtkInformationVector* outputVector);
 
   // Description:
+  // Doe a case-insensitive check for the given extension.
+  // The check will succeed if the filename ends in ".gz", and if the
+  // extension matches after removing the ".gz".
+  static bool CheckExtension(const char *fname, const char *ext);
+
+  // Description:
   // Make a new filename by replacing extension "ext1" with "ext2".
   // The extensions must include a period, must be three characters
   // long, and must be lower case.  This method also verifies that
@@ -156,6 +175,14 @@ protected:
   // deleted by the caller.  Otherwise, the return value is NULL.
   static char *ReplaceExtension(
     const char *fname, const char *ext1, const char *ext2);
+
+  // Description:
+  // Check the version of the header.
+  static int CheckNIFTIVersion(const nifti_1_header *hdr);
+
+  // Description:
+  // Check for Analyze 7.5 header.
+  static bool CheckAnalyzeHeader(const nifti_1_header *hdr);
 
   // Description:
   // Read the time dimension as if it was a vector dimension.
@@ -187,9 +214,13 @@ protected:
   // A copy of the header from the file that was most recently read.
   vtkNIFTIHeader *NIFTIHeader;
 
+  // Description:
+  // Use planar RGB instead of the default (packed).
+  bool PlanarRGB;
+
 private:
   vtkNIFTIReader(const vtkNIFTIReader&);  // Not implemented.
   void operator=(const vtkNIFTIReader&);  // Not implemented.
 };
 
-#endif // __vtkNIFTIReader_h
+#endif // vtkNIFTIReader_h

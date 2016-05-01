@@ -2,9 +2,9 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -20,9 +20,12 @@
 // For use by methods that must return an invalid value
 const vtkDICOMValue vtkDICOMSequence::InvalidValue;
 
+// For use by methods that must return an empty item
+const vtkDICOMItem vtkDICOMSequence::EmptyItem;
+
 //----------------------------------------------------------------------------
 const vtkDICOMValue &vtkDICOMSequence::GetAttributeValue(
-    unsigned int i, vtkDICOMTag tag) const
+    size_t i, vtkDICOMTag tag) const
 {
   const vtkDICOMItem *ptr = this->V.GetSequenceData();
   if (ptr != 0 && i < this->V.GetNumberOfValues())
@@ -34,7 +37,7 @@ const vtkDICOMValue &vtkDICOMSequence::GetAttributeValue(
 
 //----------------------------------------------------------------------------
 const vtkDICOMValue &vtkDICOMSequence::GetAttributeValue(
-    unsigned int i, const vtkDICOMTagPath &tagpath) const
+    size_t i, const vtkDICOMTagPath &tagpath) const
 {
   const vtkDICOMItem *ptr = this->V.GetSequenceData();
   if (ptr != 0 && i < this->V.GetNumberOfValues())
@@ -45,12 +48,14 @@ const vtkDICOMValue &vtkDICOMSequence::GetAttributeValue(
 }
 
 //----------------------------------------------------------------------------
-const vtkDICOMItem &vtkDICOMSequence::GetItem(unsigned int i) const
+const vtkDICOMItem &vtkDICOMSequence::GetItem(size_t i) const
 {
   const vtkDICOMItem *ptr = this->V.GetSequenceData();
-  assert(ptr != 0 && i < this->V.GetNumberOfValues());
-
-  return ptr[i];
+  if (ptr != 0 && i < this->V.GetNumberOfValues())
+    {
+    return ptr[i];
+    }
+  return vtkDICOMSequence::EmptyItem;
 }
 
 //----------------------------------------------------------------------------

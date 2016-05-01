@@ -30,16 +30,17 @@
 // .SECTION See Also
 // vtkNIFTIReader, vtkNIFTIWriter
 
-#ifndef __vtkNIFTIHeader_h
-#define __vtkNIFTIHeader_h
+#ifndef vtkNIFTIHeader_h
+#define vtkNIFTIHeader_h
 
 #include <vtkObject.h>
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 
 struct nifti_1_header;
+struct nifti_2_header;
 
 //----------------------------------------------------------------------------
-class VTK_DICOM_EXPORT vtkNIFTIHeader : public vtkObject
+class VTKDICOM_EXPORT vtkNIFTIHeader : public vtkObject
 {
 public:
 
@@ -128,6 +129,37 @@ public:
   };
 
   // Description:
+  // NIFTI data types.
+  // Types RGB24 and RGB32 are represented in VTK as a multi-component
+  // unsigned char image.  Complex values are represented as two-component
+  // images.  The NIFTI types Float128 and Complex256 are not supported.
+  enum DataTypeEnum {
+    TypeUInt8 = 2,
+    TypeInt16 = 4,
+    TypeInt32 = 8,
+    TypeFloat32 = 16,
+    TypeComplex64 = 32,
+    TypeFloat64 = 64,
+    TypeRGB24 = 128,
+    TypeInt8 = 256,
+    TypeUInt16 = 512,
+    TypeUInt32 = 768,
+    TypeInt64 = 1024,
+    TypeUInt64 = 1280,
+    TypeFloat128 = 1536,
+    TypeComplex128 = 1792,
+    TypeComplex256 = 2048,
+    TypeRGBA32 = 2304
+  };
+
+  // Description:
+  // NIFTI header sizes.
+  enum HeaderSizeEnum {
+    Nifti1HeaderSize = 348,
+    Nifti2HeaderSize = 540
+  };
+
+  // Description:
   // Static method for construction.
   static vtkNIFTIHeader *New();
   vtkTypeMacro(vtkNIFTIHeader, vtkObject);
@@ -212,9 +244,9 @@ public:
   // Description:
   // Get the slice range for the data.
   vtkSetMacro(SliceStart, vtkTypeInt64);
-  int GetSliceStart() { return this->SliceStart; }
+  vtkTypeInt64 GetSliceStart() { return this->SliceStart; }
   vtkSetMacro(SliceEnd, vtkTypeInt64);
-  int GetSliceEnd() { return this->SliceEnd; }
+  vtkTypeInt64 GetSliceEnd() { return this->SliceEnd; }
 
   // Description:
   // Get the slice code for the data.
@@ -241,7 +273,7 @@ public:
   const char *GetDescrip() { return this->Descrip; }
 
   // Description:
-  // Get an auxilliary file, e.g. a color table, that is associated
+  // Get an auxiliary file, e.g. a color table, that is associated
   // with this data.  The length of the filename must be a maximum of
   // 24 characters, and it will be assumed to be in the same directory
   // as the NIFTI file.
@@ -296,6 +328,8 @@ public:
   // the values in an existing nifti struct.
   void SetHeader(const nifti_1_header *hdr);
   void GetHeader(nifti_1_header *hdr);
+  void SetHeader(const nifti_2_header *hdr);
+  void GetHeader(nifti_2_header *hdr);
 
 protected:
   vtkNIFTIHeader();
@@ -344,4 +378,4 @@ private:
   void operator=(const vtkNIFTIHeader&);  // Not implemented.
 };
 
-#endif // __vtkNIFTIHeader_h
+#endif // vtkNIFTIHeader_h

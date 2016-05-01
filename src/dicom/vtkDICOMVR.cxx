@@ -2,9 +2,9 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -96,10 +96,10 @@ const unsigned char LXT[256] = { // LO LT
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
-const unsigned char OXT[256] = { // OB OF OW
+const unsigned char OXT[256] = { // OB OF OL OW
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0, 0, VR::OB, 0, 0, 0, VR::OF, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  ABCDEFGHIJKLMNO
+  0,0,VR::OB,0,VR::OD,0,VR::OF,0,0,0,0,0,VR::OL,0,0,0, //  ABCDEFGHIJKLMNO
   0, 0, 0, 0, 0, 0, 0, VR::OW, 0, 0, 0, 0, 0, 0, 0, 0, // PQRSTUVWXYZ
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -147,8 +147,8 @@ const unsigned char TXT[256] = { // TM
 const unsigned char UXT[256] = { // UI UL UN US UT
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, VR::UI,0,0,VR::UL,0,VR::UN,0, //  ABCDEFGHIJKLMNO
-  0, 0, 0, VR::US, VR::UT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // PQRSTUVWXYZ
+  0,0,0,VR::UC,0,0,0,0,0,VR::UI,0,0,VR::UL,0,VR::UN,0, //  ABCDEFGHIJKLMNO
+  0, 0, VR::UR,VR::US,VR::UT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // PQRSTUVWXYZ
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -188,7 +188,7 @@ const unsigned char *vtkDICOMVR::VRTable[256] = {
   XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,XXT,
 };
 
-const unsigned char vtkDICOMVR::TypeTable[32] = {
+const unsigned char vtkDICOMVR::TypeTable[34] = {
   VTK_VOID,           // Invalid
   VTK_CHAR,           // AE Application Entity
   VTK_CHAR,           // AS Age String
@@ -203,8 +203,10 @@ const unsigned char vtkDICOMVR::TypeTable[32] = {
   VTK_CHAR,           // LO Long String
   VTK_CHAR,           // LT Long Text
   VTK_UNSIGNED_CHAR,  // OB Other Byte
+  VTK_DOUBLE,         // OD Other Double
   VTK_FLOAT,          // OF Other Float
-  VTK_SHORT,          // OW Other Word
+  VTK_UNSIGNED_INT,   // OL Other Long
+  VTK_UNSIGNED_SHORT, // OW Other Word
   VTK_CHAR,           // PN Personal Name
   VTK_CHAR,           // SH Short String
   VTK_INT,            // SL Signed Long
@@ -212,18 +214,18 @@ const unsigned char vtkDICOMVR::TypeTable[32] = {
   VTK_SHORT,          // SS Signed Short
   VTK_CHAR,           // ST Short Text
   VTK_CHAR,           // TM Time
+  VTK_CHAR,           // UC Unlimited Characters
   VTK_CHAR,           // UI UID
   VTK_UNSIGNED_INT,   // UL Unsigned Long
   VTK_UNSIGNED_CHAR,  // UN Unknown
+  VTK_CHAR,           // UR URI or URL
   VTK_UNSIGNED_SHORT, // US Unsigned Short
   VTK_CHAR,           // UT Unlimited Text
   VTK_VOID,           // Invalid
   VTK_VOID,           // Invalid
-  VTK_VOID,           // Invalid
-  VTK_VOID,           // Invalid
 };
 
-const char vtkDICOMVR::TextTable[32][4] = {
+const char vtkDICOMVR::TextTable[34][4] = {
   { 0, 0, 0, 0 },     // Invalid
   { 'A', 'E', 0, 0 }, // AE Application Entity
   { 'A', 'S', 0, 0 }, // AS Age String
@@ -238,7 +240,9 @@ const char vtkDICOMVR::TextTable[32][4] = {
   { 'L', 'O', 0, 0 }, // LO Long String
   { 'L', 'T', 0, 0 }, // LT Long Text
   { 'O', 'B', 0, 0 }, // OB Other Byte
+  { 'O', 'D', 0, 0 }, // OD Other Double
   { 'O', 'F', 0, 0 }, // OF Other Float
+  { 'O', 'L', 0, 0 }, // OL Other Long
   { 'O', 'W', 0, 0 }, // OW Other Word
   { 'P', 'N', 0, 0 }, // PN Personal Name
   { 'S', 'H', 0, 0 }, // SH Short String
@@ -247,13 +251,13 @@ const char vtkDICOMVR::TextTable[32][4] = {
   { 'S', 'S', 0, 0 }, // SS Signed Short
   { 'S', 'T', 0, 0 }, // ST Short Text
   { 'T', 'M', 0, 0 }, // TM Time
+  { 'U', 'C', 0, 0 }, // UC Unlimited Characters
   { 'U', 'I', 0, 0 }, // UI UID
   { 'U', 'L', 0, 0 }, // UL Unsigned Long
   { 'U', 'N', 0, 0 }, // UN Unknown
+  { 'U', 'R', 0, 0 }, // UR URI or URL
   { 'U', 'S', 0, 0 }, // US Unsigned Short
   { 'U', 'T', 0, 0 }, // UT Unlimited Text
   { 'O', 'X', 0, 0 },     // Invalid
   { 'X', 'S', 0, 0 },     // Invalid
-  { 0, 0, 0, 0 },     // Invalid
-  { 0, 0, 0, 0 },     // Invalid
 };

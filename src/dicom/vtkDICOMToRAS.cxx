@@ -2,9 +2,9 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -12,6 +12,7 @@
 
 =========================================================================*/
 #include "vtkDICOMToRAS.h"
+#include "vtkDICOMAlgorithm.h"
 
 #include "vtkImageData.h"
 #include "vtkMatrix4x4.h"
@@ -351,6 +352,12 @@ int vtkDICOMToRAS::RequestInformation(
   this->CheckNeedToReorder();
   this->ComputeMatrix(extent, spacing, origin);
 
+  // if converting to DICOM, add patient matrix to information
+  if (this->RASToDICOM && this->RASMatrix)
+    {
+    outInfo->Set(vtkDICOMAlgorithm::PATIENT_MATRIX(), this->Matrix, 16);
+    }
+
   outInfo->Set(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), extent, 6);
   outInfo->Set(vtkDataObject::SPACING(), spacing, 3);
   outInfo->Set(vtkDataObject::ORIGIN(), origin, 3);
@@ -421,6 +428,12 @@ int vtkDICOMToRAS::RequestData(
       this->PatientMatrix = vtkMatrix4x4::New();
       }
     outMatrix = this->PatientMatrix;
+
+    // copy the supplied matrix to the data information
+    vtkInformation *outInfo = outputVector->GetInformationObject(0);
+    vtkDataObject *outData = outInfo->Get(vtkDataObject::DATA_OBJECT());
+    vtkInformation *dataInfo = outData->GetInformation();
+    dataInfo->CopyEntry(outInfo, vtkDICOMAlgorithm::PATIENT_MATRIX());
     }
 
   const double *inElements = this->Matrix;

@@ -2,9 +2,9 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -12,12 +12,18 @@
 
 =========================================================================*/
 #include "vtkDICOMReader.h"
+#include "vtkDICOMAlgorithm.h"
+#include "vtkDICOMFile.h"
 #include "vtkDICOMMetaData.h"
 #include "vtkDICOMParser.h"
 #include "vtkDICOMDictionary.h"
 #include "vtkDICOMSequence.h"
 #include "vtkDICOMItem.h"
 #include "vtkDICOMTagPath.h"
+#include "vtkDICOMImageCodec.h"
+#include "vtkDICOMSliceSorter.h"
+#include "vtkDICOMUtilities.h"
+#include "vtkDICOMConfig.h"
 
 #include "vtkObjectFactory.h"
 #include "vtkImageData.h"
@@ -28,6 +34,7 @@
 #include "vtkTypeInt64Array.h"
 #include "vtkByteSwap.h"
 #include "vtkMatrix4x4.h"
+#include "vtkMedicalImageProperties.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkMath.h"
@@ -55,24 +62,29 @@
 #include "gdcmImageReader.h"
 #endif
 
-#include "vtksys/SystemTools.hxx"
-#include "vtksys/ios/sstream"
-
 #include <algorithm>
-#include <iostream>
+#include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-#include <sys/stat.h>
+
+// For compatibility with new VTK generic data arrays
+#ifdef vtkGenericDataArray_h
+#define SetTupleValue SetTypedTuple
+#define GetTupleValue GetTypedTuple
+#endif
 
 vtkStandardNewMacro(vtkDICOMReader);
+vtkCxxSetObjectMacro(vtkDICOMReader,Sorter,vtkDICOMSliceSorter);
 
 //----------------------------------------------------------------------------
 vtkDICOMReader::vtkDICOMReader()
 {
+  this->AutoRescale = 1;
   this->NeedsRescale = 0;
   this->RescaleSlope = 1.0;
   this->RescaleIntercept = 0.0;
   this->Parser = 0;
+  this->Sorter = vtkDICOMSliceSorter::New();
   this->FileIndexArray = vtkIntArray::New();
   this->FrameIndexArray = vtkIntArray::New();
   this->StackIDs = vtkStringArray::New();
@@ -99,6 +111,8 @@ vtkDICOMReader::vtkDICOMReader()
   this->SwapBytes = 0;
 #endif
 
+  this->MedicalImageProperties = 0;
+
 #ifdef DICOM_USE_DCMTK
   DJDecoderRegistration::registerCodecs();
   DJLSDecoderRegistration::registerCodecs();
@@ -118,6 +132,10 @@ vtkDICOMReader::~vtkDICOMReader()
   if (this->Parser)
     {
     this->Parser->Delete();
+    }
+  if (this->Sorter)
+    {
+    this->Sorter->Delete();
     }
   if (this->FileOffsetArray)
     {
@@ -143,6 +161,10 @@ vtkDICOMReader::~vtkDICOMReader()
     {
     this->PatientMatrix->Delete();
     }
+  if (this->MedicalImageProperties)
+    {
+    this->MedicalImageProperties->Delete();
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -154,6 +176,26 @@ void vtkDICOMReader::PrintSelf(ostream& os, vtkIndent indent)
   if (this->MetaData)
     {
     os << this->MetaData << "\n";
+    }
+  else
+    {
+    os << "(none)\n";
+    }
+
+  os << indent << "MedicalImageProperties: ";
+  if (this->MedicalImageProperties)
+    {
+    os << this->MedicalImageProperties << "\n";
+    }
+  else
+    {
+    os << "(none)\n";
+    }
+
+  os << indent << "Sorter: ";
+  if (this->Sorter)
+    {
+    os << this->Sorter << "\n";
     }
   else
     {
@@ -174,6 +216,8 @@ void vtkDICOMReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "TimeSpacing: " << this->TimeSpacing << "\n";
   os << indent << "DesiredTimeIndex: " << this->DesiredTimeIndex << "\n";
 
+  os << indent << "AutoRescale: "
+     << (this->AutoRescale ? "On\n" : "Off\n");
   os << indent << "RescaleSlope: " << this->RescaleSlope << "\n";
   os << indent << "RescaleIntercept: " << this->RescaleIntercept << "\n";
 
@@ -293,160 +337,6 @@ int vtkDICOMReader::CanReadFile(const char *filename)
 //----------------------------------------------------------------------------
 namespace {
 
-// a class and methods for sorting the files
-struct vtkDICOMReaderSortInfo
-{
-  int FileNumber;
-  int FrameNumber;
-  int InstanceNumber;
-  int PositionNumber;
-  double ComputedLocation;
-  double Time;
-
-  vtkDICOMReaderSortInfo() :
-    FileNumber(0), FrameNumber(0), InstanceNumber(0), PositionNumber(0),
-    ComputedLocation(0.0), Time(0.0) {}
-
-  vtkDICOMReaderSortInfo(int i, int j, int k, int s, double l, double t) :
-    FileNumber(i), FrameNumber(j), InstanceNumber(k), PositionNumber(s),
-    ComputedLocation(l), Time(t) {}
-
-  vtkDICOMReaderSortInfo(int i, int k) :
-    FileNumber(i), FrameNumber(0), InstanceNumber(k), PositionNumber(0),
-    ComputedLocation(0), Time(0) {}
-
-  // for sorting by by instance number
-  static bool CompareInstance(
-    const vtkDICOMReaderSortInfo &si1, const vtkDICOMReaderSortInfo &si2)
-  {
-    return (si1.InstanceNumber < si2.InstanceNumber);
-  }
-
-  // for sorting by position number
-  static bool ComparePosition(
-    const vtkDICOMReaderSortInfo &si1, const vtkDICOMReaderSortInfo &si2)
-  {
-    return (si1.PositionNumber < si2.PositionNumber);
-  }
-
-  // for sorting by spatial location
-  static bool CompareLocation(
-    const vtkDICOMReaderSortInfo &si1, const vtkDICOMReaderSortInfo &si2)
-  {
-    // locations must differ by at least the tolerance
-    const double locationTolerance = 1e-3;
-    return (si1.ComputedLocation + locationTolerance < si2.ComputedLocation);
-  }
-};
-
-// get an attribute value for a particular frame
-const vtkDICOMValue& vtkDICOMReaderGetFrameAttributeValue(
-  const vtkDICOMSequence& frameSeq, const vtkDICOMSequence& sharedSeq,
-  unsigned int i, vtkDICOMTag stag, vtkDICOMTag vtag)
-{
-  const vtkDICOMValue& v =
-    frameSeq.GetAttributeValue(i, vtkDICOMTagPath(stag, 0, vtag));
-  if (v.IsValid())
-    {
-    return v;
-    }
-  return sharedSeq.GetAttributeValue(0, vtkDICOMTagPath(stag, 0, vtag));
-}
-
-// compute spatial location from position and orientation
-double vtkDICOMReaderComputeLocation(
-  const vtkDICOMValue& pv, const vtkDICOMValue& ov,
-  double checkOrientation[10], bool *checkPtr)
-{
-  double location = 0.0;
-
-  if (pv.GetNumberOfValues() != 3 || ov.GetNumberOfValues() != 6)
-    {
-    *checkPtr = false;
-    }
-  else
-    {
-    double orientation[6], normal[3], position[3];
-    pv.GetValues(position, position+3);
-    ov.GetValues(orientation, orientation+6);
-
-    // compute the cross product to get the slice normal
-    vtkMath::Cross(&orientation[0], &orientation[3], normal);
-    vtkMath::Normalize(normal);
-    location = vtkMath::Dot(normal, position);
-
-    if (checkOrientation[9] == 0)
-      {
-      // save the orientation and position for later checks
-      for (int i = 0; i < 3; i++)
-        {
-        checkOrientation[i] = orientation[i];
-        checkOrientation[3+i] = orientation[3+i];
-        checkOrientation[6+i] = position[i];
-        }
-      // indicate that checkOrientation has been set
-      checkOrientation[9] = 1.0;
-      }
-    else
-      {
-      const double directionTolerance = 1e-4;
-      const double positionTolerance = 1e-3;
-      for (int i = 0; i < 2; i++)
-        {
-        // make sure the orientation vectors stay the same
-        double *vec = &orientation[3*i];
-        double *checkVec = &checkOrientation[3*i];
-        double a = vtkMath::Dot(vec, checkVec);
-        double b = vtkMath::Dot(vec, vec);
-        double c = vtkMath::Dot(checkVec, checkVec);
-        // compute the sine of the angle between the normals
-        // (actually compute the square of the sine, it's easier)
-        double d = 1.0;
-        if (b > 0 && c > 0)
-          {
-          d = 1.0 - (a*a)/(b*c);
-          }
-        // the tolerance is in radians (small angle approximation)
-        if (d > directionTolerance*directionTolerance)
-          {
-          // not all slices have the same orientation
-          *checkPtr = false;
-          }
-        }
-      // make sure the positions line up
-      double *checkPosition = &checkOrientation[6];
-      double v[3];
-      v[0] = position[0] - checkPosition[0];
-      v[1] = position[1] - checkPosition[1];
-      v[2] = position[2] - checkPosition[2];
-      double t = vtkMath::Dot(v, normal);
-      v[0] -= t*normal[0];
-      v[1] -= t*normal[1];
-      v[2] -= t*normal[2];
-      double d = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
-      // the position tolerance is in millimetres
-      if (d > (positionTolerance*positionTolerance +
-               t*t*directionTolerance*directionTolerance))
-        {
-        // positions don't line up along the normal
-        *checkPtr = false;
-        }
-      }
-    if (*checkPtr == false)
-      {
-      // re-set the check orientation to the current stack
-      for (int i = 0; i < 3; i++)
-        {
-        checkOrientation[i] = orientation[i];
-        checkOrientation[3+i] = orientation[3+i];
-        checkOrientation[6+i] = position[i];
-        }
-      }
-    }
-
-  return location;
-}
-
 // a simple struct to provide info for each frame to be read
 struct vtkDICOMReaderFrameInfo
 {
@@ -473,608 +363,24 @@ struct vtkDICOMReaderFileInfo
 //----------------------------------------------------------------------------
 void vtkDICOMReader::SortFiles(vtkIntArray *files, vtkIntArray *frames)
 {
-  // This function assumes that the meta data has already been read,
-  // and that all files have the same StudyUID and SeriesUID.
-  //
-  // It tries two strategies to sort the DICOM files.
-  //
-  // First, it simply sorts the files by instance number.
-  //
-  // Next, if the Image Plane Module is present (DICOM Part 3 C.7.6.2)
-  // then the images are sorted by ImagePositionPatient, so that the
-  // position increases along the direction given by cross product of
-  // the ImageOrientationPatient vectors.
+  vtkDICOMSliceSorter *sorter = this->Sorter;
 
-  // For cardiac images, time sorting can be done with this tag:
-  // - TriggerTime (0018,1060)
-  // - CardiacNumberOfImages (0018,1090)
+  sorter->SetMetaData(this->MetaData);
+  sorter->SetDesiredStackID(this->DesiredStackID);
+  sorter->SetTimeAsVector(this->TimeAsVector);
+  sorter->SetDesiredTimeIndex(this->DesiredTimeIndex);
+  sorter->SetReverseSlices(this->MemoryRowOrder == vtkDICOMReader::BottomUp);
 
-  // For relaxometry, time sorting can be done with this tag:
-  // - EchoTime (0018,0091)
+  sorter->Update();
 
-  // For functional images, the following tags can be used:
-  // - NumberOfTemporalPositions (0020,0105)
-  // - TemporalPositionIdentifier (0020,0100)
-  // - TemporalResolution (0020,0110)
-
-  // If the image has a StackID, then dimensional sorting
-  // might be possible with these tags:
-  // - TemporalPositionIndex (0020,9128) if present
-  // - StackID (0020,9056)
-  // - InStackPositionNumber (0020,9057)
-
-  // If the multi-frame module is present, each file might have more than
-  // one slice.  See DICOM Part 3 Appendix C 7.6.6 for details.
-  // To identify the multi-frame module, look for these attributes:
-  // - NumberOfFrames (0028,0008)
-  // - FrameIncrementPointer (0028,0009)
-  // Usually frames are used for cine, but in nuclear medicine (NM) they
-  // are used to describe multi-dimensional files (Part 3 Appendix C 8.4.8):
-  // - NumberOfSlices (0054,0081)
-  // - NumberOfTimeSlots (0054,0071)
-  // - NumberOfRRIntervals (0054,0061)
-  // - NumberOfRotations (0054,0051)
-  // - NumberOfPhases (0054,0031)
-  // - NumberOfDetectors (0054,0021)
-  // - NumberOfEnergyWindows (0054,0011)
-
-  vtkDICOMMetaData *meta = this->MetaData;
-  int numFiles = meta->GetNumberOfInstances();
-  std::vector<vtkDICOMReaderSortInfo> info;
-
-  // sort by instance first
-  for (int i = 0; i < numFiles; i++)
-    {
-    int inst = meta->GetAttributeValue(i, DC::InstanceNumber).AsInt();
-    info.push_back(vtkDICOMReaderSortInfo(i, inst));
-    }
-  std::stable_sort(info.begin(), info.end(),
-    vtkDICOMReaderSortInfo::CompareInstance);
-  std::vector<int> fileOrder(info.size());
-  for (int i = 0; i < numFiles; i++)
-    {
-    fileOrder[i] = info[i].FileNumber;
-    }
-  info.clear();
-
-  // important position-related variables
-  std::vector<size_t> volumeBreaks;
-  double checkOrientation[10] = {};
-  bool canSortByLocation = true;
-  double spacingBetweenSlices =
-    meta->GetAttributeValue(DC::SpacingBetweenSlices).AsDouble();
-  double spacingSign = 1.0;
-  if (spacingBetweenSlices == 0)
-    {
-    spacingBetweenSlices = 1.0;
-    }
-  else if (spacingBetweenSlices < 0)
-    {
-    spacingBetweenSlices = -spacingBetweenSlices;
-    spacingSign = -1.0;
-    }
-
-  // important time-related variables
-  int temporalSpacing = 1.0;
-
-  if (meta->HasAttribute(DC::SharedFunctionalGroupsSequence))
-    {
-    // a special stackInfo for the desired stack
-    std::vector<vtkDICOMReaderSortInfo> stackInfo;
-    vtkDICOMValue firstStackId;
-    vtkDICOMValue desiredStackId =
-      vtkDICOMValue(vtkDICOMVR::SH, this->DesiredStackID);
-    double stackCheckNormal[10] = {};
-    bool canSortStackByIPP = true;
-
-    // files have enhanced frame information
-    for (int ii = 0; ii < numFiles; ii++)
-      {
-      int i = fileOrder[ii];
-      int inst = meta->GetAttributeValue(i, DC::InstanceNumber).AsInt();
-      int numberOfFrames =
-        meta->GetAttributeValue(i, DC::NumberOfFrames).AsInt();
-
-      // from the MultiFrameFunctionalGroups module
-      vtkDICOMSequence frameSeq =
-        meta->GetAttributeValue(i, DC::PerFrameFunctionalGroupsSequence);
-      vtkDICOMSequence sharedSeq =
-        meta->GetAttributeValue(i, DC::SharedFunctionalGroupsSequence);
-
-      if (ii == 0 && numberOfFrames > 0)
-        {
-        firstStackId = vtkDICOMReaderGetFrameAttributeValue(
-          frameSeq, sharedSeq, 0, DC::FrameContentSequence,
-          DC::StackID);
-        }
-
-      // attributes for getting time information
-      vtkDICOMTag timeSequence;
-      vtkDICOMTag timeTag;
-
-      if (numberOfFrames > 0)
-        {
-        // time information can come from these attributes
-        if (vtkDICOMReaderGetFrameAttributeValue(
-              frameSeq, sharedSeq, 0, DC::CardiacSynchronizationSequence,
-              DC::NominalCardiacTriggerDelayTime).IsValid())
-          {
-          timeSequence = DC::CardiacSynchronizationSequence;
-          timeTag = DC::NominalCardiacTriggerDelayTime;
-          }
-        else if (vtkDICOMReaderGetFrameAttributeValue(
-                   frameSeq, sharedSeq, 0, DC::TemporalPositionSequence,
-                   DC::TemporalPositionTimeOffset).IsValid())
-          {
-          timeSequence = DC::TemporalPositionSequence;
-          timeTag = DC::TemporalPositionTimeOffset;
-          temporalSpacing = 1000.0; // convert seconds to milliseconds
-          }
-        else if (vtkDICOMReaderGetFrameAttributeValue(
-                  frameSeq, sharedSeq, 0, DC::FrameContentSequence,
-                  DC::TemporalPositionIndex).IsValid())
-          {
-          timeSequence = DC::FrameContentSequence;
-          timeTag = DC::TemporalPositionIndex;
-          }
-        else if (vtkDICOMReaderGetFrameAttributeValue(
-                  frameSeq, sharedSeq, 0, DC::MREchoSequence,
-                  DC::EffectiveEchoTime).IsValid())
-          {
-          timeSequence = DC::MREchoSequence;
-          timeTag = DC::EffectiveEchoTime;
-          }
-        }
-
-      // position counter
-      int position = 0;
-      double lastTime = 0.0;
-
-      for (int k = 0; k < numberOfFrames; k++)
-        {
-        // time: use chosen time tag, if present
-        double t = 0.0;
-        if (timeTag.GetGroup() != 0)
-          {
-          t = vtkDICOMReaderGetFrameAttributeValue(
-            frameSeq, sharedSeq, k, timeSequence, timeTag).AsDouble();
-          }
-
-        // adjust position only if time did not change
-        if (fabs(t - lastTime) < 1e-3 || k == 0)
-          {
-          position = k;
-          lastTime = t;
-          }
-
-        // get the StackID
-        vtkDICOMValue stackId = vtkDICOMReaderGetFrameAttributeValue(
-          frameSeq, sharedSeq, k, DC::FrameContentSequence,
-          DC::StackID);
-
-        if (stackId.IsValid())
-          {
-          // append new StackIDs to this->StackIDs
-          vtkIdType stacksFound = this->StackIDs->GetNumberOfValues();
-          std::string stackName = stackId.AsString();
-          vtkIdType si;
-          for (si = 0; si < stacksFound; si++)
-            {
-            if (stackName == this->StackIDs->GetValue(si)) { break; }
-            }
-          if (si == stacksFound)
-            {
-            this->StackIDs->InsertNextValue(stackName);
-            }
-
-          // position: look for InStackPositionNumber
-          position = vtkDICOMReaderGetFrameAttributeValue(
-            frameSeq, sharedSeq, k, DC::FrameContentSequence,
-            DC::InStackPositionNumber).AsInt();
-          }
-
-        // check for valid Image Plane Module information
-        vtkDICOMValue pv = vtkDICOMReaderGetFrameAttributeValue(
-          frameSeq, sharedSeq, k, DC::PlanePositionSequence,
-          DC::ImagePositionPatient);
-        vtkDICOMValue ov = vtkDICOMReaderGetFrameAttributeValue(
-          frameSeq, sharedSeq, k, DC::PlaneOrientationSequence,
-          DC::ImageOrientationPatient);
-
-        // check if the StackId is the one the user specified
-        if (stackId == desiredStackId)
-          {
-          // compute location from orientation and IPP
-          double location = vtkDICOMReaderComputeLocation(
-            pv, ov, stackCheckNormal, &canSortStackByIPP);
-
-          location /= spacingBetweenSlices;
-
-          stackInfo.push_back(
-            vtkDICOMReaderSortInfo(i, k, inst, position, location, t));
-          }
-        else if (stackId == firstStackId)
-          {
-          // compute location from orientation and IPP
-          double location = vtkDICOMReaderComputeLocation(
-            pv, ov, checkOrientation, &canSortByLocation);
-          location /= spacingBetweenSlices;
-
-          // force output of one single volume
-          if ((ii > 0 || k > 0) && !firstStackId.IsValid() &&
-              pv.IsValid() && !canSortByLocation)
-            {
-            canSortByLocation = true;
-            volumeBreaks.push_back(info.size());
-            }
-
-          info.push_back(
-            vtkDICOMReaderSortInfo(i, k, inst, position, location, t));
-          }
-        }
-      }
-
-    // if frames with the desired stack ID were found, use them
-    if (stackInfo.size() > 0)
-      {
-      canSortByLocation = canSortStackByIPP;
-      info = stackInfo;
-      }
-    }
-  else
-    {
-    // ways to get time information
-    vtkDICOMTag timeTag;
-    if (meta->GetAttributeValue(DC::CardiacNumberOfImages).AsInt() > 1)
-      {
-      timeTag = DC::TriggerTime;
-      }
-    else if (meta->GetAttributeValue(
-              DC::NumberOfTemporalPositions).AsInt() > 1)
-      {
-      timeTag = DC::TemporalPositionIdentifier;
-      temporalSpacing =
-        meta->GetAttributeValue(DC::TemporalResolution).AsDouble();
-      }
-    else if (meta->HasAttribute(DC::TemporalPositionIndex))
-      {
-      timeTag = DC::TemporalPositionIndex;
-      }
-    else if (meta->HasAttribute(DC::EchoTime))
-      {
-      timeTag = DC::EchoTime;
-      }
-
-    // position counter
-    int position = 0;
-    double lastTime = 0.0;
-
-    for (int ii = 0; ii < numFiles; ii++)
-      {
-      int i = fileOrder[ii];
-
-      // get the instance number
-      int inst = meta->GetAttributeValue(i, DC::InstanceNumber).AsInt();
-
-      // check for valid Image Plane Module information
-      // (for NM this information is per-detector and is put in
-      // the Detector Information Sequence)
-      double location = 0;
-      vtkDICOMValue pv = meta->GetAttributeValue(
-        i, DC::ImagePositionPatient);
-      vtkDICOMValue ov = meta->GetAttributeValue(
-        i, DC::ImageOrientationPatient);
-
-      location = vtkDICOMReaderComputeLocation(
-        pv, ov, checkOrientation, &canSortByLocation);
-      location /= spacingBetweenSlices;
-
-      // force output of one single rectilinear volume
-      if (ii > 0 && !canSortByLocation && pv.IsValid())
-        {
-        canSortByLocation = true;
-        volumeBreaks.push_back(info.size());
-        }
-
-      int numberOfFrames =
-        meta->GetAttributeValue(i, DC::NumberOfFrames).AsInt();
-      if (numberOfFrames <= 1)
-        {
-        double t = 0.0;
-        if (timeTag.GetGroup() != 0)
-          {
-          t = meta->GetAttributeValue(i, timeTag).AsDouble();
-          }
-
-        // adjust position only if time did not change
-        if (fabs(t - lastTime) < 1e-3 || ii == 0)
-          {
-          position = inst;
-          lastTime = t;
-          }
-
-        info.push_back(
-          vtkDICOMReaderSortInfo(i, 0, inst, position, location, t));
-        }
-      else
-        {
-        // multi-frame image
-        double frameTimeSpacing = 0;
-        vtkDICOMValue timeVector;
-        vtkDICOMValue timeSlotVector;
-        vtkDICOMValue sliceVector;
-        vtkDICOMValue locationVector;
-        vtkDICOMValue fip =
-          meta->GetAttributeValue(i, DC::FrameIncrementPointer);
-        unsigned int n = fip.GetNumberOfValues();
-        for (unsigned int j = 0; j < n; j++)
-          {
-          vtkDICOMTag tag = fip.GetTag(j);
-          if (tag == DC::FrameTime)
-            { // for CINE
-            frameTimeSpacing = meta->GetAttributeValue(i, tag).AsDouble();
-            }
-          else if (tag == DC::FrameTimeVector)
-            { // for CINE
-            timeVector = meta->GetAttributeValue(i, tag);
-            }
-          else if (tag == DC::SliceLocationVector)
-            { // generic
-            locationVector = meta->GetAttributeValue(i, tag);
-            canSortByLocation = true;
-            }
-          else if (tag == DC::TimeSlotVector)
-            { // for NM
-            timeSlotVector = meta->GetAttributeValue(i, tag);
-            }
-          else if (tag == DC::SliceVector)
-            { // for NM
-            sliceVector = meta->GetAttributeValue(i, tag);
-            }
-          // in dynamic NM, the total number of time frames is the
-          // sum of the number of frames in all collected phases,
-          // we do not support dynamic NM yet
-          }
-
-        if (timeSlotVector.IsValid() || sliceVector.IsValid())
-          {
-          // tomographic NM
-          for (int k = 0; k < numberOfFrames; k++)
-            {
-            double t = 0.0;
-            double frameloc = location;
-            if (k < static_cast<int>(timeSlotVector.GetNumberOfValues()))
-              {
-              t = (timeSlotVector.GetDouble(k) - 1.0)*frameTimeSpacing;
-              }
-            if (k < static_cast<int>(sliceVector.GetNumberOfValues()))
-              {
-              position = sliceVector.GetInt(k) - 1;
-              frameloc += position*spacingSign;
-              }
-            info.push_back(
-              vtkDICOMReaderSortInfo(i, k, inst, position, frameloc, t));
-            }
-          }
-        else
-          {
-          // CINE
-          double t = 0.0;
-          for (int k = 0; k < numberOfFrames; k++)
-            {
-            if (k > 0)
-              {
-              if (k < static_cast<int>(timeVector.GetNumberOfValues()))
-                {
-                frameTimeSpacing = timeVector.GetDouble(k);
-                }
-              t += frameTimeSpacing;
-              }
-            if (k < static_cast<int>(locationVector.GetNumberOfValues()))
-              {
-              location = locationVector.GetDouble(k);
-              location /= spacingBetweenSlices;
-              }
-            info.push_back(
-              vtkDICOMReaderSortInfo(i, k, inst, inst, location, t));
-            }
-          }
-        }
-      }
-    }
-
-  // orientation changes suggest that multiple volumes are present
-  if (volumeBreaks.size() > 0)
-    {
-    // count the number of unique positions
-    size_t pcount = 0;
-    for (size_t j = 0; j < info.size(); j++)
-      {
-      int p = info[j].PositionNumber;
-      size_t k;
-      for (k = 0; k < j; k++)
-        {
-        if (info[k].PositionNumber == p) { break; }
-        }
-      pcount += (k == j);
-      }
-
-    if (volumeBreaks.size() + 1 > pcount/2)
-      {
-      // too many unique volumes would be created, assume
-      // that the acquisition was not rectilinear.
-      canSortByLocation = false;
-      }
-    else
-      {
-      // load just one of the rectilinear stacks that are present
-      size_t stt = strtoul(this->DesiredStackID, 0, 10);
-      if (stt > volumeBreaks.size())
-        {
-        stt = 0;
-        }
-      volumeBreaks.push_back(info.size());
-      info.erase(info.begin() + volumeBreaks[stt], info.end());
-      if (stt > 0)
-        {
-        info.erase(info.begin(), info.begin() + volumeBreaks[stt-1]);
-        }
-      for (size_t k = 0; k < volumeBreaks.size(); k++)
-        {
-        vtkVariant var(k);
-        this->StackIDs->InsertNextValue(var.ToString());
-        }
-      }
-    }
-
-  // sort by position, count the number of slices per location
-  int numSlices = static_cast<int>(info.size());
-  int slicesPerLocation = 0;
-  if (numSlices > 1)
-    {
-    if (canSortByLocation)
-      {
-      std::stable_sort(info.begin(), info.end(),
-        vtkDICOMReaderSortInfo::CompareLocation);
-      }
-    else
-      {
-      std::stable_sort(info.begin(), info.end(),
-        vtkDICOMReaderSortInfo::ComparePosition);
-      }
-
-    // look for slices at the same location
-    std::vector<vtkDICOMReaderSortInfo>::iterator iter = info.begin();
-    int slicesAtThisLocation = 0;
-    while (iter != info.end())
-      {
-      std::vector<vtkDICOMReaderSortInfo>::iterator nextIter = iter + 1;
-      slicesAtThisLocation++;
-      bool positionIncreased = false;
-      if (nextIter != info.end())
-        {
-        // use the tolerance built into CompareLocation
-        if (canSortByLocation)
-          {
-          positionIncreased =
-            vtkDICOMReaderSortInfo::CompareLocation(*iter, *nextIter);
-          }
-        else
-          {
-          positionIncreased =
-            vtkDICOMReaderSortInfo::ComparePosition(*iter, *nextIter);
-          }
-        }
-      if (nextIter == info.end() || positionIncreased)
-        {
-        if (slicesPerLocation == 0)
-          {
-          slicesPerLocation = slicesAtThisLocation;
-          }
-        else if (slicesPerLocation != slicesAtThisLocation)
-          {
-          slicesPerLocation = -1;
-          }
-        slicesAtThisLocation = 0;
-        }
-      iter = nextIter;
-      }
-    }
-  if (slicesPerLocation <= 0)
-    {
-    slicesPerLocation = static_cast<int>(info.size());
-    }
-
-  // count number of unique time points
-  int temporalPositions = 0;
-  double tMin = VTK_DOUBLE_MAX;
-  double tMax = VTK_DOUBLE_MIN;
-  for (int i = 0; i < slicesPerLocation; i++)
-    {
-    double d = info[i].Time;
-    tMin = (d > tMin ? tMin : d);
-    tMax = (d < tMax ? tMax : d);
-    int u = 1;
-    for (int j = 0; j < i; j++)
-      {
-      u &= !(fabs(info[j].Time - d) < 1e-3);
-      }
-    temporalPositions += u;
-    }
-  // compute temporalSpacing from the apparent time spacing
-  if (temporalPositions > 1)
-    {
-    temporalSpacing *= (tMax - tMin)/(temporalPositions - 1);
-    }
-
-  // compute the number of slices in the output image
-  int spatialLocations = numSlices/slicesPerLocation;
-  int locations = spatialLocations;
-  if (temporalPositions > 0 &&
-      this->TimeAsVector == 0 &&
-      this->DesiredTimeIndex < 0)
-    {
-    locations *= temporalPositions;
-    }
-
-  // recompute slice spacing from position info
-  if (canSortByLocation)
-    {
-    double locDiff = 0;
-    if (locations > 1)
-      {
-      double firstLocation = info.front().ComputedLocation;
-      double finalLocation = info.back().ComputedLocation;
-      locDiff = (finalLocation - firstLocation)/(locations - 1);
-      }
-    if (locDiff > 0)
-      {
-      spacingBetweenSlices *= locDiff;
-      }
-    }
-
-  // write out the sorted indices
-  bool flipOrder = (this->MemoryRowOrder == vtkDICOMReader::BottomUp);
-  int filesPerOutputSlice = numSlices/locations;
-  int locationsPerSpatialLocation = locations/spatialLocations;
-  int numberOfComponents = filesPerOutputSlice;
-  int desiredTimeIndex = this->DesiredTimeIndex;
-  if (desiredTimeIndex < 0)
-    {
-    desiredTimeIndex = 0;
-    }
-  else
-    {
-    desiredTimeIndex %= temporalPositions;
-    numberOfComponents /= temporalPositions;
-    }
-
-  files->SetNumberOfComponents(numberOfComponents);
-  files->SetNumberOfTuples(locations);
-  frames->SetNumberOfComponents(numberOfComponents);
-  frames->SetNumberOfTuples(locations);
-
-  for (int loc = 0; loc < locations; loc++)
-    {
-    int l = loc/locationsPerSpatialLocation;
-    int j = loc - l*locationsPerSpatialLocation;
-    if (flipOrder)
-      {
-      l = spatialLocations - l - 1;
-      }
-    for (int k = 0; k < numberOfComponents; k++)
-      {
-      int i = ((l*locationsPerSpatialLocation + j)*filesPerOutputSlice +
-               desiredTimeIndex*numberOfComponents + k);
-      files->SetComponent(loc, k, info[i].FileNumber);
-      frames->SetComponent(loc, k, info[i].FrameNumber);
-      }
-    }
+  files->DeepCopy(sorter->GetFileIndexArray());
+  frames->DeepCopy(sorter->GetFrameIndexArray());
+  this->StackIDs->DeepCopy(sorter->GetStackIDs());
 
   // save the slice spacing and time information
-  this->DataSpacing[2] = spacingBetweenSlices;
-  this->TimeDimension = temporalPositions;
-  this->TimeSpacing = temporalSpacing;
+  this->DataSpacing[2] = sorter->GetSliceSpacing();
+  this->TimeDimension = sorter->GetTimeDimension();
+  this->TimeSpacing = sorter->GetTimeSpacing();
 }
 
 //----------------------------------------------------------------------------
@@ -1102,6 +408,130 @@ void vtkDICOMReader::NoSortFiles(vtkIntArray *files, vtkIntArray *frames)
 }
 
 //----------------------------------------------------------------------------
+bool vtkDICOMReader::ValidateStructure(
+  vtkIntArray *fileArray, vtkIntArray *frameArray)
+{
+  vtkDICOMMetaData *meta = this->MetaData;
+  int numFiles = meta->GetNumberOfInstances();
+  std::vector<int> usedFiles(numFiles);
+  std::fill(usedFiles.begin(), usedFiles.end(), static_cast<int>(0));
+
+  // Validate the range of indexes the sorted arrays
+  int numComponents = fileArray->GetNumberOfComponents();
+  vtkIdType numSlices = fileArray->GetNumberOfTuples();
+  if (numSlices != frameArray->GetNumberOfTuples() ||
+      numComponents != fileArray->GetNumberOfComponents())
+    {
+    this->SetErrorCode(vtkErrorCode::FileFormatError);
+    vtkErrorMacro("Critical failure in file sorting!");
+    return false;
+    }
+
+  for (vtkIdType i = 0; i < numSlices; i++)
+    {
+    for (int j = 0; j < numComponents; j++)
+      {
+      int fileIndex = fileArray->GetComponent(i, j);
+      int frameIndex = frameArray->GetComponent(i, j);
+
+      if (fileIndex < 0 || fileIndex >= numFiles)
+        {
+        this->SetErrorCode(vtkErrorCode::FileFormatError);
+        vtkErrorMacro("File index " << fileIndex << " is out of range!");
+        return false;
+        }
+
+      usedFiles[fileIndex]++;
+
+      int numFrames =
+        meta->GetAttributeValue(fileIndex, DC::NumberOfFrames).AsInt();
+      numFrames = (numFrames == 0 ? 1 : numFrames);
+
+      if (frameIndex < 0 || frameIndex >= numFrames)
+        {
+        this->SetErrorCode(vtkErrorCode::FileFormatError);
+        vtkErrorMacro("Frame index " << frameIndex << " is out of range!");
+        return false;
+        }
+      }
+    }
+
+  // The reader requires the following mandatory attributes
+  static const DC::EnumType imagePixelAttribs[] = {
+    DC::SamplesPerPixel, // missing in old ACR-NEMA files
+    DC::Rows,
+    DC::Columns,
+    DC::BitsAllocated,
+    DC::ItemDelimitationItem
+  };
+
+  for (const DC::EnumType *tags = imagePixelAttribs;
+       *tags != DC::ItemDelimitationItem;
+       tags++)
+    {
+    int firstValue = 0;
+
+    for (int fileIndex = 0; fileIndex < numFiles; fileIndex++)
+      {
+      if (usedFiles[fileIndex] == 0) { continue; }
+
+      const char *errorText = 0;
+      vtkDICOMValue v = meta->GetAttributeValue(fileIndex, *tags);
+      int i = 1;
+      if (v.IsValid())
+        {
+        i = v.AsInt();
+        }
+      else if (*tags != DC::SamplesPerPixel)
+        {
+        // Some ACR-NEMA files do not contain SamplesPerPixel, all
+        // other tags must be present
+        errorText = "Missing pixel info ";
+        }
+
+      if (firstValue == 0)
+        {
+        firstValue = i;
+        }
+      else if (firstValue != i)
+        {
+        errorText = "Inconsistent pixel info ";
+        }
+
+      if (i <= 0 ||
+          (*tags == DC::BitsAllocated &&
+           i != 1 && i != 8 && i != 12 && i != 16 && i != 32 && i != 64))
+        {
+        errorText = "Illegal value ";
+        }
+
+      if (errorText)
+        {
+        this->ComputeInternalFileName(this->DataExtent[4] + fileIndex);
+        this->Parser->SetFileName(this->InternalFileName);
+        vtkDICOMDictEntry de = meta->FindDictEntry(*tags);
+        this->SetErrorCode(vtkErrorCode::FileFormatError);
+        if (v.IsValid())
+          {
+          vtkErrorMacro(<< errorText << i << " for " << de.GetTag()
+                        << " \"" << de.GetName() << "\" in "
+                        << this->InternalFileName);
+          }
+        else
+          {
+          vtkErrorMacro(<< errorText << "for " << de.GetTag()
+                        << " \"" << de.GetName() << "\" in"
+                        << this->InternalFileName);
+          }
+        return false;
+        }
+      }
+    }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
 int vtkDICOMReader::RequestInformation(
   vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector),
@@ -1126,6 +556,7 @@ int vtkDICOMReader::RequestInformation(
 
   if (numFiles <= 0)
     {
+    this->SetErrorCode(vtkErrorCode::FileFormatError);
     if (this->FileNames)
       {
       vtkErrorMacro("No filenames were provided for reader.");
@@ -1135,8 +566,10 @@ int vtkDICOMReader::RequestInformation(
       vtkErrorMacro("Bad DataExtent " << this->DataExtent[4]
                     << "," << this->DataExtent[5] << ".");
       }
-    this->SetErrorCode(vtkErrorCode::FileFormatError);
-    return 0;
+
+    // Reset the data extent to legal values
+    this->DataExtent[4] = 0;
+    this->DataExtent[5] = 0;
     }
 
   // Reset the time information
@@ -1144,8 +577,11 @@ int vtkDICOMReader::RequestInformation(
   this->TimeSpacing = 1.0;
 
   // Clear the meta data, prepare the parser.
-  this->MetaData->Clear();
-  this->MetaData->SetNumberOfInstances(numFiles);
+  this->MetaData->Initialize();
+  if (numFiles > 0)
+    {
+    this->MetaData->SetNumberOfInstances(numFiles);
+    }
 
   if (this->Parser)
     {
@@ -1173,7 +609,7 @@ int vtkDICOMReader::RequestInformation(
 
     if (this->Parser->GetErrorCode())
       {
-      return 0;
+      break;
       }
 
     // save the offset to the pixel data
@@ -1187,23 +623,43 @@ int vtkDICOMReader::RequestInformation(
   // to be re-sorted to create a proper volume.  The FileIndexArray
   // holds the sorted order of the files.
   this->StackIDs->Initialize();
-  if (this->Sorting)
+  if (this->GetErrorCode() == vtkErrorCode::NoError)
     {
-    this->SortFiles(this->FileIndexArray, this->FrameIndexArray);
+    if (this->Sorting && this->Sorter)
+      {
+      this->SortFiles(this->FileIndexArray, this->FrameIndexArray);
+      }
+    else
+      {
+      this->NoSortFiles(this->FileIndexArray, this->FrameIndexArray);
+      }
+
+    // Verify the consistency of the data, e.g. verify that the dimensions
+    // and data type are the same for all files.
+    this->ValidateStructure(this->FileIndexArray, this->FrameIndexArray);
     }
-  else
+
+  if (this->GetErrorCode() != vtkErrorCode::NoError)
     {
-    this->NoSortFiles(this->FileIndexArray, this->FrameIndexArray);
+    // Last chance to bail out
+    return false;
     }
+
+  // Set the indexing arrays for the meta data
+  this->MetaData->SetFileIndexArray(this->FileIndexArray);
+  this->MetaData->SetFrameIndexArray(this->FrameIndexArray);
 
   // Get the file and frame for the first slice
   int fileIndex = this->FileIndexArray->GetComponent(0, 0);
-  int frameIndex = this->FileIndexArray->GetComponent(0, 0);
+  int frameIndex = this->FrameIndexArray->GetComponent(0, 0);
 
   // image dimensions
-  int columns = this->MetaData->GetAttributeValue(DC::Columns).AsInt();
-  int rows = this->MetaData->GetAttributeValue(DC::Rows).AsInt();
-  int slices = static_cast<int>(this->FileIndexArray->GetNumberOfTuples());
+  int columns = this->MetaData->GetAttributeValue(
+    fileIndex, DC::Columns).AsInt();
+  int rows = this->MetaData->GetAttributeValue(
+    fileIndex, DC::Rows).AsInt();
+  int slices = static_cast<int>(
+    this->FileIndexArray->GetNumberOfTuples());
 
   int extent[6];
   extent[0] = 0;
@@ -1235,57 +691,42 @@ int vtkDICOMReader::RequestInformation(
   this->DataSpacing[0] = 1.0;
   this->DataSpacing[1] = 1.0;
 
-  if (this->MetaData->HasAttribute(DC::PixelAspectRatio))
+  // Set spacing from PixelAspectRatio
+  double ratio = 1.0;
+  vtkDICOMValue pixelAspectRatio = this->MetaData->GetAttributeValue(
+    fileIndex, frameIndex, DC::PixelAspectRatio);
+  if (pixelAspectRatio.GetNumberOfValues() == 2)
     {
-    double ratio = 1.0;
-    vtkDICOMValue v = this->MetaData->GetAttributeValue(DC::PixelAspectRatio);
-    if (v.GetNumberOfValues() == 2)
+    // use double, even though data is stored as integer strings
+    double ya = pixelAspectRatio.GetDouble(0);
+    double xa = pixelAspectRatio.GetDouble(1);
+    if (xa > 0)
       {
-      // use double, even though data is stored as integer strings
-      double ya = v.GetDouble(0);
-      double xa = v.GetDouble(1);
-      if (xa > 0)
-        {
-        ratio = ya/xa;
-        }
-      }
-    else
-      {
-      // ratio should be expressed as two values,
-      // so this is only to support incorrect files
-      ratio = v.AsDouble();
-      }
-    if (ratio > 0)
-      {
-      this->DataSpacing[0] = this->DataSpacing[1]/ratio;
+      ratio = ya/xa;
       }
     }
-
-  if (this->MetaData->HasAttribute(DC::PixelSpacing))
+  else if (pixelAspectRatio.GetNumberOfValues() == 1)
     {
-    vtkDICOMValue v = this->MetaData->GetAttributeValue(DC::PixelSpacing);
-    if (v.GetNumberOfValues() == 2)
-      {
-      v.GetValues(this->DataSpacing, this->DataSpacing + 2);
-      }
+    // ratio should be expressed as two values,
+    // so this is only to support incorrect files
+    ratio = pixelAspectRatio.AsDouble();
+    }
+  if (ratio > 0)
+    {
+    this->DataSpacing[0] = this->DataSpacing[1]/ratio;
     }
 
-  if (this->MetaData->HasAttribute(DC::SharedFunctionalGroupsSequence))
+  // Set spacing from PixelSpacing
+  vtkDICOMValue pixelSpacing = this->MetaData->GetAttributeValue(
+    fileIndex, frameIndex, DC::PixelSpacing);
+  if (pixelSpacing.GetNumberOfValues() == 2)
     {
-    vtkDICOMValue v = this->MetaData->GetAttributeValue(fileIndex,
-      vtkDICOMTagPath(DC::SharedFunctionalGroupsSequence, 0,
-                      DC::PixelMeasuresSequence, 0,
-                      DC::PixelSpacing));
-    if (!v.IsValid())
+    double spacing[2];
+    pixelSpacing.GetValues(spacing, 2);
+    if (spacing[0] > 0 && spacing[1] > 0)
       {
-      v = this->MetaData->GetAttributeValue(fileIndex,
-        vtkDICOMTagPath(DC::PerFrameFunctionalGroupsSequence, frameIndex,
-                        DC::PixelMeasuresSequence, 0,
-                        DC::PixelSpacing));
-      }
-    if (v.GetNumberOfValues() == 2)
-      {
-      v.GetValues(this->DataSpacing, this->DataSpacing + 2);
+      this->DataSpacing[0] = spacing[0];
+      this->DataSpacing[1] = spacing[1];
       }
     }
 
@@ -1295,35 +736,49 @@ int vtkDICOMReader::RequestInformation(
   this->DataOrigin[2] = 0.0;
 
   // get information related to the data type
-  int bitsAllocated =
-    this->MetaData->GetAttributeValue(DC::BitsAllocated).AsInt();
-  int pixelRepresentation =
-    this->MetaData->GetAttributeValue(DC::PixelRepresentation).AsInt();
-  int numComponents =
-    this->MetaData->GetAttributeValue(DC::SamplesPerPixel).AsInt();
-  int planarConfiguration =
-    this->MetaData->GetAttributeValue(DC::PlanarConfiguration).AsInt();
+  int bitsAllocated = this->MetaData->GetAttributeValue(
+    fileIndex, DC::BitsAllocated).AsInt();
+  int pixelRepresentation = this->MetaData->GetAttributeValue(
+    fileIndex, DC::PixelRepresentation).AsInt();
+  int numComponents = this->MetaData->GetAttributeValue(
+    fileIndex, DC::SamplesPerPixel).AsInt();
+  int planarConfiguration = this->MetaData->GetAttributeValue(
+    fileIndex, DC::PlanarConfiguration).AsInt();
 
   // datatype
   int scalarType = 0;
 
-  if (bitsAllocated == 8 || bitsAllocated == 1)
+  if (bitsAllocated <= 8)
     {
     scalarType = (pixelRepresentation ? VTK_SIGNED_CHAR : VTK_UNSIGNED_CHAR);
     }
-  else if (bitsAllocated == 16 || bitsAllocated == 12)
+  else if (bitsAllocated <= 16)
     {
     scalarType = (pixelRepresentation ? VTK_SHORT : VTK_UNSIGNED_SHORT);
     }
-  else if (bitsAllocated == 32)
+  else if (bitsAllocated <= 32)
     {
-    scalarType = (pixelRepresentation ? VTK_INT : VTK_UNSIGNED_INT);
+    if (this->MetaData->GetAttributeValue(
+          fileIndex, DC::FloatPixelData).IsValid())
+      {
+      scalarType = VTK_FLOAT;
+      }
+    else
+      {
+      scalarType = (pixelRepresentation ? VTK_INT : VTK_UNSIGNED_INT);
+      }
     }
-  else
+  else if (bitsAllocated <= 64)
     {
-    vtkErrorMacro("Unrecognized DICOM BitsAllocated value: " << bitsAllocated);
-    this->SetErrorCode(vtkErrorCode::FileFormatError);
-    return 0;
+    if (this->MetaData->GetAttributeValue(
+          fileIndex, DC::DoubleFloatPixelData).IsValid())
+      {
+      scalarType = VTK_DOUBLE;
+      }
+    else
+      {
+      scalarType = (pixelRepresentation ? VTK_TYPE_INT64: VTK_TYPE_UINT64);
+      }
     }
 
   // number of components
@@ -1350,8 +805,8 @@ int vtkDICOMReader::RequestInformation(
   // See DICOM Ch. 3 Appendix C 7.6.3.1.2 for equations
 
   // endianness
-  std::string transferSyntax =
-    this->MetaData->GetAttributeValue(DC::TransferSyntaxUID).AsString();
+  std::string transferSyntax = this->MetaData->GetAttributeValue(
+    fileIndex, DC::TransferSyntaxUID).AsString();
 
   bool bigEndian = (transferSyntax == "1.2.840.10008.1.2.2" ||
                     transferSyntax == "1.2.840.113619.5.2");
@@ -1363,58 +818,52 @@ int vtkDICOMReader::RequestInformation(
 #endif
 
   // for CT and PET the rescale information might vary from file to file,
-  // in which case the data will have to be rescaled while being read
+  // in which case the data will be rescaled while being read if the
+  // AutoRescale option is set.
   this->RescaleSlope = 1.0;
   this->RescaleIntercept = 0.0;
   this->NeedsRescale = false;
 
-  if (this->MetaData->HasAttribute(DC::RescaleSlope))
+  if (this->MetaData->GetAttributeValue(
+        fileIndex, frameIndex, DC::RescaleSlope).IsValid() &&
+      this->MetaData->GetAttributeValue(
+        fileIndex, frameIndex, DC::RescaleIntercept).IsValid())
     {
-    vtkDICOMMetaData *meta = this->MetaData;
-    int n = meta->GetNumberOfInstances();
-    double mMax = meta->GetAttributeValue(0, DC::RescaleSlope).AsDouble();
-    double bMax = meta->GetAttributeValue(0, DC::RescaleIntercept).AsDouble();
     bool mismatch = false;
+    double mMax = VTK_DOUBLE_MIN;
+    double bMax = VTK_DOUBLE_MIN;
 
-    for (int i = 1; i < n; i++)
+    vtkIdType numSlices = this->FileIndexArray->GetNumberOfTuples();
+    for (vtkIdType iSlice = 0; iSlice < numSlices; iSlice++)
       {
-      double m = meta->GetAttributeValue(i, DC::RescaleSlope).AsDouble();
-      double b = meta->GetAttributeValue(i, DC::RescaleIntercept).AsDouble();
-      if (m != mMax || b != bMax)
+      int numComp = this->FileIndexArray->GetNumberOfComponents();
+      for (int iComp = 0; iComp < numComp; iComp++)
         {
-        mismatch = true;
-        }
-      if (m > mMax)
-        {
-        mMax = m;
-        }
-      if (b > bMax)
-        {
-        bMax = b;
+        int iFile = this->FileIndexArray->GetComponent(iSlice, iComp);
+        int iFrame = this->FrameIndexArray->GetComponent(iSlice, iComp);
+
+        double m = this->MetaData->GetAttributeValue(
+          iFile, iFrame, DC::RescaleSlope).AsDouble();
+        double b = this->MetaData->GetAttributeValue(
+          iFile, iFrame, DC::RescaleIntercept).AsDouble();
+        if ((iSlice != 0 || iComp != 0) && (m != mMax || b != bMax))
+          {
+          mismatch = true;
+          }
+        if (m > mMax)
+          {
+          mMax = m;
+          }
+        if (b > bMax)
+          {
+          bMax = b;
+          }
         }
       }
-    this->NeedsRescale = mismatch;
+    this->NeedsRescale = (mismatch && this->AutoRescale);
     this->RescaleSlope = mMax;
     this->RescaleIntercept = bMax;
     }
-
-  if (this->MetaData->HasAttribute(DC::SharedFunctionalGroupsSequence))
-    {
-    vtkDICOMValue mv = this->MetaData->GetAttributeValue(fileIndex,
-      vtkDICOMTagPath(DC::SharedFunctionalGroupsSequence, 0,
-                      DC::PixelValueTransformationSequence, 0,
-                      DC::RescaleSlope));
-    vtkDICOMValue bv = this->MetaData->GetAttributeValue(fileIndex,
-      vtkDICOMTagPath(DC::SharedFunctionalGroupsSequence, 0,
-                      DC::PixelValueTransformationSequence, 0,
-                      DC::RescaleIntercept));
-   if (mv.IsValid() && bv.IsValid())
-     {
-     this->NeedsRescale = false;
-     this->RescaleSlope = mv.AsDouble();
-     this->RescaleIntercept = bv.AsDouble();
-     }
-   }
 
   // === Image Orientation in DICOM files ===
   //
@@ -1423,41 +872,132 @@ int vtkDICOMReader::RequestInformation(
   // the user with a 4x4 matrix that can transform VTK's data coordinates
   // into DICOM's patient coordinates, as defined in the DICOM standard
   // Part 3 Appendix C 7.6.2 "Image Plane Module".
-  vtkDICOMValue pv = this->MetaData->GetAttributeValue(
-    fileIndex, frameIndex, DC::ImagePositionPatient);
-  vtkDICOMValue ov = this->MetaData->GetAttributeValue(
-    fileIndex, frameIndex, DC::ImageOrientationPatient);
-  if (pv.GetNumberOfValues() == 3 && ov.GetNumberOfValues() == 6)
+
+  vtkIdType numSlices = this->FileIndexArray->GetNumberOfTuples();
+  std::vector<double> points;
+  double centroid[3] = { 0.0, 0.0, 0.0 };
+  double orient[6] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0 };
+  double point[3] = { 0.0, 0.0, 0.0 };
+  double normal[3] = { 0.0, 0.0, 1.0 };
+
+  // go through the slices in reverse order, so we end on the first
+  for (vtkIdType iSlice = numSlices-1; iSlice >= 0; --iSlice)
     {
-    double orient[6], normal[3], point[3];
-    pv.GetValues(point, point+3);
-    ov.GetValues(orient, orient+6);
-
-    if (this->MemoryRowOrder == vtkDICOMReader::BottomUp)
+    int iFile = this->FileIndexArray->GetComponent(iSlice, 0);
+    int iFrame = this->FrameIndexArray->GetComponent(iSlice, 0);
+    vtkDICOMValue pv = this->MetaData->GetAttributeValue(
+      iFile, iFrame, DC::ImagePositionPatient);
+    vtkDICOMValue ov = this->MetaData->GetAttributeValue(
+      fileIndex, frameIndex, DC::ImageOrientationPatient);
+    if (pv.GetNumberOfValues() == 3 && ov.GetNumberOfValues() == 6)
       {
-      // calculate position of point at lower left
-      double yspacing = this->DataSpacing[1];
-      point[0] = point[0] + orient[3]*yspacing*(rows - 1);
-      point[1] = point[1] + orient[4]*yspacing*(rows - 1);
-      point[2] = point[2] + orient[5]*yspacing*(rows - 1);
+      pv.GetValues(point, 3);
+      ov.GetValues(orient, 6);
+      vtkMath::Cross(&orient[0], &orient[3], normal);
+      if (vtkMath::Normalize(normal) < 1e-10)
+        {
+        orient[0] = 1.0; orient[1] = 0.0; orient[2] = 0.0;
+        orient[3] = 0.0; orient[4] = 1.0; orient[5] = 0.0;
+        normal[0] = 0.0; normal[1] = 0.0; normal[2] = 1.0;
+        }
+      // re-orthogonalize x vector (improve precision)
+      vtkMath::Cross(&orient[3], normal, &orient[0]);
+      vtkMath::Normalize(&orient[0]);
+      vtkMath::Normalize(&orient[3]);
 
-      // measure orientation from lower left corner upwards
-      orient[3] = -orient[3];
-      orient[4] = -orient[4];
-      orient[5] = -orient[5];
+      if (this->MemoryRowOrder == vtkDICOMReader::BottomUp)
+        {
+        // calculate position of point at lower left
+        double yspacing = this->DataSpacing[1];
+        point[0] = point[0] + orient[3]*yspacing*(rows - 1);
+        point[1] = point[1] + orient[4]*yspacing*(rows - 1);
+        point[2] = point[2] + orient[5]*yspacing*(rows - 1);
+
+        orient[3] = -orient[3];
+        orient[4] = -orient[4];
+        orient[5] = -orient[5];
+        }
+
+      size_t ip = points.size();
+      points.resize(ip + 3);
+      for (int ii = 0; ii < 3; ii++)
+        {
+        centroid[ii] += point[ii];
+        points[ip+ii] = point[ii];
+        }
+      }
+    }
+
+  // compute Z vector by fitting points to a line
+  double vector[3] = { normal[0], normal[1], normal[2] };
+  size_t nPoints = points.size()/3;
+  if (nPoints > 0)
+    {
+    centroid[0] /= nPoints;
+    centroid[1] /= nPoints;
+    centroid[2] /= nPoints;
+
+    // use Jacobi to compute line of best fit
+    double storage[18] = {};
+    double *A[3] = { &storage[0], &storage[3], &storage[6] };
+    double *E[3] = { &storage[9], &storage[12], &storage[15] };
+    for (size_t iPoint = 0; iPoint < nPoints; iPoint++)
+      {
+      for (int ii = 0; ii < 3; ii++)
+        {
+        for (int jj = 0; jj < 3; jj++)
+          {
+          A[ii][jj] = ((points[3*iPoint + ii] - centroid[ii]) *
+                       (points[3*iPoint + jj] - centroid[jj]));
+          }
+        }
+      }
+    double eigenvalues[3];
+    vtkMath::Jacobi(A, eigenvalues, E);
+
+    // only use eigenvector if the points fit a line very precisely
+    if (eigenvalues[1]*eigenvalues[1] + eigenvalues[2]*eigenvalues[2] <
+        1e-6*eigenvalues[0]*eigenvalues[0])
+      {
+      // create the vector, dot(vector,normal) should be unity
+      double vdn = E[0][0]*normal[0] + E[1][0]*normal[1] + E[2][0]*normal[2];
+      if (vdn > 0)
+        {
+        vector[0] = E[0][0]/vdn;
+        vector[1] = E[1][0]/vdn;
+        vector[2] = E[2][0]/vdn;
+
+        // check difference between this vector and the normal
+        double vcn[3];
+        vtkMath::Cross(vector, normal, vcn);
+        if (vtkMath::Norm(vcn) < 1e-4)
+          {
+          // use normal (more precise) if they are the same
+          vector[0] = normal[0];
+          vector[1] = normal[1];
+          vector[2] = normal[2];
+          }
+        }
       }
 
-    vtkMath::Cross(&orient[0], &orient[3], normal);
+    // build the patient matrix
     double pm[16];
-    pm[0] = orient[0]; pm[1] = orient[3]; pm[2] = normal[0]; pm[3] = point[0];
-    pm[4] = orient[1]; pm[5] = orient[4]; pm[6] = normal[1]; pm[7] = point[1];
-    pm[8] = orient[2]; pm[9] = orient[5]; pm[10] = normal[2]; pm[11] = point[2];
+    pm[0] = orient[0]; pm[1] = orient[3]; pm[2] = vector[0]; pm[3] = point[0];
+    pm[4] = orient[1]; pm[5] = orient[4]; pm[6] = vector[1]; pm[7] = point[1];
+    pm[8] = orient[2]; pm[9] = orient[5]; pm[10] = vector[2]; pm[11] = point[2];
     pm[12] = 0.0; pm[13] = 0.0; pm[14] = 0.0; pm[15] = 1.0;
+
     this->PatientMatrix->DeepCopy(pm);
     }
   else
     {
     this->PatientMatrix->Identity();
+    }
+
+  // Set the medical image properties
+  if (this->MedicalImageProperties)
+    {
+    this->UpdateMedicalImageProperties();
     }
 
   // Set the output information.
@@ -1470,6 +1010,10 @@ int vtkDICOMReader::RequestInformation(
 
   vtkDataObject::SetPointDataActiveScalarInfo(
     outInfo, this->DataScalarType, this->NumberOfScalarComponents);
+
+  outInfo->Set(vtkDICOMAlgorithm::META_DATA(), this->MetaData);
+  outInfo->Set(vtkDICOMAlgorithm::PATIENT_MATRIX(),
+               *this->PatientMatrix->Element, 16);
 
   return 1;
 }
@@ -1507,11 +1051,13 @@ void vtkDICOMReaderRescaleBuffer(T *p, double m, double b, size_t bytecount)
 
 //----------------------------------------------------------------------------
 void vtkDICOMReader::RescaleBuffer(
-  int fileIdx, void *buffer, vtkIdType bufferSize)
+  int fileIdx, int frameIdx, void *buffer, vtkIdType bufferSize)
 {
   vtkDICOMMetaData *meta = this->MetaData;
-  double m = meta->GetAttributeValue(fileIdx, DC::RescaleSlope).AsDouble();
-  double b = meta->GetAttributeValue(fileIdx, DC::RescaleIntercept).AsDouble();
+  double m = meta->GetAttributeValue(
+    fileIdx, frameIdx, DC::RescaleSlope).AsDouble();
+  double b = meta->GetAttributeValue(
+    fileIdx, frameIdx, DC::RescaleIntercept).AsDouble();
   double m0 = this->RescaleSlope;
   double b0 = this->RescaleIntercept;
 
@@ -1519,8 +1065,10 @@ void vtkDICOMReader::RescaleBuffer(
   b = (b - b0)/m0;
   m = m/m0;
 
-  int bitsAllocated = meta->GetAttributeValue(DC::BitsAllocated).AsInt();
-  int pixelRep = meta->GetAttributeValue(DC::PixelRepresentation).AsInt();
+  int bitsAllocated = meta->GetAttributeValue(
+    fileIdx, DC::BitsAllocated).AsInt();
+  int pixelRep = meta->GetAttributeValue(
+    fileIdx, DC::PixelRepresentation).AsInt();
 
   if (bitsAllocated <= 8)
     {
@@ -1623,8 +1171,9 @@ void vtkDICOMReader::UnpackBits(
 }
 
 //----------------------------------------------------------------------------
-bool vtkDICOMReader::ReadUncompressedFile(
-  const char *filename, int fileIdx, char *buffer, vtkIdType bufferSize)
+bool vtkDICOMReader::ReadFileNative(
+  const char *filename, int fileIdx,
+  unsigned char *buffer, vtkIdType bufferSize)
 {
   // get the offset to the PixelData in the file
   vtkTypeInt64 offsetAndSize[2];
@@ -1632,33 +1181,99 @@ bool vtkDICOMReader::ReadUncompressedFile(
   vtkTypeInt64 offset = offsetAndSize[0];
 
   vtkDebugMacro("Opening DICOM file " << filename);
-  std::ifstream infile(filename, ios::in | ios::binary);
+  vtkDICOMFile infile(filename, vtkDICOMFile::In);
 
-  if (infile.fail())
+  if (infile.GetError())
     {
     this->SetErrorCode(vtkErrorCode::CannotOpenFileError);
     vtkErrorMacro("ReadFile: Can't read the file " << filename);
     return false;
     }
 
-  if (!infile.seekg(static_cast<std::streamoff>(offset), std::ios::beg))
+  if (!infile.SetPosition(offset))
     {
     this->SetErrorCode(vtkErrorCode::PrematureEndOfFileError);
     vtkErrorMacro("DICOM file is truncated, some data is missing.");
+    infile.Close();
     return false;
     }
+
+  std::string transferSyntax = this->MetaData->GetAttributeValue(
+    fileIdx, DC::TransferSyntaxUID).AsString();
+
+  // this will set endiancheck.s to 1 on big endian architectures
+  union { char c[2]; short s; } endianCheck = { { 0, 1 } };
+  bool memoryBigEndian = (endianCheck.s == 1);
+  bool fileBigEndian = (transferSyntax == "1.2.840.10008.1.2.2" ||
+                        transferSyntax == "1.2.840.113619.5.2");
 
   int bitsAllocated = this->MetaData->GetAttributeValue(
     fileIdx, DC::BitsAllocated).AsInt();
 
-  if (bitsAllocated == 12)
+  size_t readSize = bufferSize;
+  size_t resultSize = 0;
+  if (transferSyntax == "1.2.840.10008.1.2.5")
+    {
+    vtkDICOMImageCodec codec(transferSyntax);
+
+    unsigned int numFrames = this->MetaData->GetAttributeValue(
+      fileIdx, DC::NumberOfFrames).AsUnsignedInt();
+    numFrames = (numFrames == 0 ? 1 : numFrames);
+
+    // assume the remainder of the file is all pixel data
+    readSize = static_cast<size_t>(
+      offsetAndSize[1] - offsetAndSize[0]);
+    if (readSize < 8)
+      {
+      readSize = 8;
+      }
+    unsigned char *rleBuffer = new unsigned char[readSize];
+    unsigned char *filePtr = rleBuffer;
+    resultSize = infile.Read(filePtr, readSize);
+    size_t bytesRemaining = resultSize;
+    vtkIdType bufferPos = 0;
+    vtkIdType frameSize = bufferSize/numFrames;
+    bool isOffsetTable = true;
+    while (bytesRemaining >= 8 && bufferPos < bufferSize)
+      {
+      // get the item header
+      unsigned int tagkey = vtkDICOMUtilities::UnpackUnsignedInt(filePtr);
+      unsigned int length = vtkDICOMUtilities::UnpackUnsignedInt(filePtr + 4);
+      filePtr += 8;
+      bytesRemaining -= 8;
+      // make sure the tag is valid
+      if (tagkey != 0xE000FFFE)
+        {
+        break;
+        }
+      if (length > bytesRemaining)
+        {
+        // actual file size should have been at least this much larger
+        readSize += length - bytesRemaining;
+        length = bytesRemaining;
+        }
+      // first item is the offset table
+      if (!isOffsetTable)
+        {
+        // unpack an RLE fragment
+        codec.Decode(this->MetaData,
+          filePtr, length, buffer + bufferPos, frameSize);
+        bufferPos += frameSize;
+        }
+      filePtr += length;
+      bytesRemaining -= length;
+      isOffsetTable = false;
+      }
+    delete [] rleBuffer;
+    }
+  else if (bitsAllocated == 12)
     {
     // unpack 12 bits little endian into 16 bits little endian,
     // the result will have to be swapped if machine is BE (the
     // swapping is done at the end of this function)
-    size_t fileSize = bufferSize/2 + (bufferSize+3)/4;
-    char *filePtr = buffer + (bufferSize - fileSize);
-    infile.read(filePtr, fileSize);
+    readSize = bufferSize/2 + (bufferSize+3)/4;
+    unsigned char *filePtr = buffer + (bufferSize - readSize);
+    resultSize = infile.Read(filePtr, readSize);
 
     vtkDICOMReader::UnpackBits(filePtr, buffer, bufferSize, bitsAllocated);
     }
@@ -1666,42 +1281,45 @@ bool vtkDICOMReader::ReadUncompressedFile(
     {
     // unpack 1 bit into 8 bits, source assumed to be either OB
     // or little endian OW, never big endian OW
-    size_t fileSize = (bufferSize + 7)/8;
-    char *filePtr = buffer + (bufferSize - fileSize);
-    infile.read(filePtr, fileSize);
+    readSize = (bufferSize + 7)/8;
+    unsigned char *filePtr = buffer + (bufferSize - readSize);
+    resultSize = infile.Read(filePtr, readSize);
 
     vtkDICOMReader::UnpackBits(filePtr, buffer, bufferSize, bitsAllocated);
     }
   else
     {
-    infile.read(buffer, bufferSize);
+    resultSize = infile.Read(buffer, readSize);
     }
 
-  if (infile.eof())
+  bool success = true;
+  if (infile.EndOfFile() || resultSize != readSize)
     {
     this->SetErrorCode(vtkErrorCode::PrematureEndOfFileError);
-    vtkErrorMacro("DICOM file is truncated, some data is missing.");
-    return false;
+    vtkErrorMacro("DICOM file is truncated, " <<
+      (readSize - resultSize) << " bytes are missing.");
+    success = false;
     }
-  else if (infile.fail())
+  else if (infile.GetError())
     {
     this->SetErrorCode(vtkErrorCode::FileFormatError);
     vtkErrorMacro("Error in DICOM file, cannot read.");
-    return false;
+    success = false;
     }
-
-  if (this->SwapBytes)
+  else if (fileBigEndian != memoryBigEndian)
     {
     int scalarSize = vtkDataArray::GetDataTypeSize(this->DataScalarType);
     vtkByteSwap::SwapVoidRange(buffer, bufferSize/scalarSize, scalarSize);
     }
 
-  return true;
+  infile.Close();
+  return success;
 }
 
 //----------------------------------------------------------------------------
-bool vtkDICOMReader::ReadCompressedFile(
-  const char *filename, int fileIdx, char *buffer, vtkIdType bufferSize)
+bool vtkDICOMReader::ReadFileDelegated(
+  const char *filename, int fileIdx,
+  unsigned char *buffer, vtkIdType bufferSize)
 {
 #if defined(DICOM_USE_DCMTK)
 
@@ -1774,12 +1392,13 @@ bool vtkDICOMReader::ReadCompressedFile(
     return false;
     }
 
-  image.GetBuffer(buffer);
+  image.GetBuffer(reinterpret_cast<char *>(buffer));
   return true;
 
 #else /* no DCMTK or GDCM, so no file decompression */
 
   (void)filename;
+  (void)fileIdx;
   (void)buffer;
   (void)bufferSize;
 
@@ -1792,7 +1411,8 @@ bool vtkDICOMReader::ReadCompressedFile(
 
 //----------------------------------------------------------------------------
 bool vtkDICOMReader::ReadOneFile(
-  const char *filename, int fileIdx, char *buffer, vtkIdType bufferSize)
+  const char *filename, int fileIdx,
+  unsigned char *buffer, vtkIdType bufferSize)
 {
   std::string transferSyntax = this->MetaData->GetAttributeValue(
     fileIdx, DC::TransferSyntaxUID).AsString();
@@ -1801,13 +1421,14 @@ bool vtkDICOMReader::ReadOneFile(
       transferSyntax == "1.2.840.10008.1.20"  ||  // Papyrus Implicit LE
       transferSyntax == "1.2.840.10008.1.2.1" ||  // Explicit LE
       transferSyntax == "1.2.840.10008.1.2.2" ||  // Explicit BE
+      transferSyntax == "1.2.840.10008.1.2.5" ||  // RLE compressed
       transferSyntax == "1.2.840.113619.5.2"  ||  // GE LE with BE data
       transferSyntax == "")
     {
-    return this->ReadUncompressedFile(filename, fileIdx, buffer, bufferSize);
+    return this->ReadFileNative(filename, fileIdx, buffer, bufferSize);
     }
 
-  return this->ReadCompressedFile(filename, fileIdx, buffer, bufferSize);
+  return this->ReadFileDelegated(filename, fileIdx, buffer, bufferSize);
 }
 
 //----------------------------------------------------------------------------
@@ -1816,6 +1437,12 @@ int vtkDICOMReader::RequestData(
   vtkInformationVector** vtkNotUsed(inputVector),
   vtkInformationVector* outputVector)
 {
+  // check whether the reader is in an error state
+  if (this->GetErrorCode() != vtkErrorCode::NoError)
+    {
+    return false;
+    }
+
   // which output port did the request come from
   int outputPort =
     request->Get(vtkDemandDrivenPipeline::FROM_OUTPUT_PORT());
@@ -1875,9 +1502,17 @@ int vtkDICOMReader::RequestData(
   this->AllocateOutputData(data, extent);
 #endif
 
+  // label the scalars as "PixelData"
   data->GetPointData()->GetScalars()->SetName("PixelData");
 
-  char *dataPtr = static_cast<char *>(data->GetScalarPointer());
+  // add the meta data to the data set
+  vtkInformation *dataInfo = data->GetInformation();
+  dataInfo->Set(vtkDICOMAlgorithm::META_DATA(), this->MetaData);
+  dataInfo->Set(vtkDICOMAlgorithm::PATIENT_MATRIX(),
+                *this->PatientMatrix->Element, 16);
+
+  unsigned char *dataPtr =
+    static_cast<unsigned char *>(data->GetScalarPointer());
 
   int scalarSize = data->GetScalarSize();
   int numComponents = data->GetNumberOfScalarComponents();
@@ -1896,12 +1531,12 @@ int vtkDICOMReader::RequestData(
 
   bool flipImage = (this->MemoryRowOrder == vtkDICOMReader::BottomUp);
   bool planarToPacked = (filePixelSize != pixelSize);
-  char *rowBuffer = 0;
+  unsigned char *rowBuffer = 0;
   if (flipImage)
     {
-    rowBuffer = new char[fileRowSize];
+    rowBuffer = new unsigned char[fileRowSize];
     }
-  char *fileBuffer = 0;
+  unsigned char *fileBuffer = 0;
   int framesInPreviousFile = -1;
 
   // loop through all files in the update extent
@@ -1925,7 +1560,7 @@ int vtkDICOMReader::RequestData(
       needBuffer = (sIdx != frames[sIdx].FrameIndex);
       }
 
-    char *bufferPtr = 0;
+    unsigned char *bufferPtr = 0;
 
     if (needBuffer)
       {
@@ -1933,7 +1568,7 @@ int vtkDICOMReader::RequestData(
         {
         // allocate a buffer for planar-to-packed conversion
         delete [] fileBuffer;
-        fileBuffer = new char[fileFrameSize*framesInFile];
+        fileBuffer = new unsigned char[fileFrameSize*framesInFile];
         framesInPreviousFile = numFrames;
         }
       bufferPtr = fileBuffer;
@@ -1959,20 +1594,21 @@ int vtkDICOMReader::RequestData(
       int sliceIdx = frames[sIdx].SliceIndex;
       int componentIdx = frames[sIdx].ComponentIndex;
       // go to the correct position in the input
-      char *framePtr = bufferPtr + frameIdx*fileFrameSize;
+      unsigned char *framePtr = bufferPtr + frameIdx*fileFrameSize;
       // go to the correct position in the output
-      char *slicePtr = (dataPtr +
-                        (sliceIdx - extent[4])*sliceSize +
-                        componentIdx*filePixelSize*numPlanes);
+      unsigned char *slicePtr =
+        (dataPtr + (sliceIdx - extent[4])*sliceSize +
+         componentIdx*filePixelSize*numPlanes);
 
       // rescale if Rescale was different for different files
-      if (this->NeedsRescale)
+      if (this->NeedsRescale &&
+          this->MetaData->GetAttributeValue(fileIdx, DC::PixelData).IsValid())
         {
-        this->RescaleBuffer(fileIdx, bufferPtr, sliceSize);
+        this->RescaleBuffer(fileIdx, frameIdx, bufferPtr, sliceSize);
         }
 
       // iterate through all color planes in the slice
-      char *planePtr = framePtr;
+      unsigned char *planePtr = framePtr;
       for (int pIdx = 0; pIdx < numPlanes; pIdx++)
         {
         // flip the data if necessary
@@ -1982,8 +1618,8 @@ int vtkDICOMReader::RequestData(
           int halfRows = numRows/2;
           for (int yIdx = 0; yIdx < halfRows; yIdx++)
             {
-            char *row1 = planePtr + yIdx*fileRowSize;
-            char *row2 = planePtr + (numRows-yIdx-1)*fileRowSize;
+            unsigned char *row1 = planePtr + yIdx*fileRowSize;
+            unsigned char *row2 = planePtr + (numRows-yIdx-1)*fileRowSize;
             memcpy(rowBuffer, row1, fileRowSize);
             memcpy(row1, row2, fileRowSize);
             memcpy(row2, rowBuffer, fileRowSize);
@@ -1993,8 +1629,8 @@ int vtkDICOMReader::RequestData(
         // convert planes into vector components
         if (planarToPacked)
           {
-          const char *tmpInPtr = planePtr;
-          char *tmpOutPtr = slicePtr;
+          const unsigned char *tmpInPtr = planePtr;
+          unsigned char *tmpOutPtr = slicePtr;
           int m = sliceSize/pixelSize;
           for (int i = 0; i < m; i++)
             {
@@ -2033,11 +1669,141 @@ void vtkDICOMReader::RelayError(vtkObject *o, unsigned long e, void *data)
       {
       this->SetErrorCode(parser->GetErrorCode());
       }
+    else
+      {
+      this->SetErrorCode(vtkErrorCode::UnknownError);
+      }
 
-    vtkErrorMacro(<< static_cast<char *>(data));
+    if (data)
+      {
+      vtkErrorMacro(<< static_cast<char *>(data));
+      }
+    else
+      {
+      vtkErrorMacro(<< "An unknown error ocurred!");
+      }
     }
   else
     {
     this->InvokeEvent(e, data);
     }
+}
+
+//----------------------------------------------------------------------------
+vtkMedicalImageProperties *vtkDICOMReader::GetMedicalImageProperties()
+{
+  if (this->MedicalImageProperties == 0)
+    {
+    this->MedicalImageProperties = vtkMedicalImageProperties::New();
+    this->UpdateMedicalImageProperties();
+    }
+
+  return this->MedicalImageProperties;
+}
+
+//----------------------------------------------------------------------------
+void vtkDICOMReader::UpdateMedicalImageProperties()
+{
+  vtkDICOMMetaData *meta = this->MetaData;
+  vtkMatrix4x4 *matrix = this->PatientMatrix;
+  vtkMedicalImageProperties *properties = this->MedicalImageProperties;
+
+  properties->SetPatientName(
+    meta->GetAttributeValue(DC::PatientName).GetCharData());
+  properties->SetPatientID(
+    meta->GetAttributeValue(DC::PatientID).GetCharData());
+  properties->SetPatientAge(
+    meta->GetAttributeValue(DC::PatientAge).GetCharData());
+  properties->SetPatientSex(
+    meta->GetAttributeValue(DC::PatientSex).GetCharData());
+  properties->SetPatientBirthDate(
+    meta->GetAttributeValue(DC::PatientBirthDate).GetCharData());
+  properties->SetStudyDate(
+    meta->GetAttributeValue(DC::StudyDate).GetCharData());
+  properties->SetAcquisitionDate(
+    meta->GetAttributeValue(DC::AcquisitionDate).GetCharData());
+  properties->SetStudyTime(
+    meta->GetAttributeValue(DC::StudyTime).GetCharData());
+  properties->SetAcquisitionTime(
+    meta->GetAttributeValue(DC::AcquisitionTime).GetCharData());
+  properties->SetImageDate(
+    meta->GetAttributeValue(DC::ContentDate).GetCharData());
+  properties->SetImageTime(
+    meta->GetAttributeValue(DC::ContentTime).GetCharData());
+  properties->SetImageNumber(
+    meta->GetAttributeValue(DC::InstanceNumber).GetCharData());
+  properties->SetSeriesNumber(
+    meta->GetAttributeValue(DC::SeriesNumber).GetCharData());
+  properties->SetSeriesDescription(
+    meta->GetAttributeValue(DC::SeriesDescription).GetCharData());
+  properties->SetStudyID(
+    meta->GetAttributeValue(DC::StudyID).GetCharData());
+  properties->SetStudyDescription(
+    meta->GetAttributeValue(DC::StudyDescription).GetCharData());
+  properties->SetModality(
+    meta->GetAttributeValue(DC::Modality).GetCharData());
+  properties->SetManufacturer(
+    meta->GetAttributeValue(DC::Manufacturer).GetCharData());
+  properties->SetManufacturerModelName(
+    meta->GetAttributeValue(DC::ManufacturerModelName).GetCharData());
+  properties->SetStationName(
+    meta->GetAttributeValue(DC::StationName).GetCharData());
+  properties->SetInstitutionName(
+    meta->GetAttributeValue(DC::InstitutionName).GetCharData());
+  properties->SetConvolutionKernel(
+    meta->GetAttributeValue(DC::ConvolutionKernel).GetCharData());
+  properties->SetSliceThickness(
+    meta->GetAttributeValue(DC::SliceThickness).GetCharData());
+  properties->SetKVP(
+    meta->GetAttributeValue(DC::KVP).GetCharData());
+  properties->SetGantryTilt(
+    meta->GetAttributeValue(DC::GantryAngle).GetCharData());
+  properties->SetEchoTime(
+    meta->GetAttributeValue(DC::EchoTime).GetCharData());
+  properties->SetEchoTrainLength(
+    meta->GetAttributeValue(DC::EchoTrainLength).GetCharData());
+  properties->SetRepetitionTime(
+    meta->GetAttributeValue(DC::RepetitionTime).GetCharData());
+  properties->SetExposureTime(
+    meta->GetAttributeValue(DC::ExposureTime).GetCharData());
+  properties->SetXRayTubeCurrent(
+    meta->GetAttributeValue(DC::XRayTubeCurrent).GetCharData());
+  properties->SetExposure(
+    meta->GetAttributeValue(DC::Exposure).GetCharData());
+
+  const vtkDICOMValue& center = meta->GetAttributeValue(DC::WindowCenter);
+  const vtkDICOMValue& width = meta->GetAttributeValue(DC::WindowWidth);
+
+  int n = static_cast<int>(center.GetNumberOfValues());
+  int m = static_cast<int>(width.GetNumberOfValues());
+  n = (m < n ? m : n);
+  properties->RemoveAllWindowLevelPresets();
+  for (int i = 0; i < n; i++)
+    {
+    properties->AddWindowLevelPreset(
+      center.GetDouble(i), width.GetDouble(i));
+    }
+
+  const vtkDICOMValue& comment =
+    meta->GetAttributeValue(DC::WindowCenterWidthExplanation);
+  m = comment.GetNumberOfValues();
+  m = (n < m ? n : m);
+  for (int j = 0; j < m; j++)
+    {
+    properties->SetNthWindowLevelPresetComment(
+      j, comment.GetString(j).c_str());
+    }
+
+  double dircos[6] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0 };
+  if (matrix)
+    {
+    for (int jj = 0; jj < 2; jj++)
+      {
+      for (int ii = 0; ii < 3; ii++)
+        {
+        dircos[ii + 3*jj] = matrix->GetElement(ii, jj);
+        }
+      }
+    }
+  properties->SetDirectionCosine(dircos);
 }

@@ -2,23 +2,23 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#ifndef __vtkDICOMVR_h
-#define __vtkDICOMVR_h
+#ifndef vtkDICOMVR_h
+#define vtkDICOMVR_h
 
 #include <vtkSystemIncludes.h>
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 
 //! VRs (Value Representations)
-class VTK_DICOM_EXPORT vtkDICOMVR
+class VTKDICOM_EXPORT vtkDICOMVR
 {
 public:
   //! The VR enum constants.
@@ -41,24 +41,29 @@ public:
     LO = 0x0b, //!< Long String
     LT = 0x0c, //!< Long Text
     OB = 0x0d, //!< Other Byte
-    OF = 0x0e, //!< Other Float
-    OW = 0x0f, //!< Other Word
-    PN = 0x10, //!< Personal Name
-    SH = 0x11, //!< Short String
-    SL = 0x12, //!< Signed Long
-    SQ = 0x13, //!< Sequence of Items
-    SS = 0x14, //!< Signed Short
-    ST = 0x15, //!< Short Text
-    TM = 0x16, //!< Time
-    UI = 0x17, //!< Unique Identifier
-    UL = 0x18, //!< Unsigned Long
-    UN = 0x19, //!< Unknown
-    US = 0x1a, //!< Unsigned Short
-    UT = 0x1b, //!< Unlimited Text
-    OX = 0x1c, //!< Either OB or OW (for dict entries, not data elements)
-    XS = 0x1d, //!< Either SS or US (for dict entries, not data elements)
+    OD = 0x0e, //!< Other Double
+    OF = 0x0f, //!< Other Float
+    OL = 0x10, //!< Other Long
+    OW = 0x11, //!< Other Word
+    PN = 0x12, //!< Personal Name
+    SH = 0x13, //!< Short String
+    SL = 0x14, //!< Signed Long
+    SQ = 0x15, //!< Sequence of Items
+    SS = 0x16, //!< Signed Short
+    ST = 0x17, //!< Short Text
+    TM = 0x18, //!< Time
+    UC = 0x19, //!< Unlimited Characters
+    UI = 0x1a, //!< Unique Identifier
+    UL = 0x1b, //!< Unsigned Long
+    UN = 0x1c, //!< Unknown
+    UR = 0x1d, //!< URI or URL
+    US = 0x1e, //!< Unsigned Short
+    UT = 0x1f, //!< Unlimited Text
+    OX = 0x20, //!< Either OB or OW (for dict entries, not data elements)
+    XS = 0x21  //!< Either SS or US (for dict entries, not data elements)
   };
 
+  //@{
   //! Construct an empty, invalid VR.
   vtkDICOMVR() : Key(0) {}
 
@@ -71,7 +76,9 @@ public:
 
   //! Attempt to construct a VR from a two unsigned bytes.
   vtkDICOMVR(const unsigned char vr[2]) : Key(VRTable[vr[0]][vr[1]]) {}
+  //@}
 
+  //@{
   //! Check validity of this VR.
   bool IsValid() const { return (this->Key != 0); }
 
@@ -80,25 +87,57 @@ public:
 
   //! Get the two-character text for this VR.
   const char *GetText() const { return TextTable[this->Key]; }
+  //@}
 
-  //! The VRs OB, OF, OW, SQ, UN, UT require a 32-bit VL.
-  bool HasLongVL() const { return (((1 << this->Key) & 0x0a08e000) != 0); }
+  //@{
+  //! The VRs OB, OD, OF, OL, OW, SQ, UC, UN, UR, UT require a 32-bit VL.
+  bool HasLongVL() const {
+    return (((1ull << this->Key) & 0xb223e001u) != 0); }
 
+  //! The VRs SH, LO, PN, ST, LT, UC, and UT use SpecificCharacterSet.
+  bool HasSpecificCharacterSet() const {
+    return (((1ull << this->Key) & 0x828c1800u) != 0); }
+
+  //! This is true for all VRs whose value is stored as text.
+  bool HasTextValue() const {
+    return (((1ull << this->Key) & 0xa78c1cf6u) != 0); }
+
+  //! This is true for for all VRs that store numbers.
+  /*!
+   *  The VRs included are IS, DS, US, UL, SS, SL, FL, FD.  The VRs
+   *  OB, OW, OF, OL, and OD are not included.
+   */
+  bool HasNumericValue() const {
+    return (((1ull << this->Key) & 0x48500740u) != 0); }
+
+  //! The VRs ST, LT, and UT carry only one value.
+  /*!
+   * Specifically, this means that a backslash is not interpreted as a
+   * value separator in these VRs. UR is not included, because backslash
+   * is an illegal character in UR.
+   */
+  bool HasSingleValue() const {
+    return (((1ull << this->Key) & 0x80801000u) != 0); }
+  //@}
+
+  //@{
   bool operator==(vtkDICOMVR a) const { return (this->Key == a.Key); }
   bool operator!=(vtkDICOMVR a) const { return (this->Key != a.Key); }
   bool operator<=(vtkDICOMVR a) const { return (this->Key <= a.Key); }
   bool operator>=(vtkDICOMVR a) const { return (this->Key >= a.Key); }
   bool operator<(vtkDICOMVR a) const { return (this->Key < a.Key); }
   bool operator>(vtkDICOMVR a) const { return (this->Key > a.Key); }
+  //@}
 
 private:
   unsigned char Key;
 
   static const unsigned char *VRTable[256];
-  static const unsigned char TypeTable[32];
-  static const char TextTable[32][4];
+  static const unsigned char TypeTable[34];
+  static const char TextTable[34][4];
 };
 
-VTK_DICOM_EXPORT ostream& operator<<(ostream& o, const vtkDICOMVR& a);
+VTKDICOM_EXPORT ostream& operator<<(ostream& o, const vtkDICOMVR& a);
 
-#endif /* __vtkDICOMVR_h */
+#endif /* vtkDICOMVR_h */
+// VTK-HeaderTest-Exclude: vtkDICOMVR.h

@@ -2,9 +2,9 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -12,11 +12,14 @@
 
 =========================================================================*/
 
+#include <vtkSystemIncludes.h>
 #include <vtkStringArray.h>
+#include <vtkObjectFactory.h>
 #include "vtkDICOMUtilities.h"
+#include "vtkDICOMFile.h"
+#include "vtkDICOMConfig.h"
 
 #include <string>
-#include <iostream>
 
 #include <stdio.h>
 #include <string.h>
@@ -33,6 +36,8 @@
 #include <windows.h>
 #include <wincrypt.h>
 #endif
+
+vtkStandardNewMacro(vtkDICOMUtilities);
 
 namespace {
 
@@ -149,7 +154,7 @@ inline void vtkGenerateHexDigits(unsigned char y, char cp[2])
 }
 
 // convert n bytes into 2*n hexadecimal digits
-void vtkConvertBytesToHex(const char *bytes, size_t n, char *cp)
+void vtkConvertBytesToHex(const unsigned char *bytes, size_t n, char *cp)
 {
   for (size_t i = 0; i < n; i++)
     {
@@ -162,7 +167,7 @@ void vtkConvertBytesToHex(const char *bytes, size_t n, char *cp)
 
 // generate a 36-character uuid from a 128-bit random number
 // (the supplied pointer must have 37 bytes of available space)
-void vtkConvertRandomToUUID(const char bytes[16], char *uuid)
+void vtkConvertRandomToUUID(const unsigned char bytes[16], char *uuid)
 {
   // copy it so that we can modify it
   char r[16];
@@ -202,7 +207,7 @@ void vtkConvertUUIDToUID(const char *uuid, char *uid)
 }
 
 // read from the random number generator
-void vtkGenerateRandomBytes(char *bytes, vtkIdType n)
+void vtkGenerateRandomBytes(unsigned char *bytes, vtkIdType n)
 {
   int r = 0;
 #ifdef _WIN32
@@ -221,15 +226,17 @@ void vtkGenerateRandomBytes(char *bytes, vtkIdType n)
     CryptReleaseContext(hProv, 0);
     }
 #else
-  // use the "random" device on unix-like systems
-  std::ifstream infile("/dev/random", ios::in | ios::binary);
-  infile.read(bytes, n);
-  r = infile.good();
-  infile.close();
+  vtkDICOMFile infile("/dev/urandom", vtkDICOMFile::In);
+  if (infile.GetError() == 0)
+    {
+    size_t m = infile.Read(bytes, n);
+    r = (m == static_cast<size_t>(n));
+    infile.Close();
+    }
 #endif
   if (r == 0)
     {
-    memset(bytes, n, '\0');
+    memset(bytes, '\0', n);
     vtkGenericWarningMacro(
       "vtkDICOMUtilities::GenerateUID() failed to read from "
       "the random number generator");
@@ -291,7 +298,8 @@ vtkIdType vtkRandomBytesForPrefix(const char *prefix)
 
 // generate a prefixed UID using the provided random bytes
 void vtkGeneratePrefixedUID(
-  const char *r, vtkIdType m, const char *prefix, char d, char uid[64])
+  const unsigned char *r, vtkIdType m, const char *prefix, char d,
+  char uid[64])
 {
   size_t i = 0;
   while (*prefix != '\0' && i < 62)
@@ -350,7 +358,7 @@ std::string vtkDICOMUtilities::GenerateUID(vtkDICOMTag tag)
        prefix[3] == '5' && (prefix[4] == '.' || prefix[4] == '\0')))
     {
     // generate a 128-bit random number
-    char r[16];
+    unsigned char r[16];
     vtkGenerateRandomBytes(r, 16);
 
     // convert to a hex uuid
@@ -363,7 +371,7 @@ std::string vtkDICOMUtilities::GenerateUID(vtkDICOMTag tag)
   else
     {
     // after prefix, add a "UID type" digit followed by random digits
-    char r[16];
+    unsigned char r[16];
     vtkIdType m = vtkRandomBytesForPrefix(prefix);
     vtkGenerateRandomBytes(r, m);
     char d = vtkDICOMTagToDigit(tag);
@@ -393,7 +401,7 @@ void vtkDICOMUtilities::GenerateUIDs(vtkDICOMTag tag, vtkStringArray *uids)
 
   // read from random number generator
   vtkIdType n = uids->GetNumberOfValues();
-  char *r = new char[n*m];
+  unsigned char *r = new unsigned char[n*m];
   vtkGenerateRandomBytes(r, n*m);
 
   for (vtkIdType i = 0; i < n; i++)
@@ -441,15 +449,9 @@ int vtkDICOMUtilities::CompareUIDs(const char *u1, const char *u2)
     r = (u2 == 0 ? r : -1);
     r = (u1 == 0 ? r : 1);
     }
-  else if (*u1 == 0 || *u2 == 0)
-    {
-    // if one or both are the empty string
-    r = (*u2 == 0 ? r : -1);
-    r = (*u1 == 0 ? r : 1);
-    }
   else
     {
-    do
+    while (r == 0 && *u1 != 0 && *u2 != 0)
       {
       int i1 = 0;
       int i2 = 0;
@@ -461,17 +463,99 @@ int vtkDICOMUtilities::CompareUIDs(const char *u1, const char *u2)
         do { r = *u1++ - *u2++; } while (r == 0 && --i1 != 0);
         }
       }
-    while (r == 0 && *u1 != 0 && *u2 != 0);
-    // convert r to sgn(r)
-    r = (r >= 0 ? r : -1);
-    r = (r <= 0 ? r : 1);
+
+    if (r == 0)
+      {
+      // uid with remaining parts wins
+      r = (*u2 == 0 ? r : -1);
+      r = (*u1 == 0 ? r : 1);
+      }
+    else
+      {
+      // convert r to sgn(r)
+      r = (r >= 0 ? r : -1);
+      r = (r <= 0 ? r : 1);
+      }
     }
 
   return r;
 }
 
 //----------------------------------------------------------------------------
+long long vtkDICOMUtilities::GetUTC(long long *offset)
+{
+#ifdef _WIN32
+
+  FILETIME ft;
+  GetSystemTimeAsFileTime(&ft);
+  long long t1 = ((static_cast<long long>(ft.dwHighDateTime) << 32) +
+                  static_cast<long long>(ft.dwLowDateTime));
+
+  if (offset)
+    {
+    // get the current timezone offset by subtracting UTC from local time
+    TIME_ZONE_INFORMATION tzi;
+    GetTimeZoneInformation(&tzi);
+    SYSTEMTIME st;
+    FileTimeToSystemTime(&ft, &st);
+    SYSTEMTIME lst;
+    SystemTimeToTzSpecificLocalTime(&tzi, &st, &lst);
+    FILETIME lft;
+    SystemTimeToFileTime(&lst, &lft);
+    // round to the nearest second, since result has a bit of numerical error
+    long long tzo = ((static_cast<long long>(lft.dwHighDateTime) << 32) +
+                     static_cast<long long>(lft.dwLowDateTime) - t1);
+    if (tzo >= 0)
+      {
+      tzo = (tzo + 5000000)/10000000;
+      }
+    else
+      {
+      tzo = -((-tzo + 5000000)/10000000);
+      }
+    *offset = tzo*1000000;
+    }
+
+  // convert file time to unix time
+  return t1/10 - 11644473600000000ll;
+
+#else
+
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+  long long t = (tv.tv_sec*1000000ll + tv.tv_usec);
+  if (offset)
+    {
+    static long long lastT = 0;
+    if (t - lastT > 1000000ll)
+      {
+      // this is needed on some systems to set timezone info,
+      // because it might do I/O do it at most once per second
+      tzset();
+      lastT = t;
+      }
+    // use localtime to get the offset from utc
+    struct tm tmv;
+    time_t tod = static_cast<time_t>(t/1000000);
+    localtime_r(&tod, &tmv);
+    *offset = tmv.tm_gmtoff*1000000ll;
+    }
+
+  return t;
+
+#endif
+}
+
+//----------------------------------------------------------------------------
 std::string vtkDICOMUtilities::GenerateDateTime(const char *z)
+{
+  return vtkDICOMUtilities::GenerateDateTime(VTK_LONG_LONG_MIN, z);
+}
+
+//----------------------------------------------------------------------------
+// If "t" is VTK_LONG_LONG_MIN, this uses the current time instead of "t"
+std::string vtkDICOMUtilities::GenerateDateTime(
+  long long t, const char *z)
 {
   long long zs = 0; // offset for local time in microseconds
 
@@ -486,55 +570,21 @@ std::string vtkDICOMUtilities::GenerateDateTime(const char *z)
     zs = (zh*3600 + zm*60) * (z[0] == '-' ? -1 : +1) * 1000000ll;
     }
 
-#ifdef _WIN32
-  // get the system time (UTC) on Windows
-  FILETIME ft;
-  GetSystemTimeAsFileTime(&ft);
-  long long t = (static_cast<long long>(ft.dwLowDateTime) +
-                 (static_cast<long long>(ft.dwHighDateTime) << 32));
-
-  // get the current timezone offset by subtracting UTC from local time
-  if (z == 0 || z[0] == '\0')
+  if (z == 0 || z[0] == '\0' || t == VTK_LONG_LONG_MIN)
     {
-    TIME_ZONE_INFORMATION tzi;
-    GetTimeZoneInformation(&tzi);
-    SYSTEMTIME st;
-    FileTimeToSystemTime(&ft, &st);
-    SYSTEMTIME lst;
-    SystemTimeToTzSpecificLocalTime(&tzi, &st, &lst);
-    FILETIME lft;
-    SystemTimeToFileTime(&lst, &lft);
-    zs = (((static_cast<long long>(lft.dwLowDateTime) +
-            (static_cast<long long>(lft.dwHighDateTime) << 32)) - t)/10);
-    }
-
-  // convert file time to unix time
-  t = t/10 - 11644473600000000ll;
-
-#else
-  // get the system time (UTC) on UNIX
-  struct timeval tv;
-  gettimeofday(&tv, 0);
-  long long t = (tv.tv_sec*1000000ll + tv.tv_usec);
-
-  // get the current time zone offset by calling localtime()
-  if (z == 0 || z[0] == '\0')
-    {
-    static long long lastT = 0;
-    if (t - lastT > 1000000ll)
+    long long *zsp = 0;
+    if (z == 0 || z[0] == '\0')
       {
-      // this is needed on some systems to set timezone info,
-      // because it might do I/O do it at most once per second
-      tzset();
-      lastT = t;
+      zsp = &zs;
       }
-    // use localtime to get the offset from utc
-    struct tm tmv;
-    time_t tod = static_cast<time_t>(t/1000000);
-    localtime_r(&tod, &tmv);
-    zs = tmv.tm_gmtoff*1000000ll;
+
+    long long t1 = vtkDICOMUtilities::GetUTC(zsp);
+
+    if (t == VTK_LONG_LONG_MIN)
+      {
+      t = t1;
+      }
     }
-#endif
 
   // generate a new timezone offset string
   char tzs[6] = { '+', '0', '0', '0', '0', '\0' };
@@ -590,6 +640,176 @@ std::string vtkDICOMUtilities::GenerateDateTime(const char *z)
 }
 
 //----------------------------------------------------------------------------
+long long vtkDICOMUtilities::ConvertDateTime(const char *datetime)
+{
+  // first normalize the datetime string into the following format
+  const char *epoch = "19700101000000.000000+0000";
+  char normalized[27];
+  for (int i = 0; i < 27; i++)
+    {
+    normalized[i] = epoch[i];
+    }
+  char *tp = normalized;
+  const char *cp = datetime;
+  while (*tp != 0 && *cp >= '0' && *cp <= '9')
+    {
+    *tp++ = *cp++;
+    }
+  if (*tp == '.' && *cp == '.')
+    {
+    *tp++ = *cp++;
+    while (*tp != 0 && *cp >= '0' && *cp <= '9')
+      {
+      *tp++ = *cp++;
+      }
+    }
+  if (*cp == '-' || *cp == '+')
+    {
+    tp = normalized + 21;
+    *tp++ = *cp++;
+    while (*tp != 0 && *cp >= '0' && *cp <= '9')
+      {
+      *tp++ = *cp++;
+      }
+    }
+  else
+    {
+    // use local time zone
+    long long offset = 0;
+    vtkDICOMUtilities::GetUTC(&offset);
+    long zst = offset/1000000;
+    zst = (zst < 0 ? -zst : zst);
+    long H = (zst/3600)%24;
+    long M = (zst%3600)/60;
+
+    tp = &normalized[21];
+    tp[0] = (offset < 0 ? '-' : '+');
+    tp[1] = H/10 + '0';
+    tp[2] = H%10 + '0';
+    tp[3] = M/10 + '0';
+    tp[4] = M%10 + '0';
+    tp[5] = 0;
+    }
+
+  // convert normalized datetime to year, month, day etc.
+  // first, convert all digits (and only digits) to binary values
+  tp = normalized;
+  normalized[14] += '0';
+  normalized[21] += '0';
+  for (int i = 0; i < 26; i++)
+    {
+    normalized[i] -= '0';
+    }
+
+  int y = tp[0]*1000 + tp[1]*100 + tp[2]*10 + tp[3];
+  int m = tp[4]*10 + tp[5];
+  int d = tp[6]*10 + tp[7];
+  int H = tp[8]*10 + tp[9];
+  int M = tp[10]*10 + tp[11];
+  int S = tp[12]*10 + tp[13];
+  int us = tp[15]*100 + tp[16]*10 + tp[17];
+  us = us*1000 + tp[18]*100 + tp[19]*10 + tp[20];
+
+  // get the timezone offset, in seconds
+  int tzs = (tp[22]*600 + tp[23]*60 + tp[24]*10 + tp[25])*60;
+  if (tp[21] == '-')
+    {
+    tzs = -tzs;
+    }
+
+  // use algorithm from Henry F. Fliegel and Thomas C. Van Flandern
+  // to compute the day according to Gregorian calendar
+  long long jd = (1461 * (y + 4800 + (m - 14) / 12)) / 4
+     + (367 * (m - 2 - 12 * ((m - 14) / 12))) / 12
+     - (3 * ((y + 4900 + (m - 14) / 12) / 100)) / 4
+     + d - 32075;
+
+  // compute time (the UNIX epoch began on Julian day 2440588)
+  long long t = (jd - 2440588)*86400 + H*3600 + M*60 + S - tzs;
+
+  t = t*1000000 + us;
+
+  return t;
+}
+
+//----------------------------------------------------------------------------
+bool vtkDICOMUtilities::IsDICOMFile(const char *filename)
+{
+  unsigned char buffer[256];
+
+  if (filename == 0)
+    {
+    return false;
+    }
+
+  vtkDICOMFile infile(filename, vtkDICOMFile::In);
+
+  if (infile.GetError() != 0)
+    {
+    return false;
+    }
+
+  // valid file should be at least 256 chars long (probably longer)
+  size_t size = infile.GetSize();
+  if (size < sizeof(buffer))
+    {
+    return 0;
+    }
+  size = sizeof(buffer);
+
+  size_t rsize = infile.Read(buffer, size);
+  infile.Close();
+  if (rsize != static_cast<size_t>(size))
+    {
+    return false;
+    }
+
+  const unsigned char *cp = buffer;
+
+  // Look for the magic number and the first meta header tag.
+  size_t skip = 128;
+  for (int i = 0; i < 2; i++)
+    {
+    if (size > skip + 8)
+      {
+      cp = &buffer[skip];
+      if (cp[0] == 'D' && cp[1] == 'I' && cp[2] == 'C' && cp[3] == 'M' &&
+          cp[4] == 2 && cp[5] == 0 && cp[6] == 0 && cp[7] == 0)
+        {
+        return true;
+        }
+      }
+    // Some non-standard files have DICM at the beginning.
+    skip = 0;
+    }
+
+  // File must be a reasonable size.
+  if (size < 256)
+    {
+    return false;
+    }
+
+  cp = buffer;
+
+  // If no magic number found, look for a valid meta header.
+  if (cp[0] == 2 && cp[1] == 0 && cp[2] == 0 && cp[3] == 0 &&
+      cp[4] == 'U' && cp[5] == 'L' && cp[6] == 4 && cp[7] == 0)
+    {
+    return true;
+    }
+
+  // Finally, look for little-endian implicit ACR-NEMA.
+  if (cp[0] == 8 && cp[1] == 0 && cp[2] == 0 && cp[3] == 0 &&
+      cp[4] == 4 && cp[5] == 0 && cp[6] == 0 && cp[7] == 0 &&
+      cp[12] == 8 && cp[13] == 0 && (cp[14] != 0 || cp[15] != 0))
+    {
+    return true;
+    }
+
+  return false;
+}
+
+//----------------------------------------------------------------------------
 char vtkDICOMUtilities::UIDPrefix[64] = "2.25.";
 
 const char *vtkDICOMUtilities::GetUIDPrefix()
@@ -628,7 +848,7 @@ void vtkDICOMUtilities::SetImplementationClassUID(const char *uid)
 
 char vtkDICOMUtilities::ImplementationVersionName[17] =
   VTK_DICOM_VERSION_CREATOR("VTK_DICOM",
-    DICOM_MAJOR_VERSION, DICOM_MINOR_VERSION, DICOM_BUILD_VERSION);
+    DICOM_MAJOR_VERSION, DICOM_MINOR_VERSION, DICOM_PATCH_VERSION);
 
 const char *vtkDICOMUtilities::GetImplementationVersionName()
 {
@@ -640,4 +860,113 @@ void vtkDICOMUtilities::SetImplementationVersionName(const char *name)
 {
   strncpy(vtkDICOMUtilities::ImplementationVersionName, name, 16);
   vtkDICOMUtilities::ImplementationVersionName[16] = '\0';
+}
+
+//----------------------------------------------------------------------------
+bool vtkDICOMUtilities::PatternMatches(
+    const char *pattern, size_t pl,
+    const char *val, size_t vl)
+{
+  // This performs simple ASCII or UTF8 case-sensitive matching.
+  // It uses the following simplified definition of UTF8:
+  // 0b1xxxxxxx [0b10xxxxxx...]
+  // In other words, a byte with its high bit set, followed by
+  // zero or more bytes with the high bit set and the next bit clear,
+  // are taken as one unicode codepoint.
+
+  const char *cp = pattern;
+  const char *ep = pattern + pl;
+  const char *dp = val;
+  const char *fp = val + vl;
+
+  while (cp != ep && dp != fp)
+    {
+    if (*cp == '*')
+      {
+      cp++;
+      // if '*' is the final character, it matches the remainder of val
+      if (cp == ep)
+        {
+        dp = fp;
+        }
+      else
+        {
+        while (dp != fp)
+          {
+          if (*cp == '?' || *dp == *cp)
+            {
+            // check if the remainder of val matches remainder of pattern
+            if (PatternMatches(cp, ep-cp, dp, fp-dp))
+              {
+              break;
+              }
+            }
+          // else let the "*" eat one more codepoint of "val"
+          if (static_cast<signed char>(*dp++) < 0)
+            {
+            while (dp != fp && (*dp & 0xC0) == 0x80)
+              {
+              dp++;
+              }
+            }
+          }
+        }
+      }
+    else if (*cp == '?')
+      {
+      // the '?' matches a whole codepoint, not just one byte
+      cp++;
+      if (static_cast<signed char>(*dp++) < 0)
+        {
+        while (dp != fp && (*dp & 0xC0) == 0x80)
+          {
+          dp++;
+          }
+        }
+      }
+    else if (*cp == *dp)
+      {
+      // make sure the entire codepoint matches
+      cp++;
+      if (static_cast<signed char>(*dp++) < 0)
+        {
+        while (cp != ep && dp != fp &&
+               ((*cp & 0xC0) == 0x80 || (*dp & 0xC0) == 0x80))
+          {
+          if (*dp != *cp)
+            {
+            return false;
+            }
+          cp++;
+          dp++;
+          }
+        }
+      }
+    else
+      {
+      return false;
+      }
+    }
+
+  // skip over any remaining '*' wildcards
+  while (cp != ep && *cp == '*')
+    {
+    cp++;
+    }
+
+  // make sure we've reached the end of both the pattern and the value
+  return (cp == ep && dp == fp);
+}
+
+//----------------------------------------------------------------------------
+bool vtkDICOMUtilities::PatternMatches(const char *pattern, const char *val)
+{
+  return vtkDICOMUtilities::PatternMatches(
+    pattern, strlen(pattern), val, strlen(val));
+}
+
+//----------------------------------------------------------------------------
+void vtkDICOMUtilities::PrintSelf(ostream& os, vtkIndent indent)
+{
+  this->Superclass::PrintSelf(os, indent);
 }

@@ -12,19 +12,24 @@
 
 =========================================================================*/
 
-#ifndef __vtkDICOMConfig_h
-#define __vtkDICOMConfig_h
+#ifndef vtkDICOMConfig_h
+#define vtkDICOMConfig_h
 
 /* Configuration information. */
-/* #undef DICOM_BUILD_SHARED_LIBS */
-/* #undef DICOM_BUILD_TESTING */
-#define DICOM_USE_GDCM
+#cmakedefine DICOM_BUILD_SHARED_LIBS
+#cmakedefine DICOM_BUILD_TESTING
+#cmakedefine DICOM_USE_GDCM
+#cmakedefine DICOM_USE_DCMTK
+#cmakedefine DICOM_USE_VTKZLIB
 
 /* Version number. */
-#define DICOM_MAJOR_VERSION 0
-#define DICOM_MINOR_VERSION 3
-#define DICOM_BUILD_VERSION 4
-#define DICOM_SHORT_VERSION "0.3"
-#define DICOM_VERSION "0.3.4"
+#define DICOM_MAJOR_VERSION @DICOM_MAJOR_VERSION@
+#define DICOM_MINOR_VERSION @DICOM_MINOR_VERSION@
+#define DICOM_PATCH_VERSION @DICOM_PATCH_VERSION@
+#define DICOM_SHORT_VERSION "@DICOM_SHORT_VERSION@"
+#define DICOM_VERSION "@DICOM_VERSION@"
+
+/* Legacy (for backwards compatibility) */
+#define DICOM_BUILD_VERSION DICOM_PATCH_VERSION
 
 #endif

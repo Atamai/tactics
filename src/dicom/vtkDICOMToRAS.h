@@ -2,9 +2,9 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -23,16 +23,16 @@
 // .SECTION Thanks
 // This class was contributed to VTK by David Gobbi.
 
-#ifndef __vtkDICOMToRAS_h
-#define __vtkDICOMToRAS_h
+#ifndef vtkDICOMToRAS_h
+#define vtkDICOMToRAS_h
 
 #include <vtkThreadedImageAlgorithm.h>
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 
 class vtkMatrix4x4;
 
 //----------------------------------------------------------------------------
-class VTK_DICOM_EXPORT vtkDICOMToRAS : public vtkThreadedImageAlgorithm
+class VTKDICOM_EXPORT vtkDICOMToRAS : public vtkThreadedImageAlgorithm
 {
 public:
   // Description:
@@ -154,4 +154,4 @@ private:
   void operator=(const vtkDICOMToRAS&);  // Not implemented.
 };
 
-#endif // __vtkDICOMToRAS_h
+#endif // vtkDICOMToRAS_h

@@ -12,7 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkNIFTIWriter - Write NIfTI medical image files
+// .NAME vtkNIFTIWriter - Write NIfTI-1 and NIfTI-2 medical image files
 // .SECTION Description
 // This class writes NIFTI files, either in .nii format or as separate
 // .img and .hdr files.  If told to write a file that ends in ".gz",
@@ -27,16 +27,16 @@
 // .SECTION See Also
 // vtkNIFTIReader
 
-#ifndef __vtkNIFTIWriter_h
-#define __vtkNIFTIWriter_h
+#ifndef vtkNIFTIWriter_h
+#define vtkNIFTIWriter_h
 
 #include <vtkImageWriter.h>
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 
 class vtkMatrix4x4;
 class vtkNIFTIHeader;
 
-class VTK_DICOM_EXPORT vtkNIFTIWriter : public vtkImageWriter
+class VTKDICOM_EXPORT vtkNIFTIWriter : public vtkImageWriter
 {
 public:
   // Description:
@@ -47,6 +47,14 @@ public:
   // Description:
   // Print information about this object.
   virtual void PrintSelf(ostream& os, vtkIndent indent);
+
+  // Description:
+  // Set the version number for the NIfTI file format to use.
+  // This can be 1, 2, or 0 (the default).  If set to zero, then it
+  // will save as NIfTI version 1 unless SetNIFTIHeader() provided
+  // header information from a NIfTI version 2 file.
+  vtkSetMacro(NIFTIVersion, int);
+  vtkGetMacro(NIFTIVersion, int);
 
   // Description:
   // Set a short description (max 80 chars) of how the file was produced.
@@ -63,6 +71,28 @@ public:
   vtkSetMacro(TimeDimension, int);
   vtkGetMacro(TimeSpacing, double);
   vtkSetMacro(TimeSpacing, double);
+
+   // Description:
+   // Set the slope and intercept for calibrating the scalar values.
+   // Other programs that read the NIFTI file can use the equation
+   // v = u*RescaleSlope + RescaleIntercept to rescale the data to
+   // real values.  If both the slope and the intercept are zero,
+   // then the SclSlope and SclIntercept in the header info provided
+   // via SetNIFTIHeader() are used instead.
+   vtkSetMacro(RescaleSlope, double);
+   vtkGetMacro(RescaleSlope, double);
+   vtkSetMacro(RescaleIntercept, double);
+   vtkGetMacro(RescaleIntercept, double);
+
+  // Description:
+  // Write planar RGB (separate R, G, and B planes), rather than packed RGB.
+  // Use this option with extreme caution: the NIFTI standard requires RGB
+  // pixels to be packed.  The Analyze format, however, was used to store
+  // both planar RGB and packed RGB depending on the software, without any
+  // indication in the header about which convention was being used.
+  vtkGetMacro(PlanarRGB, bool);
+  vtkSetMacro(PlanarRGB, bool);
+  vtkBooleanMacro(PlanarRGB, bool);
 
   // Description:
   // The QFac sets the ordering of the slices in the NIFTI file.
@@ -103,6 +133,10 @@ protected:
   ~vtkNIFTIWriter();
 
   // Description:
+  // Generate the header information for the file.
+  int GenerateHeader(vtkInformation *info, bool singleFile);
+
+  // Description:
   // The main execution method, which writes the file.
   virtual int RequestData(vtkInformation *request,
                           vtkInformationVector** inputVector,
@@ -122,6 +156,11 @@ protected:
   double TimeSpacing;
 
   // Description:
+  // Information for rescaling data to quantitative units.
+  double RescaleIntercept;
+  double RescaleSlope;
+
+  // Description:
   // Set to -1 when VTK slice order is opposite to NIFTI slice order.
   double QFac;
 
@@ -137,10 +176,16 @@ protected:
   // Description:
   // The header information.
   vtkNIFTIHeader *NIFTIHeader;
+  vtkNIFTIHeader *OwnHeader;
+  int NIFTIVersion;
+
+  // Description:
+  // Use planar RGB instead of the default (packed).
+  bool PlanarRGB;
 
 private:
   vtkNIFTIWriter(const vtkNIFTIWriter&);  // Not implemented.
   void operator=(const vtkNIFTIWriter&);  // Not implemented.
 };
 
-#endif // __vtkNIFTIWriter_h
+#endif // vtkNIFTIWriter_h

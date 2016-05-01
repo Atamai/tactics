@@ -65,6 +65,7 @@ include_directories("${MAINFOLDER}/src/data")
 include_directories("${MAINFOLDER}/src/gui")
 include_directories("${MAINFOLDER}/src/processing")
 include_directories("${MAINFOLDER}/src/dicom")
+include_directories("${MAINFOLDER}/build/src/dicom")
 include_directories("${MAINFOLDER}/src/tactics")
 
 #

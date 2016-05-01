@@ -2,19 +2,19 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#ifndef __vtkDICOMDataElement_h
-#define __vtkDICOMDataElement_h
+#ifndef vtkDICOMDataElement_h
+#define vtkDICOMDataElement_h
 
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 #include "vtkDICOMTag.h"
 #include "vtkDICOMValue.h"
 
@@ -26,19 +26,24 @@
  *  value for each data set instance used to build the the meta data
  *  for the image series.
  */
-class VTK_DICOM_EXPORT vtkDICOMDataElement
+class VTKDICOM_EXPORT vtkDICOMDataElement
 {
 public:
+  //@{
   vtkDICOMDataElement() : Tag(), Value(), Next(0), Prev(0) {}
   vtkDICOMDataElement(const vtkDICOMTag& t, const vtkDICOMValue &v) :
     Tag(t), Value(v), Next(0), Prev(0) {}
+  //@}
 
+  //@{
   //! Get the tag for this data element.
   vtkDICOMTag GetTag() const { return this->Tag; }
 
   //! Get the VR for this data element.
   vtkDICOMVR GetVR() const { return this->Value.GetVR(); }
+  //@}
 
+  //@{
   //! Check whether this data element carries per-instance values.
   bool IsPerInstance() const { return (this->Value.GetMultiplexData() != 0); }
 
@@ -52,12 +57,15 @@ public:
   const vtkDICOMValue& GetValue(int i) const {
     const vtkDICOMValue *vptr = this->Value.GetMultiplexData();
     return (vptr == 0 ? this->Value : vptr[i]); }
+  //@}
 
+  //@{
   bool operator==(const vtkDICOMDataElement& o) const {
     return (this->Tag == o.Tag && this->Value == o.Value); }
 
   bool operator!=(const vtkDICOMDataElement& o) const {
     return (this->Tag != o.Tag || this->Value != o.Value); }
+  //@}
 
 private:
   vtkDICOMTag          Tag;
@@ -74,11 +82,14 @@ private:
 };
 
 //! A const iterator for a vtkDataElement list.
-class VTK_DICOM_EXPORT vtkDICOMDataElementIterator
+class VTKDICOM_EXPORT vtkDICOMDataElementIterator
 {
 public:
+  //@{
   vtkDICOMDataElementIterator() : Pointer(0) {}
+  //@}
 
+  //@{
   vtkDICOMDataElementIterator& operator++() {
     if (this->Pointer) { this->Pointer = this->Pointer->Next; }
     return *this; }
@@ -96,15 +107,20 @@ public:
     const vtkDICOMDataElement *ptr = this->Pointer;
     if (ptr) { this->Pointer = this->Pointer->Prev; }
     return vtkDICOMDataElementIterator(ptr); }
+  //@}
 
+  //@{
   const vtkDICOMDataElement *operator->() const { return this->Pointer; }
   const vtkDICOMDataElement& operator*() const { return *this->Pointer; }
+  //@}
 
+  //@{
   bool operator==(const vtkDICOMDataElementIterator& it) const {
     return (this->Pointer == it.Pointer); }
 
   bool operator!=(const vtkDICOMDataElementIterator& it) const {
     return (this->Pointer != it.Pointer); }
+  //@}
 
 private:
   vtkDICOMDataElementIterator(const vtkDICOMDataElement *ptr) {
@@ -116,6 +132,7 @@ private:
   friend class vtkDICOMItem;
 };
 
-VTK_DICOM_EXPORT ostream& operator<<(ostream& os, const vtkDICOMDataElement& v);
+VTKDICOM_EXPORT ostream& operator<<(ostream& os, const vtkDICOMDataElement& v);
 
-#endif /* __vtkDICOMDataElement_h */
+#endif /* vtkDICOMDataElement_h */
+// VTK-HeaderTest-Exclude: vtkDICOMDataElement.h

@@ -2,20 +2,20 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#ifndef __vtkDICOMReferenceCount_h
-#define __vtkDICOMReferenceCount_h
+#ifndef vtkDICOMReferenceCount_h
+#define vtkDICOMReferenceCount_h
 
 #include <vtkSystemIncludes.h>
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 
 //! An object for holding an atomic reference count.
 /*!
@@ -23,11 +23,11 @@
  *  In order to safely access values from multiple threads, all
  *  operations that modify the reference count must be atomic.
  */
-class VTK_DICOM_EXPORT vtkDICOMReferenceCount
+class VTKDICOM_EXPORT vtkDICOMReferenceCount
 {
 public:
-  vtkDICOMReferenceCount(unsigned int i) : Counter(i) {};
-  vtkDICOMReferenceCount() : Counter(0) {};
+  vtkDICOMReferenceCount(unsigned int i) : Counter(i) {}
+  vtkDICOMReferenceCount() : Counter(0) {}
 
   unsigned int operator--();
   unsigned int operator++();
@@ -63,4 +63,5 @@ inline unsigned int vtkDICOMReferenceCount::operator++()
 }
 #endif
 
-#endif /* __vtkDICOMReferenceCount_h */
+#endif /* vtkDICOMReferenceCount_h */
+// VTK-HeaderTest-Exclude: vtkDICOMReferenceCount.h

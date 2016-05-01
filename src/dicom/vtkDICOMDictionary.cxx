@@ -2,9 +2,9 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -17,115 +17,142 @@
 #include "vtkDICOMTag.h"
 #include "vtkDICOMDictEntry.h"
 
+// Including this forces the loading of the private dictionaries.
+#include "vtkDICOMDictPrivate.h"
+
 #include <string.h>
 
 //----------------------------------------------------------------------------
-// A helper class to delete static variables when program exits.
-class vtkDICOMDictionaryCleanup
+struct vtkDICOMDictionary::DictHashEntry
 {
-public:
-  vtkDICOMDictionaryCleanup();
-  ~vtkDICOMDictionaryCleanup();
+  unsigned int Hash;
+  vtkDICOMDictionary::Dict *Dict;
 };
 
-vtkDICOMDictionaryCleanup::vtkDICOMDictionaryCleanup()
-{
-}
+vtkDICOMDictionary::DictHashEntry *
+  vtkDICOMDictionary::PrivateDictTable[DICT_PRIVATE_TABLE_SIZE];
 
-vtkDICOMDictionaryCleanup::~vtkDICOMDictionaryCleanup()
+//----------------------------------------------------------------------------
+// A helper class to delete static variables when program exits.
+static unsigned int vtkDICOMDictionaryInitializerCounter;
+
+// Perform initialization of static variables.
+vtkDICOMDictionaryInitializer::vtkDICOMDictionaryInitializer()
 {
-  if (vtkDICOMDictionary::InitializeOnce())
+  if (vtkDICOMDictionaryInitializerCounter++ == 0)
     {
-    char **cpp = vtkDICOMDictionary::PrivateDictionaryNames;
-    if (cpp)
+    for (int i = 0; i < DICT_PRIVATE_TABLE_SIZE; i++)
       {
-      while (*cpp)
-        {
-        delete [] *cpp;
-        cpp++;
-        }
+      vtkDICOMDictionary::PrivateDictTable[i] = 0;
       }
-
-    delete [] vtkDICOMDictionary::PrivateDictionaryNames;
-    delete [] vtkDICOMDictionary::PrivateDictionaries;
-    vtkDICOMDictionary::PrivateDictionaries = 0;
     }
 }
 
-// Destruction of this object when the program exits will cause
-// the private dictionary list of vtkDICOMDictionary to be deleted.
-static vtkDICOMDictionaryCleanup DictionaryCleanupInstance;
-
-//----------------------------------------------------------------------------
-vtkDICOMDictEntry::Entry ***vtkDICOMDictionary::PrivateDictionaries;
-char **vtkDICOMDictionary::PrivateDictionaryNames;
-
-//----------------------------------------------------------------------------
-bool vtkDICOMDictionary::InitializeOnce()
+// Perform cleanup of static variables.
+vtkDICOMDictionaryInitializer::~vtkDICOMDictionaryInitializer()
 {
-  // In C++ the order of initialization of static members is undefined,
-  // whereas static variables in functions are always initialized the
-  // first time the function they are defined in is run.  So we use this
-  // predictability to make the initialization of our static members
-  // similarly predictable.
-
-  static bool initialized = false;
-
-  if (!initialized)
+  if (--vtkDICOMDictionaryInitializerCounter == 0)
     {
-    vtkDICOMDictionary::PrivateDictionaries = 0;
-    vtkDICOMDictionary::PrivateDictionaryNames = 0;
-    initialized = true;
-    return false;
+    for (int i = 0; i < DICT_PRIVATE_TABLE_SIZE; i++)
+      {
+      delete [] vtkDICOMDictionary::PrivateDictTable[i];
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+unsigned int vtkDICOMDictionary::HashLongString(
+  const char *input, char output[64])
+{
+  // Compute a string hash based on the function "djb2".
+  // Because DICOM strings are padded with spaces to make their
+  // length even, the pad space is ignored.
+  unsigned int h = 5381;
+  for (int k = 0; k < 64; k += 2)
+    {
+    unsigned char c = input[k];
+    output[k] = c;
+    if (c == '\0') { break; }
+    h = (h << 5) + h + c;
+    c = input[k+1];
+    // trim pad space before terminating null
+    if (c == ' ' && input[k+2] == '\0')
+      {
+      c = '\0';
+      }
+    output[k+1] = c;
+    if (c == '\0') { break; }
+    h = (h << 5) + h + c;
     }
 
-  return true;
+  return h;
+}
+
+//----------------------------------------------------------------------------
+vtkDICOMDictionary::Dict *vtkDICOMDictionary::FindPrivateDict(
+  const char *name)
+{
+  unsigned int m = DICT_PRIVATE_TABLE_SIZE - 1;
+  DictHashEntry **htable = vtkDICOMDictionary::PrivateDictTable;
+  DictHashEntry *hptr;
+
+  // strip trailing spaces and compute the hash
+  char stripname[64];
+  unsigned int h = vtkDICOMDictionary::HashLongString(name, stripname);
+  unsigned int i = (h & m);
+
+  if (htable && (hptr = htable[i]) != NULL)
+    {
+    while (hptr->Dict != 0)
+      {
+      if (hptr->Hash == h && strncmp(hptr->Dict->Name, stripname, 64) == 0)
+        {
+        return hptr->Dict;
+        }
+      hptr++;
+      }
+    }
+
+  return 0;
 }
 
 //----------------------------------------------------------------------------
 vtkDICOMDictEntry vtkDICOMDictionary::FindDictEntry(
-  const vtkDICOMTag tag, const char *dict)
+  const vtkDICOMTag tag, const char *dictname)
 {
   unsigned short group = tag.GetGroup();
   unsigned short element = tag.GetElement();
 
+  // compute the hash table index
+  unsigned int h = tag.ComputeHash();
+  unsigned int i = (h & (DICT_HASH_TABLE_SIZE - 1));
+
   // default to the standard dictionary
-  vtkDICOMDictEntry::Entry **htable = vtkDICOMDictionary::DictHashTable;
-  vtkDICOMDictEntry::Entry *hptr;
+  vtkDICOMDictionary::Dict *dict = &vtkDICOMDictionary::DictData;
 
   // for odd group number, only search the private dictionary
-  if (group & 1)
+  if ((group & 1) != 0 && dictname != 0)
     {
-    vtkDICOMDictionary::InitializeOnce();
-    char **names = vtkDICOMDictionary::PrivateDictionaryNames;
-    htable = 0;
-    if (names && dict)
+    dict = vtkDICOMDictionary::FindPrivateDict(dictname);
+    if (dict == 0)
       {
-      for (int i = 0; names[i] != 0; i++)
-        {
-        size_t n = strlen(names[i]);
-        if (strncmp(names[i], dict, n) == 0)
-          {
-          htable = vtkDICOMDictionary::PrivateDictionaries[i];
-          break;
-          }
-        }
+      // private dictionary not found
+      return vtkDICOMDictEntry();
       }
+    i = (h % dict->HashSize);
     }
 
-  // compute the hash table index
-  unsigned int m = DICT_HASH_TABLE_SIZE - 1;
-  unsigned int i = (tag.ComputeHash() & m);
-
-  if (htable && (hptr = htable[i]) != NULL)
+  // search the hash table
+  const unsigned short *hptr = &dict->TagHashTable[dict->TagHashTable[i]];
+  const vtkDICOMDictEntry::Entry *dptr = dict->Contents;
+  for (unsigned short n = *hptr; n != 0; --n)
     {
-    while (hptr->Group || hptr->Element || hptr->VR)
+    ++hptr;
+    const vtkDICOMDictEntry::Entry *entry = &dptr[*hptr];
+    ++hptr;
+    if (*hptr == element && entry->Group == group)
       {
-      if (hptr->Group == group && hptr->Element == element)
-        {
-        return vtkDICOMDictEntry(hptr);
-        }
-      hptr++;
+      return vtkDICOMDictEntry(entry);
       }
     }
 
@@ -134,37 +161,146 @@ vtkDICOMDictEntry vtkDICOMDictionary::FindDictEntry(
 }
 
 //----------------------------------------------------------------------------
-void vtkDICOMDictionary::AddPrivateDictionary(
-  const char *name, vtkDICOMDictEntry::Entry **hashTable)
+vtkDICOMDictEntry vtkDICOMDictionary::FindDictEntry(
+  const char *key, const char *dictname)
 {
-  vtkDICOMDictionary::InitializeOnce();
-  vtkDICOMDictEntry::Entry ***tlist = vtkDICOMDictionary::PrivateDictionaries;
-  char **nlist = vtkDICOMDictionary::PrivateDictionaryNames;
+  if (key == 0 || key[0] == '\0')
+    {
+    return vtkDICOMDictEntry();
+    }
 
+  char stripkey[64];
+  unsigned int h = vtkDICOMDictionary::HashLongString(key, stripkey);
+
+  // default to the standard dictionary
+  vtkDICOMDictionary::Dict *dict = &vtkDICOMDictionary::DictData;
+
+  // for odd group number, only search the private dictionary
+  if (dictname != 0 && dictname[0] != '\0')
+    {
+    dict = vtkDICOMDictionary::FindPrivateDict(dictname);
+    if (dict == 0)
+      {
+      // private dictionary not found
+      return vtkDICOMDictEntry();
+      }
+    }
+
+  unsigned short i = static_cast<unsigned short>(h % dict->HashSize);
+  unsigned short j = static_cast<unsigned short>(h / dict->HashSize);
+
+  // search the hash table
+  const unsigned short *hptr = &dict->KeyHashTable[dict->KeyHashTable[i]];
+  const vtkDICOMDictEntry::Entry *dptr = dict->Contents;
+  for (unsigned short n = *hptr; n != 0; --n)
+    {
+    ++hptr;
+    const vtkDICOMDictEntry::Entry *entry = &dptr[*hptr];
+    ++hptr;
+    if (*hptr == j && strncmp(stripkey, entry->Name, 64) == 0)
+      {
+      return vtkDICOMDictEntry(entry);
+      }
+    }
+
+  if (dictname != 0 && dictname[0] != '\0')
+    {
+    // brute force search the entire dictionary, if hash lookup failed
+    // (in case people manually changed the key strings in the code,
+    // without re-running makedict.py to re-generate the hash table)
+    for (unsigned short k = 0; k < dict->DataSize; k++)
+      {
+      const vtkDICOMDictEntry::Entry *entry = &dptr[k];
+      if (strncmp(stripkey, entry->Name, 64) == 0)
+        {
+        return vtkDICOMDictEntry(entry);
+        }
+      }
+    }
+
+  // not found in dictionary
+  return vtkDICOMDictEntry();
+}
+
+//----------------------------------------------------------------------------
+void vtkDICOMDictionary::AddPrivateDictionary(Dict *dict)
+{
+  unsigned int m = DICT_PRIVATE_TABLE_SIZE - 1;
+  DictHashEntry **htable = vtkDICOMDictionary::PrivateDictTable;
+
+  // strip trailing spaces and compute the hash
+  char stripname[64];
+  unsigned int h = vtkDICOMDictionary::HashLongString(dict->Name, stripname);
+  unsigned int i = (h & m);
+  DictHashEntry *hptr = htable[i];
+
+  // create hash table row if it is empty
+  if (hptr == 0)
+    {
+    htable[i] = new DictHashEntry[2];
+    hptr = htable[i];
+    hptr->Hash = 0;
+    hptr->Dict = 0;
+    }
+
+  // go to the end of the row in the hash table
   int n = 0;
-  if (tlist)
+  while (hptr->Dict != 0)
     {
-    while (tlist[n]) { n++; }
+    n++;
+    hptr++;
     }
 
-  vtkDICOMDictEntry::Entry ***newlist = new vtkDICOMDictEntry::Entry**[n+2];
-  char **newnames = new char *[n+2];
-  char *newname = new char[strlen(name)+1];
-  strcpy(newname, name);
-
-  for (int i = 0; i < n; i++)
+  // if n+1 is a power of two, double allocated space
+  if (n > 0 && (n & (n+1)) == 0)
     {
-    newlist[i] = tlist[i];
-    newnames[i] = nlist[i];
+    DictHashEntry *oldptr = htable[i];
+    hptr = new DictHashEntry[2*(n+1)];
+    htable[i] = hptr;
+    // copy the old list
+    for (int j = 0; j < n; j++)
+      {
+      *hptr++ = oldptr[j];
+      }
+    delete [] oldptr;
     }
 
-  newlist[n] = hashTable;
-  newlist[n+1] = 0;
-  newnames[n] = newname;
-  newnames[n+1] = 0;
-  vtkDICOMDictionary::PrivateDictionaries = newlist;
-  vtkDICOMDictionary::PrivateDictionaryNames = newnames;
+  hptr->Hash = h;
+  hptr->Dict = dict;
 
-  delete [] tlist;
-  delete [] nlist;
+  hptr++;
+  hptr->Hash = 0;
+  hptr->Dict = 0;
+}
+
+//----------------------------------------------------------------------------
+void vtkDICOMDictionary::RemovePrivateDictionary(const char *name)
+{
+  unsigned int m = DICT_PRIVATE_TABLE_SIZE - 1;
+  DictHashEntry **htable = vtkDICOMDictionary::PrivateDictTable;
+  DictHashEntry *hptr;
+
+  // strip trailing spaces and compute the hash
+  char stripname[64];
+  unsigned int h = vtkDICOMDictionary::HashLongString(name, stripname);
+  unsigned int i = (h & m);
+
+  if (htable && (hptr = htable[i]) != NULL)
+    {
+    while (hptr->Dict != 0)
+      {
+      if (hptr->Hash == h && strncmp(hptr->Dict->Name, stripname, 64) == 0)
+        {
+        break;
+        }
+      hptr++;
+      }
+
+    // erase
+    while (hptr->Dict != 0)
+      {
+      *hptr = *(hptr + 1);
+      hptr++;
+      }
+    }
 }

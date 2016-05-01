@@ -2,28 +2,28 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#ifndef __vtkDICOMDictEntry_h
-#define __vtkDICOMDictEntry_h
+#ifndef vtkDICOMDictEntry_h
+#define vtkDICOMDictEntry_h
 
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 #include "vtkDICOMVR.h"
 #include "vtkDICOMVM.h"
 #include "vtkDICOMTag.h"
 
 //! An entry in the DICOM dictionary.
-class VTK_DICOM_EXPORT vtkDICOMDictEntry
+class VTKDICOM_EXPORT vtkDICOMDictEntry
 {
 public:
-  // The struct that actually stores the vtkDICOMDictEntry information.
+  //! A struct to statically store DICOM dictionary entries.
   struct Entry
   {
     unsigned short Group;
@@ -71,6 +71,7 @@ private:
   static const Entry InvalidEntry;
 };
 
-VTK_DICOM_EXPORT ostream& operator<<(ostream& o, const vtkDICOMDictEntry& a);
+VTKDICOM_EXPORT ostream& operator<<(ostream& o, const vtkDICOMDictEntry& a);
 
-#endif /* __vtkDICOMDictEntry_h */
+#endif /* vtkDICOMDictEntry_h */
+// VTK-HeaderTest-Exclude: vtkDICOMDictEntry.h

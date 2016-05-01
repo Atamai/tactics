@@ -2,22 +2,23 @@
 
   Program: DICOM for VTK
 
-  Copyright (c) 2012-2013 David Gobbi
+  Copyright (c) 2012-2015 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.cognitive-antics.net/bsd3.txt for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#ifndef __vtkDICOMValue_h
-#define __vtkDICOMValue_h
+#ifndef vtkDICOMValue_h
+#define vtkDICOMValue_h
 
 #include <vtkSystemIncludes.h>
-#include "vtkDICOMModule.h"
+#include "vtkDICOMModule.h" // For export macro
 #include "vtkDICOMVR.h"
 #include "vtkDICOMTag.h"
+#include "vtkDICOMCharacterSet.h"
 #include "vtkDICOMReferenceCount.h"
 
 #include <string>
@@ -26,6 +27,14 @@
 #define VTK_DICOM_TAG    13
 #define VTK_DICOM_ITEM   14
 #define VTK_DICOM_VALUE  15
+
+// This adds an overflow byte for the "NumberOfValues" field, so that
+// "NumberOfValues" can effectively go as high as 2^40-1.  This means
+// that data elements that use delimiters, rather than fixed lengths,
+// can store up to one terabyte instead of being limited to four gigabytes.
+#if defined(__x86_64__) || defined(__ia64__) || defined(_M_X64)
+#define VTK_DICOM_USE_OVERFLOW_BYTE
+#endif
 
 class vtkDICOMItem;
 class vtkDICOMSequence;
@@ -38,7 +47,7 @@ class vtkDICOMSequence;
  *  data object.  To keep it lightweight, in terms of size, it has
  *  no virtual methods.
  */
-class VTK_DICOM_EXPORT vtkDICOMValue
+class VTKDICOM_EXPORT vtkDICOMValue
 {
 private:
   //! A reference-counted value class.
@@ -46,6 +55,8 @@ private:
   {
     vtkDICOMReferenceCount ReferenceCount;
     unsigned char  Type;
+    unsigned char  CharacterSet;
+    unsigned char  Overflow;
     vtkDICOMVR     VR;
     unsigned int   VL;
     unsigned int   NumberOfValues;
@@ -59,11 +70,14 @@ private:
   {
     T Data[1];
 
-    ValueT(vtkDICOMVR vr, unsigned int vn);
+    ValueT(vtkDICOMVR vr, size_t vn);
     static bool Compare(const Value *a, const Value *b);
+    static bool CompareEach(const Value *a, const Value *b);
   };
 
 public:
+
+  //@{
   //! Construct a new value from the data that is provided.
   /*!
    *  The data will be copied into the value, with conversion if
@@ -79,25 +93,34 @@ public:
   vtkDICOMValue(vtkDICOMVR vr, double v);
   vtkDICOMValue(vtkDICOMVR vr, const std::string& v);
   vtkDICOMValue(vtkDICOMVR vr, vtkDICOMTag v);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const char *data, const char *end);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const unsigned char *data, const unsigned char *end);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const short *data, const short *end);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const unsigned short *data, const unsigned short *end);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const int *data, const int *end);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const unsigned int *data, const unsigned int *end);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const float *data, const float *end);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const double *data, const double *end);
-  vtkDICOMValue(vtkDICOMVR vr,
-                const vtkDICOMTag *data, const vtkDICOMTag *end);
+  vtkDICOMValue(vtkDICOMVR vr, const vtkDICOMItem& v);
+  vtkDICOMValue(vtkDICOMVR vr, const char *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const unsigned char *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const short *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const unsigned short *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const int *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const unsigned int *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const float *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const double *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const vtkDICOMTag *data, size_t count);
+  vtkDICOMValue(vtkDICOMVR vr, const vtkDICOMItem *data, size_t count);
+  //@}
 
+  //@{
+  //! Construct a string value with a specific character set.
+  /*!
+   *  This will set the character set that will be used to interpret
+   *  the data inside the string value.  The character set parameter
+   *  will be ignored unless the the VR is PN, SH, LO, ST, LT, or UT,
+   *  since all other VRs are restricted to ASCII.
+   */
+  vtkDICOMValue(vtkDICOMVR vr, vtkDICOMCharacterSet cs,
+                const std::string& v);
+  vtkDICOMValue(vtkDICOMVR vr, vtkDICOMCharacterSet cs,
+                const char *data, size_t l);
+  //@}
+
+  //@{
   //! Create an emtpy value.
   explicit vtkDICOMValue(vtkDICOMVR vr);
 
@@ -105,15 +128,25 @@ public:
   vtkDICOMValue(const vtkDICOMValue &v) : V(v.V) {
     if (this->V) { ++(this->V->ReferenceCount); } }
 
+  //! Construct from a tag.
+  vtkDICOMValue(vtkDICOMTag v);
+
+  //! Construct from an item.
+  vtkDICOMValue(const vtkDICOMItem &v);
+
   //! Construct from a sequence.
   vtkDICOMValue(const vtkDICOMSequence &v);
+  //@}
 
+  //@{
   //! Default constructor, constructs an invalid value.
   vtkDICOMValue() : V(0) {}
 
   //! Destructor releases the internal data array.
   ~vtkDICOMValue() { this->Clear(); }
+  //@}
 
+  //@{
   //! Clear the value, the result is an invalid value.
   void Clear() {
     if (this->V && --(this->V->ReferenceCount) == 0) {
@@ -122,12 +155,25 @@ public:
 
   //! Check whether this value is valid, i.e. contains data.
   bool IsValid() const { return (this->V != 0); }
+  //@}
 
+  //@{
   //! Get the VR, the representation of the data values.
   vtkDICOMVR GetVR() const { return (this->V ? this->V->VR : vtkDICOMVR()); }
 
   //! Get the VL, the length of the data in bytes (will always be even).
   unsigned int GetVL() const { return (this->V ? this->V->VL : 0); }
+
+  //! Get the character set for a text value.
+  /*!
+   *  String values are stored with their original encoding, as given
+   *  by the SpecificCharacterSet attribute of the data set that they
+   *  belong to.  This only applies to VRs of PN, SH, LO, ST, LT, and UT.
+   *  All other string values are always stored as plain ASCII with no
+   *  control characters.
+   */
+  vtkDICOMCharacterSet GetCharacterSet() const {
+    return (this->V ? this->V->CharacterSet : 0); }
 
   //! Get the value multiplicity.
   /*!
@@ -140,53 +186,68 @@ public:
    *    the number of binary values will be returned.
    *  - for UN, the number of bytes will be returned.
    *  - for attribute tags (VR is AT) the number of tags will be returned.
-   *  - for sequences (SQ and XQ) the number of items in the sequence,
+   *  - for sequences (SQ) the number of items in the sequence,
    *    excluding any delimeters, will be returned.
    */
-  unsigned int GetNumberOfValues() const {
-    return (this->V ? this->V->NumberOfValues : 0); }
+  size_t GetNumberOfValues() const {
+    return (this->V ? this->V->NumberOfValues
+#ifdef VTK_DICOM_USE_OVERFLOW_BYTE
+            + (static_cast<size_t>(this->V->Overflow) << 32)
+#endif
+            : 0); }
+  //@}
 
-  //! Copy values into vb until ve is reached, starting at value "i".
+  //@{
+  //! Copy "n" values into vb, starting at value "i".
   /*!
    *  Get one or more values, doing conversion from the stored type to
    *  the requested type.  If the VR is IS or DS (integer string or
    *  decimal string) then conversion from text to a numerical value
    *  will be performed.
    */
-  void GetValues(std::string *vb, std::string *ve, unsigned int i=0) const;
-  void GetValues(unsigned char *vb, unsigned char *ve, unsigned int i=0) const;
-  void GetValues(short *vb, short *ve, unsigned int i=0) const;
-  void GetValues(unsigned short *vb, unsigned short *ve, unsigned int i=0) const;
-  void GetValues(int *vb, int *ve, unsigned int i=0) const;
-  void GetValues(unsigned int *vb, unsigned int *ve, unsigned int i=0) const;
-  void GetValues(float *vb, float *ve, unsigned int i=0) const;
-  void GetValues(double *vb, double *ve, unsigned int i=0) const;
-  void GetValues(vtkDICOMTag *vb, vtkDICOMTag *ve, unsigned int i=0) const;
+  void GetValues(std::string *vb, size_t n, size_t i=0) const;
+  void GetValues(unsigned char *vb, size_t n, size_t i=0) const;
+  void GetValues(short *vb, size_t n, size_t i=0) const;
+  void GetValues(unsigned short *vb, size_t n, size_t i=0) const;
+  void GetValues(int *vb, size_t n, size_t i=0) const;
+  void GetValues(unsigned int *vb, size_t n, size_t i=0) const;
+  void GetValues(float *vb, size_t n, size_t i=0) const;
+  void GetValues(double *vb, size_t n, size_t i=0) const;
+  void GetValues(vtkDICOMTag *vb, size_t n, size_t i=0) const;
+  //@}
 
-  //! Get one scalar value or single string from the value.
+  //@{
+  //! Get one scalar, string, tag or item from the value.
   /*!
-   *  Convert the i'th value to the desired type, if possible,
-   *  and return it.  If the value is invalid, or conversion is
-   *  not possible, or the index is out of range, then the return
-   *  value will be zero (or an empty string).
+   *  Convert the i'th value to the desired type, if possible, and return
+   *  it.  If the value is invalid, or conversion is not possible, or the
+   *  index is out of range, then the return value will be zero (or an
+   *  empty string).  Trailing spaces are always removed from strings.
+   *  Leading spaces are removed unless the VR is ST, LT, or UT.
    */
-  std::string GetString(unsigned int i) const;
-  unsigned char GetUnsignedChar(unsigned int i) const;
-  short GetShort(unsigned int i) const;
-  unsigned short GetUnsignedShort(unsigned int i) const;
-  int GetInt(unsigned int i) const;
-  unsigned int GetUnsignedInt(unsigned int i) const;
-  float GetFloat(unsigned int i) const;
-  double GetDouble(unsigned int i) const;
-  vtkDICOMTag GetTag(unsigned int i) const;
+  std::string GetUTF8String(size_t i) const;
+  std::string GetString(size_t i) const;
+  unsigned char GetUnsignedChar(size_t i) const;
+  short GetShort(size_t i) const;
+  unsigned short GetUnsignedShort(size_t i) const;
+  int GetInt(size_t i) const;
+  unsigned int GetUnsignedInt(size_t i) const;
+  float GetFloat(size_t i) const;
+  double GetDouble(size_t i) const;
+  vtkDICOMTag GetTag(size_t i) const;
+  const vtkDICOMItem& GetItem(size_t i) const;
+  //@}
 
-  //! Convert the value to a scalar value or string.
+  //@{
+  //! Get the value as a scalar, string, tag, or item.
   /*!
    *  The value is converted to the desired type, if possible, and returned.
    *  Otherwise the return value is zero (or an empty string).  Conversion
    *  to string always produces an empty string for values of type UN, SQ,
-   *  OB, OW, and OF.
+   *  OB, OW, and OF.  Trailing spaces are always removed from strings.
+   *  Leading spaces are removed unless the VR is ST, LT, or UT.
    */
+  std::string AsUTF8String() const;
   std::string AsString() const;
   unsigned char AsUnsignedChar() const;
   short AsShort() const;
@@ -196,7 +257,10 @@ public:
   float AsFloat() const;
   double AsDouble() const;
   vtkDICOMTag AsTag() const;
+  const vtkDICOMItem& AsItem() const;
+  //@}
 
+  //@{
   //! Get a pointer to the internal data array.
   /*!
    *  GetCharData will return a null-terminated string if VR is
@@ -222,8 +286,9 @@ public:
   const vtkDICOMTag *GetTagData() const;
   const vtkDICOMItem *GetSequenceData() const;
   const vtkDICOMValue *GetMultiplexData() const;
-  vtkDICOMValue *GetMultiplexData();
+  //@}
 
+  //@{
   //! Allocate space within a value object.
   /*!
    *  Allocate an array of the specified size (number of elements)
@@ -232,18 +297,22 @@ public:
    *  be an efficent way for the parser to allocate a value so that
    *  the value's contents can be read in directly from a file.
    */
-  char *AllocateCharData(vtkDICOMVR vr, unsigned int vn);
-  unsigned char *AllocateUnsignedCharData(vtkDICOMVR vr, unsigned int vn);
-  short *AllocateShortData(vtkDICOMVR vr, unsigned int vn);
-  unsigned short *AllocateUnsignedShortData(vtkDICOMVR vr, unsigned int vn);
-  int *AllocateIntData(vtkDICOMVR vr, unsigned int vn);
-  unsigned int *AllocateUnsignedIntData(vtkDICOMVR vr, unsigned int vn);
-  float *AllocateFloatData(vtkDICOMVR vr, unsigned int vn);
-  double *AllocateDoubleData(vtkDICOMVR vr, unsigned int vn);
-  vtkDICOMTag *AllocateTagData(vtkDICOMVR vr, unsigned int vn);
-  vtkDICOMItem *AllocateSequenceData(vtkDICOMVR vr, unsigned int vn);
-  vtkDICOMValue *AllocateMultiplexData(vtkDICOMVR vr, unsigned int vn);
+  char *AllocateCharData(vtkDICOMVR vr, size_t vn);
+  char *AllocateCharData(
+    vtkDICOMVR vr, vtkDICOMCharacterSet cs, size_t vn);
+  unsigned char *AllocateUnsignedCharData(vtkDICOMVR vr, size_t vn);
+  short *AllocateShortData(vtkDICOMVR vr, size_t vn);
+  unsigned short *AllocateUnsignedShortData(vtkDICOMVR vr, size_t vn);
+  int *AllocateIntData(vtkDICOMVR vr, size_t vn);
+  unsigned int *AllocateUnsignedIntData(vtkDICOMVR vr, size_t vn);
+  float *AllocateFloatData(vtkDICOMVR vr, size_t vn);
+  double *AllocateDoubleData(vtkDICOMVR vr, size_t vn);
+  vtkDICOMTag *AllocateTagData(vtkDICOMVR vr, size_t vn);
+  vtkDICOMItem *AllocateSequenceData(vtkDICOMVR vr, size_t vn);
+  vtkDICOMValue *AllocateMultiplexData(vtkDICOMVR vr, size_t vn);
+  //@}
 
+  //@{
   //! Compute the number of backslash-separated string values.
   /*!
    *  After calling AllocateCharData and writing text into the allocated
@@ -259,7 +328,16 @@ public:
    *  the internal data as needed.  After this method is called,
    *  the NumberOfValues will be vn, and the VL will be 0xffffffff.
    */
-  unsigned char *ReallocateUnsignedCharData(unsigned int vn);
+  unsigned char *ReallocateUnsignedCharData(size_t vn);
+  //@}
+
+  //@{
+  //! Append value "i" to the supplied UTF8 string.
+  /*
+   *  String values will be converted from their native encoding
+   *  to UTF-8.
+   */
+  void AppendValueToUTF8String(std::string &str, size_t i) const;
 
   //! Append value "i" to the supplied string.
   /*!
@@ -268,8 +346,44 @@ public:
    *  to ST, LT, or UT, because the resulting string might be very
    *  long, and might contain special (i.e. non-printable) characters.
    */
-  void AppendValueToString(std::string &str, unsigned int i) const;
+  void AppendValueToString(std::string &str, size_t i) const;
+  //@}
 
+  //@{
+  //! Check if the value matches the specified find query value.
+  /*!
+   *  This method is used during "find" requests, according to the rules
+   *  of DICOM Part 4 C.2.2.2 Attribute Matching.  The standard wildcards
+   *  "*" and "?" are supported, as well as numeric ranges (for times and dates)
+   *  through the use of two values separated by "-".  Matches are case
+   *  sensitive, except when the VR is PN.  If the value has multiplicity,
+   *  then the match will succeed if any of the values match.
+   */
+  bool Matches(const vtkDICOMValue& value) const;
+
+  //! Check if the value is equal to the specified string.
+  /*!
+   *  Note that matches to an empty string will always succeed due to
+   *  the universal matching rule.  To check if a value is empty, you
+   *  should instead check to see if its VL is zero.  Padding spaces will
+   *  automatically be stripped before the comparison is done.  The
+   *  character set of the string is assumed to be the same as the
+   *  character set of the value that is being matched.  This method
+   *  can be used to match numerical values in addition to text values.
+   */
+  bool Matches(const std::string& v) const;
+
+  //! Check if the value is the specified numeric value.
+  /*!
+   *  This will return true only if the value has a numeric representation
+   *  (e.g. has a VR of IS, DS, US, UL, SS, SL, FL, FD) and is equal to the
+   *  specified number.  If the value multiplicity is greater than one,
+   *  then the match is true if at least one value matches.
+   */
+  bool Matches(double v) const;
+  //@}
+
+  //@{
   //! Override assignment operator for reference counting.
   vtkDICOMValue& operator=(const vtkDICOMValue& o) {
     if (this->V != o.V) {
@@ -281,26 +395,29 @@ public:
 
   //! Assign a value from a sequence object.
   vtkDICOMValue& operator=(const vtkDICOMSequence& o);
+  //@}
 
+  //@{
   //! Equality requires that all elements of the value are equal.
   bool operator==(const vtkDICOMValue& o) const;
   bool operator!=(const vtkDICOMValue& o) const { return !(*this == o); }
+  //@}
 
 private:
   //! Allocate an array of size vn for the specified vr
   template<class T>
-  T *Allocate(vtkDICOMVR vr, unsigned int vn);
+  T *Allocate(vtkDICOMVR vr, size_t vn);
 
   //! Free the internal value.
   static void FreeValue(Value *v);
 
   //! Internal templated GetValues() method.
   template<class OT>
-  void GetValuesT(OT *v, OT *ve, unsigned int s) const;
+  void GetValuesT(OT *v, size_t count, size_t s) const;
 
   //! Internal templated value creation method.
   template<class T>
-  void CreateValue(vtkDICOMVR vr, const T *data, const T *end);
+  void CreateValue(vtkDICOMVR vr, const T *data, size_t count);
 
   //! Internal templated method to initialize for future appends.
   template<class T>
@@ -312,18 +429,68 @@ private:
 
   //! Internal templated method to set a value.
   template<class T>
-  void SetValue(unsigned int i, const T &item);
+  void SetValue(size_t i, const T &item);
+
+  //! Method used by vtkDICOMMetaData to change multiplexed value.
+  vtkDICOMValue *GetMultiplex();
 
   //! Get the start and end for the "i"th backslash-delimited value.
-  void Substring(unsigned int i, const char *&start, const char *&end) const;
+  void Substring(size_t i, const char *&start, const char *&end) const;
+
+  //! Create a value from a string with a specific character set.
+  void CreateValueWithSpecificCharacterSet(
+    vtkDICOMVR vr, vtkDICOMCharacterSet cs, const char *data, size_t l);
+
+  //! A simple string compare with wildcards "*" and "?".
+  static bool PatternMatches(
+    const char *pattern, const char *pe, const char *val, const char *ve);
+
+  //! Pattern matching with multiple backslash-delimited values.
+  static bool PatternMatchesMulti(
+    const char *pattern, const char *val, vtkDICOMVR vr);
+
+  //! Normalize a date, time, or datetime.
+  /*!
+   *  The return value is the number of characters that should be used for
+   *  comparison to the normalized datetime, everything past the maximum
+   *  significant character is zero (or, for dates, first day of January).
+   */
+  static size_t NormalizeDateTime(
+    const char *input, char output[22], vtkDICOMVR vr);
+
+  //! Do matching on names, after notmalization.
+  static bool PatternMatchesPersonName(const char *pattern, const char *val);
+
+  //! Normalize a person's name.
+  static void NormalizePersonName(
+    const char *input, char output[256], bool isquery=false);
 
   //! The only data member: a pointer to the internal value.
   Value *V;
 
+  //! An empty item, for when one is needed.
+  static const vtkDICOMItem EmptyItem;
+
   // friend the sequence class, it requires AppendValue() and SetValue().
   friend class vtkDICOMSequence;
+
+  // friend the meta data class, it requires GetMultiplex().
+  friend class vtkDICOMValueFriendMetaData;
 };
 
-VTK_DICOM_EXPORT ostream& operator<<(ostream& os, const vtkDICOMValue& v);
+//! @cond
+// This friendship class allows vtkDICOMMetaData to use exactly one
+// private method from vtkDICOMValue.
+class vtkDICOMValueFriendMetaData
+{
+  static vtkDICOMValue *GetMultiplex(vtkDICOMValue *v) {
+    return v->GetMultiplex(); }
 
-#endif /* __vtkDICOMValue_h */
+  friend class vtkDICOMMetaData;
+};
+//! @endcond
+
+VTKDICOM_EXPORT ostream& operator<<(ostream& os, const vtkDICOMValue& v);
+
+#endif /* vtkDICOMValue_h */
+// VTK-HeaderTest-Exclude: vtkDICOMValue.h
