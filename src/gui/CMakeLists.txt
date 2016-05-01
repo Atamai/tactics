@@ -18,7 +18,6 @@ set(QT_QMAKE_EXECUTABLE ${VTK_QT_QMAKE_EXECUTABLE} CACHE FILEPATH "")
 # The library name, dependencies, and source files
 set(LIB_NAME ${PROJECT_NAME})
 set(LIB_DEPS
-  ${ITK_LIBRARIES}
   ${QT_LIBRARIES}
   QVTK
   vtkCommon

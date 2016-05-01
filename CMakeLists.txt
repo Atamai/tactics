@@ -87,9 +87,6 @@ set(CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
-find_package(ITK REQUIRED)
-include(${ITK_USE_FILE})
-
 find_package(Qt4 REQUIRED)
 include(UseQt4)
 

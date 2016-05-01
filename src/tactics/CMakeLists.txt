@@ -1,7 +1,7 @@
 file(GLOB_RECURSE project_SRCS *.cpp *.cxx *.cc *.C *.c *.h *.hpp)
 file(GLOB_RECURSE project_MAIN main.cpp main.cxx main.cc main.C main.c main.h main.hpp)
 list(REMOVE_ITEM project_SRCS ${project_MAIN})
-set(project_LIBS ${QT_LIBRARIES} ${VTK_LIBRARIES} ${ITK_LIBRARIES} ${Cerebra_LIBRARIES} cbVTK vtkImageRegistration vtkImageSegmentation)
+set(project_LIBS ${QT_LIBRARIES} ${VTK_LIBRARIES} ${Cerebra_LIBRARIES} cbVTK vtkImageRegistration vtkImageSegmentation)
 set(project_BIN ${PROJECT_NAME})
 set(project_LIB cbElectrode)
 

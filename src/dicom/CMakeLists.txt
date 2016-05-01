@@ -32,9 +32,8 @@ set(DICOM_INCLUDE_DIRS
 include_directories(${DICOM_INCLUDE_DIRS})
 
 # The library name, dependencies, and source files
-# Use ITK to get gdcm
 set(LIB_NAME ${PROJECT_NAME})
-set(LIB_DEPS vtkIO vtkzlib ${ITK_LIBRARIES})
+set(LIB_DEPS vtkIO vtkzlib)
 
 if(WIN32)
   set(REFCOUNT_SRC vtkDICOMReferenceCount.cxx)

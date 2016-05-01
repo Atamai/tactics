@@ -14,7 +14,6 @@ endif()
 # The library name, dependencies, and source files
 set(LIB_NAME ${PROJECT_NAME})
 set(LIB_DEPS
-  ${ITK_LIBRARIES}
   vtkImaging
   vtkCommon
   cbAIRS
