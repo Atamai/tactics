@@ -11,15 +11,10 @@ if(COMMAND CMAKE_POLICY)
   cmake_policy(SET CMP0003 NEW)
 endif()
 
-# use what QVTK built with
-set(QT_MOC_EXECUTABLE ${VTK_QT_MOC_EXECUTABLE} CACHE FILEPATH "")
-set(QT_QMAKE_EXECUTABLE ${VTK_QT_QMAKE_EXECUTABLE} CACHE FILEPATH "")
-
 # The library name, dependencies, and source files
 set(LIB_NAME ${PROJECT_NAME})
 set(LIB_DEPS
   ${QT_LIBRARIES}
-  QVTK
   vtkCommon
   vtkRendering
   vtkToolCursor
