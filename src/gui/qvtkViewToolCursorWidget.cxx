@@ -112,6 +112,7 @@ qvtkViewToolCursorWidget::qvtkViewToolCursorWidget(QWidget* p, Qt::WindowFlags f
   this->FocusCursorShape.setShape(Qt::ArrowCursor);
   this->setCursor(this->FocusCursorShape);
   this->FocusButton = 0;
+  this->WheelDelta = 0;
 }
 
 /*! destructor */
@@ -596,24 +597,33 @@ void qvtkViewToolCursorWidget::wheelEvent(QWheelEvent* e)
   int xpos = e->x();
   int ypos = (e->y() * -1) + this->height() - 1;
 
-  vtkToolCursor *active = this->ViewRect->RequestToolCursor(xpos, ypos);
+  this->WheelDelta += e->delta();
 
-  if (e->delta() > 0) {
+  if (this->WheelDelta >= 120) {
+    while (this->WheelDelta >= 120) {
+      this->WheelDelta -= 120;
+    }
     modifier = VTK_TOOL_WHEEL_FWD;
     button = 4;
-  } else {
+  } else if (this->WheelDelta <= -120) {
+    while (this->WheelDelta <= -120) {
+      this->WheelDelta += 120;
+    }
     modifier = VTK_TOOL_WHEEL_BWD;
     button = 5;
   }
 
-  active->SetModifierBits(modifier, modifierMask);
-  active->ComputePosition();
+  if (modifier) {
+    vtkToolCursor *active = this->ViewRect->RequestToolCursor(xpos, ypos);
+    active->SetModifierBits(modifier, modifierMask);
+    active->ComputePosition();
 
-  // Invoke the event
-  active->PressButton(button);
+    // Invoke the event
+    active->PressButton(button);
 
-  // Make sure to "release" the scroll
-  active->ReleaseButton(button);
+    // Make sure to "release" the scroll
+    active->ReleaseButton(button);
+  }
 
   this->ViewRect->Render();
 }

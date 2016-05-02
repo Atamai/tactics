@@ -212,6 +212,7 @@ protected:
   QCursor FocusCursorShape;
   vtkToolCursor *FocusCursor;
   vtkViewRect *ViewRect;
+  int WheelDelta;
   unsigned int FocusButton;
   bool synchronized;
   bool LayoutSwitching;
