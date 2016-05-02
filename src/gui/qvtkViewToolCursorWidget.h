@@ -37,7 +37,7 @@
 #ifndef QVTKVIEWTOOLCURSORWIDGET_H
 #define QVTKVIEWTOOLCURSORWIDGET_H
 
-#include <QtGui/QWidget>
+#include <QWidget>
 
 #include <vtkConfigure.h>
 #include <vtkToolkits.h>
@@ -47,27 +47,8 @@ class vtkImageData;
 class vtkToolCursor;
 class vtkViewRect;
 
-#if defined(Q_WS_MAC)
-# if defined(QT_MAC_USE_COCOA) && defined(VTK_USE_COCOA)
-#  define QVTK_USE_COCOA
-# elif !defined(QT_MAC_USE_COCOA) && defined(VTK_USE_CARBON)
-#  define QVTK_USE_CARBON
-# elif defined(VTK_USE_COCOA)
-#  error "VTK configured to use Cocoa, but Qt configured to use Carbon"
-# elif defined(VTK_USE_CARBON)
-#  error "VTK configured to use Carbon, but Qt configured to use Cocoa"
-# endif
-#endif
-
-
-#if defined(QVTK_USE_CARBON)
-#include <Carbon/Carbon.h>    // Event handling for dirty region
-#endif
-
-#include "QVTKWin32Header.h"
-
 //! qvtkViewToolCursorWidget displays a VTK window in a Qt window.
-class QVTK_EXPORT qvtkViewToolCursorWidget : public QWidget
+class qvtkViewToolCursorWidget : public QWidget
 {
   Q_OBJECT
 
@@ -80,7 +61,7 @@ class QVTK_EXPORT qvtkViewToolCursorWidget : public QWidget
 
 public:
   //! constructor
-  qvtkViewToolCursorWidget(QWidget* parent = NULL, Qt::WFlags f = 0);
+  qvtkViewToolCursorWidget(QWidget* parent = NULL, Qt::WindowFlags f = 0);
   //! destructor
   virtual ~qvtkViewToolCursorWidget();
 
@@ -231,7 +212,7 @@ protected:
   QCursor FocusCursorShape;
   vtkToolCursor *FocusCursor;
   vtkViewRect *ViewRect;
-  int FocusButton;
+  unsigned int FocusButton;
   bool synchronized;
   bool LayoutSwitching;
 

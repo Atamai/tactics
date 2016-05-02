@@ -50,6 +50,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QFrame>
+
 #include <assert.h>
 
 // CB includes

@@ -40,11 +40,15 @@
 #include "vtkDataManager.h"
 
 #include <QMainWindow>
-#include <QtGui>
-#include <assert.h>
 #include <QDebug>
+#include <QDir>
 #include <QFrame>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QPushButton>
+#include <QTextEdit>
 
+#include <assert.h>
 
 cbStageManager::cbStageManager(QWidget *parent, QFrame *toolbar,
                                vtkDataManager *dataManager, QDir dir,

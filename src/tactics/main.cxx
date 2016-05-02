@@ -49,7 +49,7 @@
 #include <QDir>
 #include <QObject>
 #include <QThread>
-#include <QtGui/QApplication>
+#include <QApplication>
 
 #include "LeksellFiducial.h"
 

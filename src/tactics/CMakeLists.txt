@@ -1,7 +1,11 @@
+if(POLICY CMP0043)
+  cmake_policy(SET CMP0043 OLD)
+endif()
+
 file(GLOB_RECURSE project_SRCS *.cpp *.cxx *.cc *.C *.c *.h *.hpp)
 file(GLOB_RECURSE project_MAIN main.cpp main.cxx main.cc main.C main.c main.h main.hpp)
 list(REMOVE_ITEM project_SRCS ${project_MAIN})
-set(project_LIBS ${QT_LIBRARIES} ${VTK_LIBRARIES} ${GDCM_LIBS} ${Cerebra_LIBRARIES} cbVTK vtkImageRegistration vtkImageSegmentation)
+set(project_LIBS ${GDCM_LIBS} ${Cerebra_LIBRARIES} cbVTK vtkImageRegistration vtkImageSegmentation)
 set(project_BIN ${PROJECT_NAME})
 set(project_LIB cbElectrode)
 
@@ -15,9 +19,8 @@ set(project_MOC_HEADERS
   cbElectrodeView.h
 )
 
-qt4_wrap_cpp(project_MOC_SRCS_GENERATED ${project_MOC_HEADERS})
-
-add_library(${project_LIB} STATIC ${project_SRCS} ${project_MOC_SRCS_GENERATED})
+add_library(${project_LIB} STATIC ${project_SRCS})
+qt5_use_modules(${project_LIB} Widgets)
 target_link_libraries(${project_LIB} ${project_LIBS})
 set(project_BIN_SRCS ${project_MAIN})
 
@@ -82,7 +85,7 @@ install(CODE "
     " COMPONENT Runtime)
 
 # directories to look for dependencies
-set(DIRS ${QT_LIBRARY_DIRS}
+set(DIRS
   ${VTK_DIR}
   ${CMAKE_INSTALL_PREFIX}/lib)
 

@@ -50,11 +50,12 @@
 #include <QDir>
 #include <QTextStream>
 #include <QDebug>
-#include <QtGui>
 #include <QString>
 #include <QProgressBar>
 #include <QDockWidget>
 #include <QStringList>
+#include <QStatusBar>
+#include <QMessageBox>
 
 #include <assert.h>
 

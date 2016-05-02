@@ -37,7 +37,7 @@
 #ifndef CBMAINWINDOW_H
 #define CBMAINWINDOW_H
 
-#include <QtGui/QMainWindow>
+#include <QMainWindow>
 
 class qvtkViewToolCursorWidget;
 class vtkViewRect;

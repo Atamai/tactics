@@ -36,7 +36,15 @@
 
 #include "cbElectrodeOpenStage.h"
 
-#include <QtGui>
+#include <QWidget>
+#include <QCheckBox>
+#include <QDir>
+#include <QFileDialog>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QTextList>
+#include <QTextEdit>
+#include <QSettings>
 
 cbElectrodeOpenStage::cbElectrodeOpenStage() : cbStage()
 {

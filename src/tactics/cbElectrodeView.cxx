@@ -41,7 +41,10 @@
 
 // QT INCLUDES
 #include <QDebug>
+#include <QApplication>
+#include <QDesktopWidget>
 #include <QDockWidget>
+#include <QCloseEvent>
 #include <QFile>
 #include <QFileInfo>
 #include <QIcon>
@@ -50,7 +53,10 @@
 #include <QString>
 #include <QStringList>
 #include <QTextStream>
-#include <QtGui>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QMenu>
+#include <QMenuBar>
 
 // VTK INCLUDES
 #include "qvtkViewToolCursorWidget.h"
@@ -130,7 +136,7 @@ namespace cb {
 } /* namespace cb */
 
 cbElectrodeView::cbElectrodeView(vtkDataManager *dataManager, QWidget *parent)
-: cbMainWindow(dataManager, parent), dataKey(), ctKey(), SelectedIndex(0), SaveFile(), SavedState(false)
+: cbMainWindow(dataManager, parent), dataKey(), ctKey(), SaveFile(), SelectedIndex(0), SavedState(false)
 {
   QDesktopWidget desktop;
   int width = desktop.width();

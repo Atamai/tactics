@@ -36,7 +36,10 @@
 
 #include "cbStage.h"
 
-#include <QtGui>
+#include <QWidget>
+#include <QVBoxLayout>
+#include <QTextList>
+#include <QTextEdit>
 
 int cbStage::counter = 0;
 

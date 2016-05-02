@@ -4,17 +4,15 @@ set(Cerebra_LIBRARIES ${Cerebra_LIBRARIES} ${PROJECT_NAME} PARENT_SCOPE)
 set(INCLUDE_OUTPUT_PATH ${INCLUDE_OUTPUT_PATH} ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
 # CMake version requirements
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.10)
 
-# Mandatory policy setting
-if(COMMAND CMAKE_POLICY)
-  cmake_policy(SET CMP0003 NEW)
+if(POLICY CMP0043)
+  cmake_policy(SET CMP0043 OLD)
 endif()
 
 # The library name, dependencies, and source files
 set(LIB_NAME ${PROJECT_NAME})
 set(LIB_DEPS
-  ${QT_LIBRARIES}
   vtkCommon
   vtkRendering
   vtkToolCursor
@@ -61,12 +59,9 @@ if(LIB_HDRS)
   set_source_files_properties(${LIB_HDRS} HEADER_FILE_ONLY)
 endif()
 
-# Use moc to generate the Qt signals and slots
-qt4_wrap_cpp(MOCSrcs ${CEREBRA_QT_HEADER})
-source_group("Generated" FILES ${MOCSrcs})
-
 # Create the library
-add_library(${LIB_NAME} ${LIB_SRCS} ${MOCSrcs})
+add_library(${LIB_NAME} ${LIB_SRCS})
+qt5_use_modules(${LIB_NAME} Widgets)
 target_link_libraries(${LIB_NAME} ${LIB_DEPS})
 
 export(TARGETS ${LIB_NAME}

@@ -71,7 +71,7 @@ include_directories("${MAINFOLDER}/src/tactics")
 #
 # Libraries built
 #
-set(Cerebra_LIBRARIES "vtkToolCursor" ${VTK_LIBRARIES} ${QT_LIBRARIES})
+set(Cerebra_LIBRARIES "vtkToolCursor")
 
 #
 # Project Search Paths
@@ -87,8 +87,8 @@ set(CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
-find_package(Qt4 REQUIRED)
-include(UseQt4)
+find_package(Qt5Widgets)
+set(CMAKE_AUTOMOC ON)
 
 find_package(GDCM)
 include(${GDCM_USE_FILE})

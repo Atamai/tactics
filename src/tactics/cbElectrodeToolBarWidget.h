@@ -37,7 +37,7 @@
 #ifndef CBELECTRODETOOLBARWIDGET_H
 #define CBELECTRODETOOLBARWIDGET_H
 
-#include <QtGui/QFrame>
+#include <QFrame>
 
 class QAction;
 class QActionGroup;

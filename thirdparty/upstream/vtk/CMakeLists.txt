@@ -18,7 +18,7 @@ endif()
 
 # The library name, dependencies, and source files
 set(LIB_NAME cbVTK)
-set(LIB_DEPS vtkCommon vtkImaging vtkFiltering vtkViews vtkInfovis vtkHybrid)
+set(LIB_DEPS vtkCommon vtkImaging vtkFiltering)
 set(LIB_SRCS
   vtkContourToPolygonFilter.cxx
   vtkProgressAccumulator.cxx

@@ -36,7 +36,10 @@
 
 #include "cbElectrodeIntroductionStage.h"
 
-#include <QtGui>
+#include <QWidget>
+#include <QTextList>
+#include <QTextEdit>
+#include <QVBoxLayout>
 
 cbElectrodeIntroductionStage::cbElectrodeIntroductionStage() : cbStage()
 {

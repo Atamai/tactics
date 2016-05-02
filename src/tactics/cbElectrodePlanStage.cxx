@@ -38,7 +38,28 @@
 
 #include "cbMainWindow.h"
 
-#include <QtGui>
+#include <QWidget>
+#include <QApplication>
+#include <QSettings>
+#include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
+#include <QFileDialog>
+#include <QSpinBox>
+#include <QSlider>
+#include <QGroupBox>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QTextEdit>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QShortcut>
+#include <QMessageBox>
+
 #include <iostream>
 #include <fstream>
 #include <sstream>

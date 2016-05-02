@@ -48,8 +48,6 @@
 #include "vtkRenderer.h"
 #include "vtkCamera.h"
 
-// do not use the QVTKPaintEngine for now
-//#include "QVTKPaintEngine.h"
 #include "qpaintengine.h"
 
 #include "qdebug.h"
@@ -65,9 +63,6 @@
 #include "vtkstd/map"
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkRenderWindow.h"
-#if defined(QVTK_USE_CARBON)
-#  include "vtkCarbonRenderWindow.h"
-#endif
 #include "vtkCommand.h"
 #include "vtkOStrStreamWrapper.h"
 #include "vtkObjectFactory.h"
@@ -81,7 +76,7 @@
 static void dirty_cache(vtkObject *, unsigned long, void *, void *);
 
 /*! constructor */
-qvtkViewToolCursorWidget::qvtkViewToolCursorWidget(QWidget* p, Qt::WFlags f)
+qvtkViewToolCursorWidget::qvtkViewToolCursorWidget(QWidget* p, Qt::WindowFlags f)
 : QWidget(p, f | Qt::MSWindowsOwnDC), mRenWin(NULL),
     cachedImageCleanFlag(false),
     automaticImageCache(false), maxImageCacheRenderRate(1.0)
@@ -106,19 +101,12 @@ qvtkViewToolCursorWidget::qvtkViewToolCursorWidget(QWidget* p, Qt::WFlags f)
       QSizePolicy( QSizePolicy::Expanding, QSizePolicy::Expanding )
       );
 
-  // do not use the QVTKPaintEngine for now
-  //mPaintEngine = new QVTKPaintEngine;
   mPaintEngine = NULL;
 
   this->mCachedImage = vtkImageData::New();
   this->mCachedImage->SetScalarTypeToUnsignedChar();
   this->mCachedImage->SetOrigin(0,0,0);
   this->mCachedImage->SetSpacing(1,1,1);
-
-#if defined(QVTK_USE_CARBON)
-  this->DirtyRegionHandler = 0;
-  this->DirtyRegionHandlerUPP = 0;
-#endif
 
   this->FocusCursor = NULL;
   this->FocusCursorShape.setShape(Qt::ArrowCursor);
@@ -229,27 +217,6 @@ void qvtkViewToolCursorWidget::SetRenderWindow(vtkRenderWindow* w)
     this->mRenWin->AddObserver(vtkCommand::RenderEvent, cbc);
     cbc->Delete();
   }
-
-#if defined(QVTK_USE_CARBON)
-  if (mRenWin && !this->DirtyRegionHandlerUPP)
-  {
-    this->DirtyRegionHandlerUPP = NewEventHandlerUPP(qvtkViewToolCursorWidget::DirtyRegionProcessor);
-    static EventTypeSpec events[] = { {'cute', 20}, {'Cute', 20} };
-    // kEventClassQt, kEventQtRequestWindowChange from qt_mac_p.h
-    // Suggested by Sam Magnuson at Trolltech as best portabile hack
-    // around Apple's missing functionality in HI Toolbox.
-    InstallEventHandler(GetApplicationEventTarget(), this->DirtyRegionHandlerUPP,
-                        GetEventTypeCount(events), events,
-                        reinterpret_cast<void*>(this), &this->DirtyRegionHandler);
-  }
-  else if (!mRenWin && this->DirtyRegionHandlerUPP)
-  {
-    RemoveEventHandler(this->DirtyRegionHandler);
-    DisposeEventHandlerUPP(this->DirtyRegionHandlerUPP);
-    this->DirtyRegionHandler = 0;
-    this->DirtyRegionHandlerUPP = 0;
-  }
-#endif
 }
 
 void qvtkViewToolCursorWidget::markCachedImageAsDirty()
@@ -354,7 +321,7 @@ bool qvtkViewToolCursorWidget::event(QEvent* e)
 
   if (QObject::event(e))
   {
-    return TRUE;
+    return 1;
   }
 
   if (e->type() == QEvent::KeyPress)
@@ -869,22 +836,6 @@ void qvtkViewToolCursorWidget::x11_setup_window()
 
 #endif
 }
-
-#if defined (QVTK_USE_CARBON)
-OSStatus qvtkViewToolCursorWidget::DirtyRegionProcessor(EventHandlerCallRef, EventRef event, void* wid)
-{
-  qvtkViewToolCursorWidget* widget = reinterpret_cast<qvtkViewToolCursorWidget*>(wid);
-  UInt32 event_kind = GetEventKind(event);
-  UInt32 event_class = GetEventClass(event);
-  if ((event_class == 'cute' || event_class == 'Cute') && event_kind == 20)
-  {
-    static_cast<vtkCarbonRenderWindow*>(widget->GetRenderWindow())->UpdateGLRegion();
-  }
-  return eventNotHandledErr;
-}
-
-#endif
-
 
 //-----------------------------------------------------------------------------
 bool qvtkViewToolCursorWidget::paintCachedImage()
