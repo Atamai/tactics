@@ -597,16 +597,29 @@ void qvtkViewToolCursorWidget::wheelEvent(QWheelEvent* e)
   int xpos = e->x();
   int ypos = (e->y() * -1) + this->height() - 1;
 
-  this->WheelDelta += e->delta();
+#if QT_VERSION >= 0x050000
+  int delta = e->angleDelta().y();
+#else
+  int delta = e->delta();
+#endif
+
+  this->WheelDelta += delta;
 
   if (this->WheelDelta >= 120) {
-    while (this->WheelDelta >= 120) {
+    if (delta >= 120) {
+      this->WheelDelta = 0;
+    }
+    else {
       this->WheelDelta -= 120;
     }
     modifier = VTK_TOOL_WHEEL_FWD;
     button = 4;
-  } else if (this->WheelDelta <= -120) {
-    while (this->WheelDelta <= -120) {
+  }
+  else if (this->WheelDelta <= -120) {
+    if (delta <= -120) {
+      this->WheelDelta = 0;
+    }
+    else {
       this->WheelDelta += 120;
     }
     modifier = VTK_TOOL_WHEEL_BWD;
