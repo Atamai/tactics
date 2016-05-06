@@ -63,11 +63,11 @@ void AutoOpen(cbStageManager *m, cbElectrodeOpenStage *s, const char *arg)
 {
   m->nextButtonAction();
   cbElectrodeAutomator a(arg);
-  QObject::connect(&a, SIGNAL(open(const char *)),
-                   s, SIGNAL(requestOpenImage(const char *)));
+  QObject::connect(&a, SIGNAL(open(std::string)),
+                   s, SIGNAL(requestOpenImage(std::string)));
   a.activate();
-  QObject::disconnect(&a, SIGNAL(open(const char *)),
-                      s, SIGNAL(requestOpenImage(const char *)));
+  QObject::disconnect(&a, SIGNAL(open(std::string)),
+                      s, SIGNAL(requestOpenImage(std::string)));
   m->nextButtonAction();
 }
 
@@ -120,8 +120,8 @@ int main(int argc, char *argv[])
                    &window, SLOT(DisplayCTData(vtkDataManager::UniqueKey)));
 
   cbElectrodeOpenStage openStage;
-  QObject::connect(&openStage, SIGNAL(requestOpenImage(const char *)),
-                   &controller, SLOT(requestOpenImage(const char *)));
+  QObject::connect(&openStage, SIGNAL(requestOpenImage(std::string)),
+                   &controller, SLOT(requestOpenImage(std::string)));
   QObject::connect(&openStage, SIGNAL(registerAntPost(int)),
                    &controller, SLOT(registerAntPost(int)));
   QObject::connect(&controller, SIGNAL(displayData(vtkDataManager::UniqueKey)),

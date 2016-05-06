@@ -122,9 +122,7 @@ void cbElectrodeOpenStage::Execute()
     return;
   }
 
-  std::string *pathString = new std::string(initialImage.toStdString());
-
-  emit requestOpenImage(pathString->c_str());
+  emit requestOpenImage(initialImage.toStdString());
 
   emit finished();
 }
@@ -136,6 +134,5 @@ const char *cbElectrodeOpenStage::getStageName() const
 
 void cbElectrodeOpenStage::OpenImage(std::string path)
 {
-  std::string *heap_path = new std::string(path);
-  emit requestOpenImage(heap_path->c_str());
+  emit requestOpenImage(path);
 }

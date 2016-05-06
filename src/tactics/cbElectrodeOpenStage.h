@@ -52,7 +52,7 @@ public:
 
 signals:
   //! Outgoing signal to open the image path.
-  void requestOpenImage(const char *);
+  void requestOpenImage(std::string path);
   //! Outgoing signal to set whether or not to use the ant/post fiducials.
   void registerAntPost(int s);
 

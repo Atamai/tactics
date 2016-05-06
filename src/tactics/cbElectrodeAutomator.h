@@ -50,7 +50,7 @@ public:
   ~cbElectrodeAutomator() {};
 
 signals:
-  void open(const char *);
+  void open(std::string);
 
 public slots:
   void activate()
@@ -59,7 +59,7 @@ public slots:
     }
 
 private:
-  const char *path;
+  std::string path;
 };
 
 #endif /* end of include guard: CBELECTRODEAUTOMATOR_H */

@@ -182,7 +182,7 @@ void cbElectrodeController::log(QString m)
   emit Log(dateTimeString.append(m));
 }
 
-void cbElectrodeController::requestOpenImage(const char *path)
+void cbElectrodeController::requestOpenImage(std::string path)
 {
   assert(path && "Path can't be NULL!");
 
@@ -201,11 +201,10 @@ void cbElectrodeController::requestOpenImage(const char *path)
 
   // Grab the directory path from the argument using the index.
   std::string base = argument.substr(0, index-1);
-  const char *basePath = base.c_str();
 
   emit initializeProgress(0, 100);
 
-  this->log(QString("Opening Data: ").append(QString(basePath)));
+  this->log(QString("Opening Data: ").append(QString(base.c_str())));
 
   // Open and display the image data
   vtkSmartPointer<vtkImageData> data =
@@ -217,7 +216,7 @@ void cbElectrodeController::requestOpenImage(const char *path)
   vtkSmartPointer<vtkDICOMMetaData> meta =
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
-  ReadDICOMImage(data, matrix, sarray, meta, basePath);
+  ReadDICOMImage(data, matrix, sarray, meta, base.c_str());
 
   emit displayProgress(33);
 
@@ -236,7 +235,7 @@ void cbElectrodeController::requestOpenImage(const char *path)
   this->dataManager->FindImageNode(dataKey)->ShallowCopyImage(data);
   this->dataManager->FindImageNode(dataKey)->SetMatrix(matrix);
   this->dataManager->FindImageNode(dataKey)->SetMetaData(meta);
-  this->dataManager->FindImageNode(dataKey)->SetFileURL(path);
+  this->dataManager->FindImageNode(dataKey)->SetFileURL(path.c_str());
 
   emit displayData(dataKey);
   emit displaySurfaceVolume(volumeKey);

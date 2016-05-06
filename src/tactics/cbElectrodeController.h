@@ -60,7 +60,7 @@ public:
 public slots:
   void OpenCTData(std::string path);
   void OpenCTData(std::string path, vtkMatrix4x4 *matrix);
-  void requestOpenImage(const char *p);
+  void requestOpenImage(std::string path);
   void registerAntPost(int s);
 
 signals:
