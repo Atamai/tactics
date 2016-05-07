@@ -420,22 +420,21 @@ void vtkPushPlaneTool::DoAction()
     distance = 0.0;
 
     double max_theta = this->GetMaximumRotationDegree();
-    if (theta < max_theta && theta > -1.0*max_theta)
+    theta = (theta > max_theta ? max_theta : theta);
+    theta = (theta < -max_theta ? -max_theta : theta);
+    vtkImageResliceMapper *resliceMapper =
+      vtkImageResliceMapper::SafeDownCast(this->ImageMapper);
+    if (resliceMapper)
       {
-      vtkImageResliceMapper *resliceMapper =
-        vtkImageResliceMapper::SafeDownCast(this->ImageMapper);
-      if (resliceMapper)
-        {
-        vtkTransform *trans = vtkTransform::New();
-        trans->PostMultiply();
-        trans->Translate(-mcenter[0], -mcenter[1], -mcenter[2]);
-        trans->RotateWXYZ(theta, mvector[0], mvector[1], mvector[2]);
-        trans->Translate(mcenter[0], mcenter[1], mcenter[2]);
-        trans->TransformPoint(origin, origin);
-        trans->TransformNormal(normal, normal);
-        resliceMapper->GetSlicePlane()->SetNormal(normal);
-        trans->Delete();
-        }
+      vtkTransform *trans = vtkTransform::New();
+      trans->PostMultiply();
+      trans->Translate(-mcenter[0], -mcenter[1], -mcenter[2]);
+      trans->RotateWXYZ(theta, mvector[0], mvector[1], mvector[2]);
+      trans->Translate(mcenter[0], mcenter[1], mcenter[2]);
+      trans->TransformPoint(origin, origin);
+      trans->TransformNormal(normal, normal);
+      resliceMapper->GetSlicePlane()->SetNormal(normal);
+      trans->Delete();
       }
     }
 
