@@ -58,9 +58,9 @@ public:
   ~cbElectrodeController();
 
 public slots:
-  void OpenCTData(std::string path);
-  void OpenCTData(std::string path, vtkMatrix4x4 *matrix);
-  void requestOpenImage(std::string path);
+  void OpenCTData(const QStringList& files);
+  void OpenCTData(const QStringList& files, vtkMatrix4x4 *matrix);
+  void requestOpenImage(const QStringList& files);
   void registerAntPost(int s);
 
 signals:

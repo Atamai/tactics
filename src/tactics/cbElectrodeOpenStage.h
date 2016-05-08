@@ -52,13 +52,13 @@ public:
 
 signals:
   //! Outgoing signal to open the image path.
-  void requestOpenImage(std::string path);
+  void requestOpenImage(const QStringList& files);
   //! Outgoing signal to set whether or not to use the ant/post fiducials.
   void registerAntPost(int s);
 
 public slots:
   //! Incoming signal to open the image at the path.
-  void OpenImage(std::string path);
+  void OpenImage(const QStringList& files);
 
   //! Actions to perform for the stage.
   virtual void Execute();

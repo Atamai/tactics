@@ -63,11 +63,11 @@ void AutoOpen(cbStageManager *m, cbElectrodeOpenStage *s, const char *arg)
 {
   m->nextButtonAction();
   cbElectrodeAutomator a(arg);
-  QObject::connect(&a, SIGNAL(open(std::string)),
-                   s, SIGNAL(requestOpenImage(std::string)));
+  QObject::connect(&a, SIGNAL(open(const QStringList&)),
+                   s, SIGNAL(requestOpenImage(const QStringList&)));
   a.activate();
-  QObject::disconnect(&a, SIGNAL(open(std::string)),
-                      s, SIGNAL(requestOpenImage(std::string)));
+  QObject::disconnect(&a, SIGNAL(open(const QStringList&)),
+                      s, SIGNAL(requestOpenImage(const QStringList&)));
   m->nextButtonAction();
 }
 
@@ -112,23 +112,23 @@ int main(int argc, char *argv[])
                    &window,
                    SLOT(displaySurfaceVolume(vtkDataManager::UniqueKey)));
 
-  QObject::connect(&window, SIGNAL(OpenCTData(std::string)),
-                   &controller, SLOT(OpenCTData(std::string)));
-  QObject::connect(&window, SIGNAL(OpenCTData(std::string, vtkMatrix4x4 *)),
-                   &controller, SLOT(OpenCTData(std::string, vtkMatrix4x4 *)));
+  QObject::connect(&window, SIGNAL(OpenCTData(const QStringList&)),
+                   &controller, SLOT(OpenCTData(const QStringList&)));
+  QObject::connect(&window, SIGNAL(OpenCTData(const QStringList&, vtkMatrix4x4 *)),
+                   &controller, SLOT(OpenCTData(const QStringList&, vtkMatrix4x4 *)));
   QObject::connect(&controller, SIGNAL(DisplayCTData(vtkDataManager::UniqueKey)),
                    &window, SLOT(DisplayCTData(vtkDataManager::UniqueKey)));
 
   cbElectrodeOpenStage openStage;
-  QObject::connect(&openStage, SIGNAL(requestOpenImage(std::string)),
-                   &controller, SLOT(requestOpenImage(std::string)));
+  QObject::connect(&openStage, SIGNAL(requestOpenImage(const QStringList&)),
+                   &controller, SLOT(requestOpenImage(const QStringList&)));
   QObject::connect(&openStage, SIGNAL(registerAntPost(int)),
                    &controller, SLOT(registerAntPost(int)));
   QObject::connect(&controller, SIGNAL(displayData(vtkDataManager::UniqueKey)),
                    &window, SLOT(displayData(vtkDataManager::UniqueKey)));
 
-  QObject::connect(&window, SIGNAL(OpenImage(std::string)),
-                   &openStage, SLOT(OpenImage(std::string)));
+  QObject::connect(&window, SIGNAL(OpenImage(const QStringList&)),
+                   &openStage, SLOT(OpenImage(const QStringList&)));
 
   cbElectrodePlanStage planStage;
   QObject::connect(&window, SIGNAL(CreateProbeRequest(double, double, double, double, double, double, std::string, std::string)),

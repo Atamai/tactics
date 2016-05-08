@@ -122,7 +122,7 @@ void cbElectrodeOpenStage::Execute()
     return;
   }
 
-  emit requestOpenImage(initialImage.toStdString());
+  emit requestOpenImage(dialog.selectedFiles());
 
   emit finished();
 }
@@ -132,7 +132,7 @@ const char *cbElectrodeOpenStage::getStageName() const
   return "Open";
 }
 
-void cbElectrodeOpenStage::OpenImage(std::string path)
+void cbElectrodeOpenStage::OpenImage(const QStringList& files)
 {
-  emit requestOpenImage(path);
+  emit requestOpenImage(files);
 }

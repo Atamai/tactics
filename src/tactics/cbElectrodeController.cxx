@@ -79,9 +79,8 @@
 
 #include "LeksellFiducial.h"
 
-void ReadDICOMImage(
-  vtkImageData *data, vtkMatrix4x4 *matrix, vtkStringArray *sarray,
-  vtkDICOMMetaData *meta, const char *file_folder);
+void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
+                    vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta);
 
 cbElectrodeController::cbElectrodeController(vtkDataManager *dataManager)
 : cbApplicationController(dataManager), dataKey(), volumeKey(), ctKey()
@@ -101,75 +100,24 @@ cbElectrodeController::~cbElectrodeController()
 }
 
 
-void ReadDICOMImage(
-  vtkImageData *data, vtkMatrix4x4 *matrix, vtkStringArray *sarray,
-  vtkDICOMMetaData *meta, const char *file_folder)
+void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
+                    vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta)
 {
   vtkSmartPointer<vtkDICOMReader> reader =
     vtkSmartPointer<vtkDICOMReader>::New();
-
-  vtkSmartPointer<vtkGlobFileNames> directory =
-    vtkSmartPointer<vtkGlobFileNames>::New();
-
-  sarray->SetNumberOfValues(0);
-
-  directory->SetDirectory(file_folder);
-  directory->AddFileNames("*");
-
-  vtkSmartPointer<vtkStringArray> files =
-    vtkSmartPointer<vtkStringArray>::New();
-
-  int n = directory->GetNumberOfFileNames();
-  for (int i = 0; i < n; i++)
-    {
-    const char *filename = directory->GetNthFileName(i);
-    if (reader->CanReadFile(filename))
-      {
-      files->InsertNextValue(filename);
-      }
-    }
-
-  vtkSmartPointer<vtkDICOMSorter> sorter =
-    vtkSmartPointer<vtkDICOMSorter>::New();
-
-  sorter->SetInputFileNames(files);
-  sorter->Update();
-  sarray->DeepCopy(sorter->GetOutputFileNames());
 
   reader->SetFileNames(sarray);
   reader->SetMemoryRowOrderToFileNative();
   reader->Update();
 
-  // for now, just get meta data from first file
-  if (meta && sarray->GetNumberOfValues() != 0)
-    {
-    vtkSmartPointer<vtkDICOMParser> parser =
-      vtkSmartPointer<vtkDICOMParser>::New();
-
-    parser->SetMetaData(meta);
-    parser->SetFileName(sarray->GetValue(0));
-    parser->Update();
-    }
-
   vtkImageData *output = reader->GetOutput();
-  //get the data
   data->CopyStructure(output);
   data->GetPointData()->PassData(output->GetPointData());
   data->SetOrigin(0,0,0);
 
-  vtkDataArray *scalars = NULL;
-  if (data)
-    {
-    scalars = data->GetPointData()->GetScalars();
-    }
-
-  if (data == NULL || scalars == NULL)
-    {
-    //cerr <<"no image data to interpolate!" << endl;
-    return;
-    }
-
   matrix->DeepCopy(reader->GetPatientMatrix());
+
+  meta->DeepCopy(reader->GetMetaData());
 }
 
 void cbElectrodeController::log(QString m)
@@ -182,29 +130,13 @@ void cbElectrodeController::log(QString m)
   emit Log(dateTimeString.append(m));
 }
 
-void cbElectrodeController::requestOpenImage(std::string path)
+void cbElectrodeController::requestOpenImage(const QStringList& files)
 {
   assert(path && "Path can't be NULL!");
 
-  // Parse the path to grab the directory rather than the file.
-  std::string argument(path);
-  std::string key("IM");
-  size_t index = argument.rfind(key);
-
-  // If the 'IM' substr could not be found, something went wrong!
-  if (index == std::string::npos)
-    {
-    emit displayErrorMessage(QString("Something went wrong. \
-                                     Please try again."));
-    return;
-    }
-
-  // Grab the directory path from the argument using the index.
-  std::string base = argument.substr(0, index-1);
-
   emit initializeProgress(0, 100);
 
-  this->log(QString("Opening Data: ").append(QString(base.c_str())));
+  this->log(QString("Opening Data: "));
 
   // Open and display the image data
   vtkSmartPointer<vtkImageData> data =
@@ -216,7 +148,11 @@ void cbElectrodeController::requestOpenImage(std::string path)
   vtkSmartPointer<vtkDICOMMetaData> meta =
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
-  ReadDICOMImage(data, matrix, sarray, meta, base.c_str());
+  for (int i = 0; i < files.size(); i++) {
+    sarray->InsertNextValue(files[i].toUtf8());
+  }
+
+  ReadDICOMImage(sarray, data, matrix, meta);
 
   emit displayProgress(33);
 
@@ -235,7 +171,6 @@ void cbElectrodeController::requestOpenImage(std::string path)
   this->dataManager->FindImageNode(dataKey)->ShallowCopyImage(data);
   this->dataManager->FindImageNode(dataKey)->SetMatrix(matrix);
   this->dataManager->FindImageNode(dataKey)->SetMetaData(meta);
-  this->dataManager->FindImageNode(dataKey)->SetFileURL(path.c_str());
 
   emit displayData(dataKey);
   emit displaySurfaceVolume(volumeKey);
@@ -388,25 +323,22 @@ void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
   }
 }
 
-void cbElectrodeController::OpenCTData(std::string path)
+void cbElectrodeController::OpenCTData(const QStringList& files)
 {
   vtkSmartPointer<vtkImageData> ct_data =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> ct_matrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  vtkSmartPointer<vtkStringArray> ct_array =
-    vtkSmartPointer<vtkStringArray>::New();
   vtkSmartPointer<vtkDICOMMetaData> ct_meta =
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
-  size_t found = path.find_last_of("/\\");
-  if (found >= path.length()) {
-    emit displayErrorMessage(QString("Error opening CT series. Please check the path."));
-    return;
+  vtkSmartPointer<vtkStringArray> ct_files =
+    vtkSmartPointer<vtkStringArray>::New();
+  for (int i = 0; i < files.size(); i++) {
+    ct_files->InsertNextValue(files[i].toUtf8());
   }
-  std::string dir = path.substr(0, found);
 
-  ReadDICOMImage(ct_data, ct_matrix, ct_array, ct_meta, dir.c_str());
+  ReadDICOMImage(ct_files, ct_data, ct_matrix, ct_meta);
 
   std::cout << "*** image matrix ***" << std::endl;
   for (int i = 0; i < 4; i++) {
@@ -425,7 +357,6 @@ void cbElectrodeController::OpenCTData(std::string path)
   this->dataManager->FindImageNode(this->ctKey)->ShallowCopyImage(ct_data);
   this->dataManager->FindImageNode(this->ctKey)->SetMatrix(ct_matrix);
   this->dataManager->FindImageNode(this->ctKey)->SetMetaData(ct_meta);
-  this->dataManager->FindImageNode(this->ctKey)->SetFileURL(path.c_str());
 
   emit DisplayCTData(this->ctKey);
 }
@@ -477,25 +408,23 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 }
 
 // Overloaded to include a pre-registered matrix
-void cbElectrodeController::OpenCTData(std::string path, vtkMatrix4x4 *m)
+void cbElectrodeController::OpenCTData(
+  const QStringList& files, vtkMatrix4x4 *m)
 {
   vtkSmartPointer<vtkImageData> ct_data =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> ct_matrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  vtkSmartPointer<vtkStringArray> ct_array =
+  vtkSmartPointer<vtkStringArray> ct_files =
     vtkSmartPointer<vtkStringArray>::New();
   vtkSmartPointer<vtkDICOMMetaData> ct_meta =
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
-  size_t found = path.find_last_of("/\\");
-  if (found >= path.length()) {
-    emit displayErrorMessage(QString("Error opening CT series. Please check the path."));
-    return;
+  for (int i = 0; i < files.size(); i++) {
+    ct_files->InsertNextValue(files[i].toUtf8());
   }
-  std::string dir = path.substr(0, found);
 
-  ReadDICOMImage(ct_data, ct_matrix, ct_array, ct_meta, dir.c_str());
+  ReadDICOMImage(ct_files, ct_data, ct_matrix, ct_meta);
 
   vtkImageNode *mr = this->dataManager->FindImageNode(this->dataKey);
   vtkImageData *mr_d = mr->GetImage();
@@ -533,7 +462,6 @@ void cbElectrodeController::OpenCTData(std::string path, vtkMatrix4x4 *m)
   this->dataManager->FindImageNode(this->ctKey)->ShallowCopyImage(ct_data);
   this->dataManager->FindImageNode(this->ctKey)->SetMatrix(m);
   this->dataManager->FindImageNode(this->ctKey)->SetMetaData(ct_meta);
-  this->dataManager->FindImageNode(this->ctKey)->SetFileURL(path.c_str());
 
   emit DisplayCTData(this->ctKey);
 }

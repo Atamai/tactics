@@ -1690,7 +1690,8 @@ void cbElectrodeView::Open()
   std::getline(in, ct_path);
 
   // Open the image path from the save file
-  emit OpenImage(image_path);
+  QStringList image_files(QString(image_path.c_str()));
+  emit OpenImage(image_files);
 
   if (ct_path.empty()) {
     std::cout << "empty ct, don't do anything" << std::endl;
@@ -1708,7 +1709,8 @@ void cbElectrodeView::Open()
     vtkMatrix4x4 *matrix_obj = vtkMatrix4x4::New();
     matrix_obj->DeepCopy(matrix);
 
-    emit OpenCTData(ct_path, matrix_obj);
+    QStringList ct_files(QString(ct_path.c_str()));
+    emit OpenCTData(ct_files, matrix_obj);
   }
 
   // Open the probes
@@ -2123,14 +2125,12 @@ void cbElectrodeView::OpenCT()
     path = this->GetPlanFolder();
     }
 
-  QString file_path = QFileDialog::getOpenFileName(NULL, "Open Secondary Series",
-                                                   path);
-
-  if (file_path.isNull()) {
+  QFileDialog dialog(NULL, "Open Secondary Series", path);
+  if (!dialog.exec()) {
     return;
   }
 
-  emit OpenCTData(file_path.toStdString());
+  emit OpenCTData(dialog.selectedFiles());
 }
 
 void cbElectrodeView::DisplayCTData(vtkDataManager::UniqueKey k)

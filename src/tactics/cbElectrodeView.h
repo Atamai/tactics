@@ -52,6 +52,7 @@
 #include <QCursor>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 #include <vector>
 
@@ -172,10 +173,10 @@ private slots:
 
 signals:
   //! Outgoing signal requesting controller to open CT data.
-  void OpenCTData(std::string path);
+  void OpenCTData(const QStringList& files);
 
   //! Outgoing signal (overloaded) requesting the secondary series to be opened.
-  void OpenCTData(std::string path, vtkMatrix4x4 *);
+  void OpenCTData(const QStringList& files, vtkMatrix4x4 *matrix);
 
   //! Outgoing signal to get manager on last stage.
   void jumpToLastStage();
@@ -192,7 +193,7 @@ signals:
   void ClearCurrentPlan();
 
   //! Outgoing signal to open the image at path.
-  void OpenImage(std::string path);
+  void OpenImage(const QStringList& files);
 
 private:
   //! File path to the save file.
