@@ -96,6 +96,13 @@ void cbQtDicomDirDialog::showDicomBrowser(const QStringList& files)
   this->setLayout(l);
 
   QObject::connect(
+    m_DirModel, SIGNAL(modelReset()),
+    this, SLOT(resetSelection()));
+
+  QObject::connect(
+     m_DirView, SIGNAL(clicked(const QModelIndex&)),
+     m_DirView, SLOT(setActiveIndex(const QModelIndex&)));
+  QObject::connect(
     m_DirView, SIGNAL(seriesActivated(const QStringList&)),
     this, SLOT(setSelectedFiles(const QStringList&)));
 
@@ -107,6 +114,19 @@ void cbQtDicomDirDialog::showDicomBrowser(const QStringList& files)
   m_DirModel->setPaths(files);
 
   this->show();
+}
+
+//--------------------------------------------------------------------------
+void cbQtDicomDirDialog::resetSelection()
+{
+  // Check how many series are present
+  if (m_DirModel->rowCount(QModelIndex()) >= 1 &&
+      m_DirModel->rowCount(m_DirModel->index(0, 0)) == 1) {
+    // If only one series is present, then show it
+    QModelIndex idx = m_DirModel->index(0, 0);
+    idx = m_DirModel->index(0, 0, idx);
+    this->setSelectedFiles(m_DirModel->fileNames(idx));
+  }
 }
 
 //--------------------------------------------------------------------------

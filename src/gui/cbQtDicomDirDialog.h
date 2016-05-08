@@ -75,6 +75,9 @@ public slots:
   //! Add files for viewing.
   void addFiles(const QStringList& files);
 
+  //! Called when the model resets.
+  void resetSelection();
+
   //! Set the files to be returned.
   void setSelectedFiles(const QStringList& files);
 
