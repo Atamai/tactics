@@ -96,15 +96,15 @@ int cbQtDicomDirView::sizeHintForColumn(int col) const
 {
   // Sample text for each column, for setting column width
   const char *sampleText[] = {
-    "xMxxxxxxxxxx Mxxxxxxxxxx",
-    "xMM00000000000000x",
-    "xMM00000000000000x",
-    "xThis is a lengthy study descriptionx",
+    "xMxxxxxxxxxxxx Mxxxxxxxxxxxx",
+    "x1970-01-01x",
+    "x10:30 AMx",
     "xModality",
     "x1234567x",
     "x12345x",
-    "x1970-01-01x",
-    "x10:30 AMx",
+    "xThis is a lengthy study descriptionx",
+    "xMM00000000000000x",
+    "xMM00000000000000x",
     0
   };
 

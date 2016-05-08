@@ -50,14 +50,14 @@
 // These are the columns available in this model.
 cbQtDicomDirModel::StaticColumnInfo cbQtDicomDirModel::s_StaticColumns[] = {
   { "Patient Name", { DC::PatientName }, { DC::SeriesDescription } },
-  { "Patient ID", { DC::PatientID }, { 0 } },
-  { "Accession #", { DC::AccessionNumber }, { 0 } },
-  { "Study Description", { DC::StudyDescription }, { DC::ProtocolName } },
-  { "Modality", { DC::Modality }, { DC::Modality } },
-  { "ID", { DC::StudyID }, { DC::SeriesNumber } },
-  { "# Files", { 0 }, { 0 } },
   { "Date", { DC::StudyDate }, { DC::SeriesDate } },
   { "Time", { DC::StudyTime }, { DC::SeriesTime } },
+  { "Modality", { DC::Modality }, { DC::Modality } },
+  { "ID", { DC::StudyID }, { DC::SeriesNumber } },
+  { "# Images", { 0 }, { 0 } },
+  { "Study Description", { DC::StudyDescription }, { DC::ProtocolName } },
+  { "Patient ID", { DC::PatientID }, { 0 } },
+  { "Accession #", { DC::AccessionNumber }, { 0 } },
   { 0, { 0 }, { 0 } }
 };
 
