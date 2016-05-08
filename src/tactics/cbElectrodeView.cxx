@@ -38,6 +38,7 @@
 #include "cbElectrodeView.h"
 #include "cbProbe.h"
 #include "cbProbeSpecification.h"
+#include "cbQtDicomDirDialog.h"
 
 // QT INCLUDES
 #include <QDebug>
@@ -2125,7 +2126,7 @@ void cbElectrodeView::OpenCT()
     path = this->GetPlanFolder();
     }
 
-  QFileDialog dialog(NULL, "Open Secondary Series", path);
+  cbQtDicomDirDialog dialog(NULL, "Open Secondary Series", path);
   if (!dialog.exec()) {
     return;
   }

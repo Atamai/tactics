@@ -35,6 +35,7 @@
 =========================================================================*/
 
 #include "cbElectrodeOpenStage.h"
+#include "cbQtDicomDirDialog.h"
 
 #include <QWidget>
 #include <QCheckBox>
@@ -107,7 +108,7 @@ void cbElectrodeOpenStage::Execute()
     path = QDir::homePath();
   }
 
-  QFileDialog dialog(NULL, "Open Primary Series", path);
+  cbQtDicomDirDialog dialog(NULL, "Open Primary Series", path);
   if (!dialog.exec()) {
     return;
   }

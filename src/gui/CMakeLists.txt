@@ -26,6 +26,10 @@ set(LIB_SRCS
   qvtkViewToolCursorWidget.cxx
   cbMainWindow.cxx
   cbApplicationController.cxx
+  cbQtDicomDirDialog.cxx
+  cbQtDicomDirModel.cxx
+  cbQtDicomDirThread.cxx
+  cbQtDicomDirView.cxx
   cbStage.cxx
   cbStageManager.cxx
 )
