@@ -73,6 +73,10 @@ void cbQtDicomDirView::setActiveIndex(const QModelIndex& idx)
     QStringList files = model->fileNames(idx);
     emit seriesActivated(files);
   }
+  else if (model && model->getStudy(idx) >= 0) {
+    QStringList files = model->fileNames(idx);
+    emit seriesActivated(files);
+  }
 }
 
 //--------------------------------------------------------------------------
