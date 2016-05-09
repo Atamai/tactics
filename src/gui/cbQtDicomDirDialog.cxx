@@ -162,9 +162,9 @@ int cbQtDicomDirDialog::exec()
       }
     }
 
-    if (niftiFiles.size() > 1) {
+    if (niftiFiles.size() > 0) {
       this->setSelectedFiles(niftiFiles);
-      return 1;
+      return true;
     }
     else if (dirs.size() > 0) {
       dirs.removeDuplicates();

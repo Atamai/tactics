@@ -59,10 +59,9 @@
 #include "vtkPointData.h"
 #include "vtkMath.h"
 #include "vtkDICOMMetaData.h"
-#include "vtkDICOMParser.h"
 #include "vtkDICOMReader.h"
-#include "vtkDICOMSorter.h"
-#include "vtkGlobFileNames.h"
+#include "vtkDICOMToRAS.h"
+#include "vtkNIFTIReader.h"
 
 #include <QDate>
 #include <QTime>
@@ -79,8 +78,14 @@
 
 #include "LeksellFiducial.h"
 
+void ReadImage(vtkStringArray *sarray, vtkImageData *data,
+               vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta);
+
 void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
                     vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta);
+
+void ReadNIFTIImage(const std::string& fileName, vtkImageData *data,
+                    vtkMatrix4x4 *matrix);
 
 cbElectrodeController::cbElectrodeController(vtkDataManager *dataManager)
 : cbApplicationController(dataManager), dataKey(), volumeKey(), ctKey()
@@ -99,6 +104,23 @@ cbElectrodeController::~cbElectrodeController()
 {
 }
 
+void ReadImage(vtkStringArray *sarray, vtkImageData *data,
+               vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta)
+{
+  if (sarray->GetNumberOfValues() == 0) {
+    return;
+  }
+
+  std::string fileName = sarray->GetValue(0);
+  size_t l = fileName.length();
+  if ((l >= 4 && fileName.compare(l-4, std::string::npos, ".nii") == 0) ||
+      (l >= 7 && fileName.compare(l-7, std::string::npos, ".nii.gz") == 0)) {
+    ReadNIFTIImage(fileName, data, matrix);
+  }
+  else {
+    ReadDICOMImage(sarray, data, matrix, meta);
+  }
+}
 
 void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
                     vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta)
@@ -113,11 +135,42 @@ void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
   vtkImageData *output = reader->GetOutput();
   data->CopyStructure(output);
   data->GetPointData()->PassData(output->GetPointData());
-  data->SetOrigin(0,0,0);
 
   matrix->DeepCopy(reader->GetPatientMatrix());
 
   meta->DeepCopy(reader->GetMetaData());
+}
+
+void ReadNIFTIImage(const std::string& fileName, vtkImageData *data,
+                    vtkMatrix4x4 *matrix)
+{
+  vtkSmartPointer<vtkNIFTIReader> reader =
+    vtkSmartPointer<vtkNIFTIReader>::New();
+
+  reader->SetFileName(fileName.c_str());
+
+  // switch from NIFTI to DICOM coordinates
+  vtkSmartPointer<vtkDICOMToRAS> reorder =
+    vtkSmartPointer<vtkDICOMToRAS>::New();
+
+  reorder->RASToDICOMOn();
+  reorder->RASMatrixHasPositionOn();
+  reorder->SetInputConnection(reader->GetOutputPort());
+  if (reader->GetQFormMatrix())
+    {
+    reorder->SetRASMatrix(reader->GetQFormMatrix());
+    }
+  else if (reader->GetSFormMatrix())
+    {
+    reorder->SetRASMatrix(reader->GetSFormMatrix());
+    }
+  reorder->Update();
+
+  vtkImageData *output = reorder->GetOutput();
+  data->CopyStructure(output);
+  data->GetPointData()->PassData(output->GetPointData());
+
+  matrix->DeepCopy(reorder->GetPatientMatrix());
 }
 
 void cbElectrodeController::log(QString m)
@@ -152,7 +205,7 @@ void cbElectrodeController::requestOpenImage(const QStringList& files)
     sarray->InsertNextValue(files[i].toUtf8());
   }
 
-  ReadDICOMImage(sarray, data, matrix, meta);
+  ReadImage(sarray, data, matrix, meta);
 
   emit displayProgress(33);
 
@@ -338,7 +391,7 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
     ct_files->InsertNextValue(files[i].toUtf8());
   }
 
-  ReadDICOMImage(ct_files, ct_data, ct_matrix, ct_meta);
+  ReadImage(ct_files, ct_data, ct_matrix, ct_meta);
 
   std::cout << "*** image matrix ***" << std::endl;
   for (int i = 0; i < 4; i++) {
@@ -424,7 +477,7 @@ void cbElectrodeController::OpenCTData(
     ct_files->InsertNextValue(files[i].toUtf8());
   }
 
-  ReadDICOMImage(ct_files, ct_data, ct_matrix, ct_meta);
+  ReadImage(ct_files, ct_data, ct_matrix, ct_meta);
 
   vtkImageNode *mr = this->dataManager->FindImageNode(this->dataKey);
   vtkImageData *mr_d = mr->GetImage();
