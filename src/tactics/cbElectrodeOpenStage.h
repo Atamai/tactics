@@ -55,10 +55,15 @@ signals:
   void requestOpenImage(const QStringList& files);
   //! Outgoing signal to set whether or not to use the ant/post fiducials.
   void registerAntPost(int s);
+  //! Outgoing signal to open the CT image.
+  void requestOpenCT(const QStringList& files);
 
 public slots:
   //! Incoming signal to open the image at the path.
   void OpenImage(const QStringList& files);
+
+  //! Load the CT.
+  virtual void ExecuteCT();
 
   //! Actions to perform for the stage.
   virtual void Execute();

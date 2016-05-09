@@ -54,7 +54,8 @@ cbElectrodeOpenStage::cbElectrodeOpenStage() : cbStage()
       QTextEdit *desc = new QTextEdit;
       QCheckBox *anteriorPosteriorCheck =
         new QCheckBox("Include A/P fiducials to find frame.");
-      QPushButton *openButton = new QPushButton("&Open");
+      QPushButton *openButton = new QPushButton("&Open Primary");
+      QPushButton *openCTButton = new QPushButton("Open Secondary");
 
   desc->setReadOnly(true);
   desc->insertHtml(
@@ -80,11 +81,13 @@ cbElectrodeOpenStage::cbElectrodeOpenStage() : cbStage()
   connect(openButton, SIGNAL(clicked()), this, SLOT(Execute()));
   connect(anteriorPosteriorCheck, SIGNAL(stateChanged(int)),
           this, SIGNAL(registerAntPost(int)));
+  connect(openCTButton, SIGNAL(clicked()), this, SLOT(ExecuteCT()));
 
   vertical->setContentsMargins(11, 0, 11, 0);
   vertical->addWidget(desc);
   vertical->addWidget(anteriorPosteriorCheck);
   vertical->addWidget(openButton);
+  vertical->addWidget(openCTButton);
   vertical->addStretch();
 
   this->widget->setLayout(vertical);
@@ -126,6 +129,27 @@ void cbElectrodeOpenStage::Execute()
   emit requestOpenImage(dialog.selectedFiles());
 
   emit finished();
+}
+
+void cbElectrodeOpenStage::ExecuteCT()
+{
+  const char *folderKey = "recentFileFolder";
+  QSettings settings;
+  QString path;
+
+  if (settings.value(folderKey).toString() != NULL) {
+    path = settings.value(folderKey).toString();
+  }
+  else {
+    path = QDir::homePath();
+  }
+
+  cbQtDicomDirDialog dialog(NULL, "Open Secondary Series", path);
+  if (!dialog.exec()) {
+    return;
+  }
+
+  emit requestOpenCT(dialog.selectedFiles());
 }
 
 const char *cbElectrodeOpenStage::getStageName() const

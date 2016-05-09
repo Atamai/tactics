@@ -124,6 +124,8 @@ int main(int argc, char *argv[])
                    &controller, SLOT(requestOpenImage(const QStringList&)));
   QObject::connect(&openStage, SIGNAL(registerAntPost(int)),
                    &controller, SLOT(registerAntPost(int)));
+  QObject::connect(&openStage, SIGNAL(requestOpenCT(const QStringList&)),
+                   &controller, SLOT(OpenCTData(const QStringList&)));
   QObject::connect(&controller, SIGNAL(displayData(vtkDataManager::UniqueKey)),
                    &window, SLOT(displayData(vtkDataManager::UniqueKey)));
 
