@@ -78,6 +78,9 @@ public slots:
   //! Called when the model resets.
   void resetSelection();
 
+  //! Accept a model index if it is a valid series.
+  void chooseSeries(const QModelIndex&);
+
   //! Set the files to be returned.
   void setSelectedFiles(const QStringList& files);
 

@@ -107,6 +107,10 @@ void cbQtDicomDirDialog::showDicomBrowser(const QStringList& files)
     this, SLOT(setSelectedFiles(const QStringList&)));
 
   QObject::connect(
+     m_DirView, SIGNAL(doubleClicked(const QModelIndex&)),
+     this, SLOT(chooseSeries(const QModelIndex&)));
+
+  QObject::connect(
     closeButton, SIGNAL(clicked()), this, SLOT(reject()));
   QObject::connect(
     openButton, SIGNAL(clicked()), this, SLOT(accept()));
@@ -182,4 +186,16 @@ int cbQtDicomDirDialog::exec()
 QStringList cbQtDicomDirDialog::selectedFiles()
 {
   return m_SelectedFiles;
+}
+
+//--------------------------------------------------------------------------
+void cbQtDicomDirDialog::chooseSeries(const QModelIndex& idx)
+{
+  if (m_DirModel && m_DirModel->getSeries(idx) >= 0) {
+    QStringList files = m_DirModel->fileNames(idx);
+    this->setSelectedFiles(files);
+    if (files.size() > 0) {
+      this->accept();
+    }
+  }
 }
