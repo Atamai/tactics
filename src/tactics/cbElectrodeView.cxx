@@ -396,7 +396,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   vtkCamera *camera = planar->GetRenderer()->GetActiveCamera();
   camera->SetFocalPoint(center);
   surface->GetActiveCamera()->SetFocalPoint(center);
-  position[0] = center[0] - 600.0;
+  position[0] = center[0] + 600.0;
   position[1] = center[1] + 150.0;
   position[2] = center[2] - 150.0;
   camera->SetPosition(position);
@@ -582,7 +582,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
 
 void cbElectrodeView::SetOrientationToAxial(vtkRenderer *r)
 {
-  static const double ZViewRightVector[3] = {-1.0, 0.0, 0.0};
+  static const double ZViewRightVector[3] = {1.0, 0.0, 0.0};
   static const double ZViewUpVector[3] = {0.0, 1.0, 0.0};
   double rightVector[3], upVector[3];
 
@@ -604,7 +604,7 @@ void cbElectrodeView::SetOrientationToAxial(vtkRenderer *r)
 
 void cbElectrodeView::SetOrientationToSagittal(vtkRenderer *r)
 {
-  static const double XViewRightVector[3] = {0.0, 1.0, 0.0};
+  static const double XViewRightVector[3] = {0.0, -1.0, 0.0};
   static const double XViewUpVector[3] = {0.0, 0.0, -1.0};
   double rightVector[3], upVector[3];
 
@@ -626,7 +626,7 @@ void cbElectrodeView::SetOrientationToSagittal(vtkRenderer *r)
 
 void cbElectrodeView::SetOrientationToCoronal(vtkRenderer *r)
 {
-  static double YViewRightVector[3] = {-1.0, 0.0, 0.0};
+  static double YViewRightVector[3] = {1.0, 0.0, 0.0};
   static double YViewUpVector[3] = {0.0, 0.0, -1.0};
   double rightVector[3], upVector[3];
 
@@ -812,7 +812,7 @@ void cbElectrodeView::resetViewOrientations()
   vtkCamera *camera = this->planar->GetRenderer()->GetActiveCamera();
   camera->SetFocalPoint(center);
   surface->GetActiveCamera()->SetFocalPoint(center);
-  position[0] = center[0] - 600.0;
+  position[0] = center[0] + 600.0;
   position[1] = center[1] + 150.0;
   position[2] = center[2] - 150.0;
   camera->SetPosition(position);
@@ -977,11 +977,14 @@ void cbElectrodeView::FocalPointSliceCallback(vtkObject *o, unsigned long, void 
     worldplane->GetOrigin(origin);
     vtkMath::Normalize(normal);
 
+    vtkCamera *currentCamera = currentPane->GetRenderer()->GetActiveCamera();
     double focalPoint[3];
-    currentPane->GetRenderer()->GetActiveCamera()->GetFocalPoint(focalPoint);
+    currentCamera->GetFocalPoint(focalPoint);
+    double dop[3];
+    currentCamera->GetDirectionOfProjection(dop);
 
     // Choose the orientation that does not flip the image
-    if (normal[i] > 0) {
+    if (vtkMath::Dot(normal, dop) > 0) {
       normal[0] = -normal[0];
       normal[1] = -normal[1];
       normal[2] = -normal[2];
@@ -1002,7 +1005,6 @@ void cbElectrodeView::FocalPointSliceCallback(vtkObject *o, unsigned long, void 
     double parametric;
     worldplane->IntersectWithLine(p1, p2, parametric, focalPoint);
 
-    vtkCamera *currentCamera = currentPane->GetRenderer()->GetActiveCamera();
     currentCamera->SetFocalPoint(focalPoint);
     currentCamera->SetPosition(normal[0]*mm + focalPoint[0],
                                normal[1]*mm + focalPoint[1],
