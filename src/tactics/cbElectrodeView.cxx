@@ -801,9 +801,10 @@ void cbElectrodeView::resetViewOrientations()
   double spacing[3];
   data->GetSpacing(spacing);
 
-  center[0] = 0.5*(extent[0] + extent[1])*spacing[0];
-  center[1] = 0.5*(extent[2] + extent[3])*spacing[1];
-  center[2] = 0.5*(extent[4] + extent[5])*spacing[2];
+  // use integer division, so that center lies on a voxel
+  center[0] = (extent[0] + extent[1])/2*spacing[0];
+  center[1] = (extent[2] + extent[3])/2*spacing[1];
+  center[2] = (extent[4] + extent[5])/2*spacing[2];
   center[3] = 1.0;
 
   this->frameTransform->MultiplyPoint(center, center);
