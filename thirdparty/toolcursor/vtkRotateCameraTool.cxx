@@ -81,11 +81,11 @@ void vtkRotateCameraTool::StartAction()
   this->MinimumRadius = height*0.05;
 
   // Check if "sticky" interaction is possible
-  if (this->Radius > this->MinimumRadius)
-    {
-    this->Sticky = this->IsStickyPossible(this->StickyPosition);
-    }
-  else
+  //if (this->Radius > this->MinimumRadius)
+  //  {
+  //  this->Sticky = this->IsStickyPossible(this->StickyPosition);
+  //  }
+  //else
     {
     this->Radius = this->MinimumRadius;
     this->Sticky = 0;
