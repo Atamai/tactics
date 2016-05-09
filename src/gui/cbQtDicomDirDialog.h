@@ -38,6 +38,7 @@
 #define __cbQtDicomDirDialog_h
 
 #include <QDialog>
+#include <QDir>
 #include <QStringList>
 
 class QFileDialog;
@@ -70,6 +71,9 @@ public:
 
   //! Get the files in the selected DICOM series.
   QStringList selectedFiles();
+
+  //! Get the directory selected in the file dialog.
+  QDir directory();
 
 public slots:
   //! Add files for viewing.

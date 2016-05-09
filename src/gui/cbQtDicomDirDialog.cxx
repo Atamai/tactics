@@ -189,6 +189,12 @@ QStringList cbQtDicomDirDialog::selectedFiles()
 }
 
 //--------------------------------------------------------------------------
+QDir cbQtDicomDirDialog::directory()
+{
+  return m_FileDialog->directory();
+}
+
+//--------------------------------------------------------------------------
 void cbQtDicomDirDialog::chooseSeries(const QModelIndex& idx)
 {
   if (m_DirModel && m_DirModel->getSeries(idx) >= 0) {

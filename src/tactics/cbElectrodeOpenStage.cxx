@@ -116,15 +116,7 @@ void cbElectrodeOpenStage::Execute()
     return;
   }
 
-  QString initialImage = dialog.selectedFiles().at(0);
-
-  QFileInfo fileInfo(initialImage);
-  path = fileInfo.path();
-  settings.setValue(folderKey, path);
-
-  if (initialImage == "") {
-    return;
-  }
+  settings.setValue(folderKey, dialog.directory().absolutePath());
 
   emit requestOpenImage(dialog.selectedFiles());
 
