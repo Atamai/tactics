@@ -78,6 +78,10 @@ signals:
   void EnableFrameVisualization();
   void DisableFrameVisualization();
 
+  //! Outgoing signal to toggle tag visualization.
+  void EnableTagVisualization();
+  void DisableTagVisualization();
+
   //! Outgoing signals to toggle plane display.
   void ToggleAxialVisualization(int);
   void ToggleCoronalVisualization(int);
@@ -131,6 +135,7 @@ private slots:
   void opacitySliderChanged(int);
   void setPrecision(QString);
   void toggleFrameVisualization(int);
+  void toggleTagVisualization(int);
 
   void savePlanReport();
 

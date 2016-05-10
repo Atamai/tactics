@@ -78,10 +78,12 @@
 #include "vtkDataSetMapper.h"
 #include "vtkDummyViewPane.h"
 #include "vtkDynamicViewFrame.h"
+#include "vtkExtractEdges.h"
 #include "vtkErrorCode.h"
 #include "vtkFiducialPointsTool.h"
 #include "vtkFollower.h"
 #include "vtkFollowerPlane.h"
+#include "vtkGlyph3D.h"
 #include "vtkImageData.h"
 #include "vtkImageHistogramStatistics.h"
 #include "vtkImageImport.h"
@@ -113,6 +115,7 @@
 #include "vtkSliceImageTool.h"
 #include "vtkSmartPointer.h"
 #include "vtkSmartVolumeMapper.h"
+#include "vtkSphereSource.h"
 #include "vtkStripper.h"
 #include "vtkTextProperty.h"
 #include "vtkToolCursor.h"
@@ -159,6 +162,7 @@ cbElectrodeView::cbElectrodeView(vtkDataManager *dataManager, QWidget *parent)
   this->CreateAndConfigurePanes();
   this->CreateAndBindTools();
   this->CreateFrameObjects();
+  this->CreateTagObjects();
   this->CreatePlanVisualization();
   this->CreateLabelsAndAnnotations();
 
@@ -1107,6 +1111,35 @@ void cbElectrodeView::displayLeksellFrame(vtkPolyData *frame,
   this->viewRect->Start();
 }
 
+void cbElectrodeView::displayTags(vtkPolyData *points,
+                                  vtkMatrix4x4 *transform)
+{
+  if (!points || !transform) {
+    planar->GetRenderer()->RemoveViewProp(this->Tags);
+  }
+  // Add the tags
+  vtkSmartPointer<vtkSphereSource> glyphSource =
+    vtkSmartPointer<vtkSphereSource>::New();
+  glyphSource->SetRadius(2.5);
+  glyphSource->SetThetaResolution(5);
+  glyphSource->SetPhiResolution(10);
+  glyphSource->Update();
+  vtkSmartPointer<vtkExtractEdges> edgeFilter =
+    vtkSmartPointer<vtkExtractEdges>::New();
+  edgeFilter->SetInput(glyphSource->GetOutput());
+  edgeFilter->Update();
+  vtkSmartPointer<vtkGlyph3D> glyph =
+    vtkSmartPointer<vtkGlyph3D>::New();
+  glyph->SetSource(edgeFilter->GetOutput());
+  glyph->SetInput(points);
+  vtkSmartPointer<vtkPolyDataMapper> tagMapper =
+    vtkSmartPointer<vtkPolyDataMapper>::New();
+  tagMapper->SetInputConnection(glyph->GetOutputPort());
+  this->Tags->SetMapper(tagMapper);
+  this->Tags->SetUserMatrix(transform);
+  planar->GetRenderer()->AddViewProp(this->Tags);
+}
+
 void cbElectrodeView::buildProbeMarker(vtkPolyData *probeData, cbProbe p)
 {
   assert("Input parameter can't be null!" && probeData);
@@ -1540,6 +1573,18 @@ void cbElectrodeView::EnableFrameVisualization()
 void cbElectrodeView::DisableFrameVisualization()
 {
   this->Frame->SetVisibility(0);
+  this->viewRect->GetRenderWindow()->Render();
+}
+
+void cbElectrodeView::EnableTagVisualization()
+{
+  this->Tags->SetVisibility(1);
+  this->viewRect->GetRenderWindow()->Render();
+}
+
+void cbElectrodeView::DisableTagVisualization()
+{
+  this->Tags->SetVisibility(0);
   this->viewRect->GetRenderWindow()->Render();
 }
 
@@ -1980,6 +2025,15 @@ void cbElectrodeView::CreateFrameObjects()
 {
   this->Frame = vtkActor::New();
   this->frameTransform = vtkMatrix4x4::New();
+}
+
+void cbElectrodeView::CreateTagObjects()
+{
+  this->Tags = vtkActor::New();
+  this->Tags->GetProperty()->SetColor(1.0, 0.0, 0.0);
+  this->Tags->GetProperty()->SetAmbient(0.8);
+  this->Tags->GetProperty()->SetDiffuse(0.2);
+  this->tagTransform = vtkMatrix4x4::New();
 }
 
 void cbElectrodeView::CreatePlanVisualization()

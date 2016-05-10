@@ -169,6 +169,11 @@ int main(int argc, char *argv[])
   QObject::connect(&planStage, SIGNAL(ToggleProbeVisualizationMode(int)),
                    &window, SLOT(ToggleProbeVisualizationMode(int)));
 
+  QObject::connect(&planStage, SIGNAL(EnableTagVisualization()),
+                   &window, SLOT(EnableTagVisualization()));
+  QObject::connect(&planStage, SIGNAL(DisableTagVisualization()),
+                   &window, SLOT(DisableTagVisualization()));
+
   QObject::connect(&planStage, SIGNAL(ToggleHelpAnnotations(int)),
                    &window, SLOT(ToggleHelpAnnotations(int)));
   QObject::connect(&planStage, SIGNAL(TogglePatientAnnotations(int)),

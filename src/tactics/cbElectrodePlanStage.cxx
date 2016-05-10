@@ -111,6 +111,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
           QCheckBox *sagittalToggle = new QCheckBox("Show sagittal plane.");
           QCheckBox *coronalToggle = new QCheckBox("Show coronal plane.");
           QCheckBox *probeToggle = new QCheckBox("Show all probes.");
+          QCheckBox *tagToggle = new QCheckBox("Show loaded tags.");
           QCheckBox *helpToggle = new QCheckBox("Show help annotation.");
           QCheckBox *patientToggle = new QCheckBox("Show patient information.");
 
@@ -213,6 +214,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   optionWidgetLayout->addWidget(sagittalToggle);
   optionWidgetLayout->addWidget(coronalToggle);
   optionWidgetLayout->addWidget(probeToggle);
+  optionWidgetLayout->addWidget(tagToggle);
   optionWidgetLayout->addWidget(helpToggle);
   optionWidgetLayout->addWidget(patientToggle);
   optionWidgetLayout->addStretch();
@@ -249,6 +251,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   sagittalToggle->setChecked(true);
   coronalToggle->setChecked(true);
   probeToggle->setChecked(true);
+  tagToggle->setChecked(true);
   helpToggle->setChecked(true);
   patientToggle->setChecked(true);
 
@@ -264,6 +267,8 @@ cbElectrodePlanStage::cbElectrodePlanStage()
 
   connect(probeToggle, SIGNAL(stateChanged(int)),
           this, SIGNAL(ToggleProbeVisualizationMode(int)));
+  connect(tagToggle, SIGNAL(stateChanged(int)),
+          this, SLOT(toggleTagVisualization(int)));
   connect(helpToggle, SIGNAL(stateChanged(int)),
           this, SIGNAL(ToggleHelpAnnotations(int)));
   connect(patientToggle, SIGNAL(stateChanged(int)),
@@ -725,6 +730,15 @@ void cbElectrodePlanStage::toggleFrameVisualization(int s)
     return;
   }
   emit DisableFrameVisualization();
+}
+
+void cbElectrodePlanStage::toggleTagVisualization(int s)
+{
+  if (s) {
+    emit EnableTagVisualization();
+    return;
+  }
+  emit DisableTagVisualization();
 }
 
 void cbElectrodePlanStage::updateCurrentProbeName(QString n)

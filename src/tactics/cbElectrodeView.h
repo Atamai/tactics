@@ -119,6 +119,9 @@ public slots:
   //! Incoming signal to display the frame polydata.
   void displayLeksellFrame(vtkPolyData *frame, vtkMatrix4x4 *transform);
 
+  //! Incoming signal to display the tags that were loaded.
+  void displayTags(vtkPolyData *points, vtkMatrix4x4 *transform);
+
   //! Incoming signal to display the surface rendering.
   void displaySurfaceVolume(vtkDataManager::UniqueKey);
 
@@ -137,6 +140,11 @@ public slots:
   void EnableFrameVisualization();
   //! Incoming signal to disable the frame actor
   void DisableFrameVisualization();
+
+  //! Incoming signal to visualize the tag actor
+  void EnableTagVisualization();
+  //! Incoming signal to disable the tag actor
+  void DisableTagVisualization();
 
   //! Incoming signal to toggle visualization of the plane.
   void ToggleAxialVisualization(int s);
@@ -220,6 +228,9 @@ private:
   //! The frame coordinate matrix.
   vtkMatrix4x4 *frameTransform;
 
+  //! The tag coordinate matrix.
+  vtkMatrix4x4 *tagTransform;
+
   //! The mouse-button help annotation.
   vtkCornerAnnotation *helpAnnotation;
 
@@ -231,6 +242,9 @@ private:
 
   //! The Leksell Frame actor.
   vtkActor *Frame;
+
+  //! The tag actor.
+  vtkActor *Tags;
 
   //! Toolcursor tools for the application. All have callbacks associated.
   vtkPushPlaneTool *planeTool;
@@ -353,6 +367,9 @@ private:
 
   //! Create the frame renderer assets.
   void CreateFrameObjects();
+
+  //! Create the tag assets.
+  void CreateTagObjects();
 
   //! Create the actor collection for probes.
   void CreatePlanVisualization();
