@@ -52,6 +52,7 @@
 
 #include "vtkMatrix4x4.h"
 #include "vtkImageNode.h"
+#include "vtkSurfaceNode.h"
 #include "vtkStringArray.h"
 #include "vtkImageData.h"
 #include "vtkSmartPointer.h"
@@ -62,10 +63,13 @@
 #include "vtkDICOMReader.h"
 #include "vtkDICOMToRAS.h"
 #include "vtkNIFTIReader.h"
+#include "vtkMNITagPointReader.h"
+#include "vtkTransformPolyDataFilter.h"
 
 #include <QDate>
 #include <QTime>
 #include <QDateTime>
+#include <QFileInfo>
 #include <QString>
 #include <QMessageBox>
 #include <QDebug>
@@ -148,6 +152,7 @@ void ReadNIFTIImage(const std::string& fileName, vtkImageData *data,
     vtkSmartPointer<vtkNIFTIReader>::New();
 
   reader->SetFileName(fileName.c_str());
+  reader->Update();
 
   // switch from NIFTI to DICOM coordinates
   vtkSmartPointer<vtkDICOMToRAS> reorder =
@@ -382,6 +387,10 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> ct_matrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
+  vtkSmartPointer<vtkMatrix4x4> mr_matrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  vtkSmartPointer<vtkMatrix4x4> work_matrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
   vtkSmartPointer<vtkDICOMMetaData> ct_meta =
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
@@ -392,6 +401,7 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
   }
 
   ReadImage(ct_files, ct_data, ct_matrix, ct_meta);
+  work_matrix->DeepCopy(ct_matrix);
 
   std::cout << "*** image matrix ***" << std::endl;
   for (int i = 0; i < 4; i++) {
@@ -402,6 +412,15 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
   }
   this->RegisterCT(ct_data, ct_matrix);
 
+  // compute the change in coords due to the registration
+  work_matrix->Invert();
+  vtkMatrix4x4::Multiply4x4(work_matrix, ct_matrix, work_matrix);
+  // finally, put the points into MR data coordinates
+  vtkImageNode *mr = this->dataManager->FindImageNode(this->dataKey);
+  mr_matrix->DeepCopy(mr->GetMatrix());
+  mr_matrix->Invert();
+  vtkMatrix4x4::Multiply4x4(work_matrix, mr_matrix, work_matrix);
+
   vtkSmartPointer<vtkImageNode> ct_node =
     vtkSmartPointer<vtkImageNode>::New();
 
@@ -410,6 +429,50 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
   this->dataManager->FindImageNode(this->ctKey)->ShallowCopyImage(ct_data);
   this->dataManager->FindImageNode(this->ctKey)->SetMatrix(ct_matrix);
   this->dataManager->FindImageNode(this->ctKey)->SetMetaData(ct_meta);
+
+  // Check to see if there is a tag file
+  if (files.size() > 0) {
+    QString tagFile;
+    int l = files[0].size();
+    if (files[0].endsWith(".nii", Qt::CaseInsensitive)) {
+      tagFile = files[0].left(l - 4) + ".tag";
+    }
+    else if (files[0].endsWith(".nii.gz", Qt::CaseInsensitive)) {
+      tagFile = files[0].left(l - 7) + ".tag";
+    }
+    if (tagFile.size() > 0) {
+      QFileInfo info(tagFile);
+      if (info.exists()) {
+        // for converting tags from NIFTI to DICOM coords
+        const double flipXY[16] = {
+          -1.0, 0.0, 0.0, 0.0,  0.0, -1.0, 0.0, 0.0,  0.0, 0.0, 1.0, 0.0,
+          0.0, 0.0, 0.0, 1.0
+        };
+        vtkSmartPointer<vtkTransform> ttransform =
+          vtkSmartPointer<vtkTransform>::New();
+        ttransform->PostMultiply();
+        ttransform->Concatenate(flipXY);
+        ttransform->Concatenate(work_matrix);
+        vtkSmartPointer<vtkMNITagPointReader> treader =
+          vtkSmartPointer<vtkMNITagPointReader>::New();
+        treader->SetFileName(tagFile.toLocal8Bit().constData());
+
+        vtkSmartPointer<vtkTransformPolyDataFilter> tfilter =
+          vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+        tfilter->SetInputConnection(treader->GetOutputPort());
+        tfilter->SetTransform(ttransform);
+        tfilter->Update();
+
+        vtkSmartPointer<vtkSurfaceNode> tag_node =
+          vtkSmartPointer<vtkSurfaceNode>::New();
+        this->dataManager->AddDataNode(tag_node, this->tagKey);
+        this->dataManager->FindSurfaceNode(this->tagKey)
+          ->ShallowCopySurface(tfilter->GetOutput());
+
+        emit displayTags(tfilter->GetOutput(), NULL);
+      }
+    }
+  }
 
   emit DisplayCTData(this->ctKey);
 }
@@ -429,6 +492,9 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
   regist->SetInputTarget(mr_d);
   regist->SetInputTargetMatrix(mr_m);
   regist->Execute();
+
+  // Allow the caller get the result of the registration
+  ct_m->DeepCopy(regist->GetModifiedSourceMatrix());
 
   //TODO: this should use the save-file matrix, if it exists
   vtkSmartPointer<vtkMatrix4x4> registered_m =

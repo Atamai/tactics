@@ -108,6 +108,10 @@ int main(int argc, char *argv[])
                    &window,
                    SLOT(displayLeksellFrame(vtkPolyData *, vtkMatrix4x4 *)));
   QObject::connect(&controller,
+                   SIGNAL(displayTags(vtkPolyData *, vtkMatrix4x4 *)),
+                   &window,
+                   SLOT(displayTags(vtkPolyData *, vtkMatrix4x4 *)));
+  QObject::connect(&controller,
                    SIGNAL(displaySurfaceVolume(vtkDataManager::UniqueKey)),
                    &window,
                    SLOT(displaySurfaceVolume(vtkDataManager::UniqueKey)));

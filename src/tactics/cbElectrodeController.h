@@ -76,6 +76,9 @@ signals:
   //! Tell the view to display the frame
   void displayLeksellFrame(vtkPolyData *, vtkMatrix4x4 *);
 
+  //! Tell the view to display the tags
+  void displayTags(vtkPolyData *, vtkMatrix4x4 *);
+
   //! Tell the viw to display the surface volume of the brain.
   void displaySurfaceVolume(vtkDataManager::UniqueKey);
 
@@ -95,6 +98,7 @@ private:
   vtkDataManager::UniqueKey dataKey;
   vtkDataManager::UniqueKey volumeKey;
   vtkDataManager::UniqueKey ctKey;
+  vtkDataManager::UniqueKey tagKey;
 
   bool useAnteriorPosteriorFiducials;
 };

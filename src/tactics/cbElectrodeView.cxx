@@ -1114,15 +1114,22 @@ void cbElectrodeView::displayLeksellFrame(vtkPolyData *frame,
 void cbElectrodeView::displayTags(vtkPolyData *points,
                                   vtkMatrix4x4 *transform)
 {
-  if (!points || !transform) {
+  if (!points) {
     planar->GetRenderer()->RemoveViewProp(this->Tags);
+    return;
   }
+
+  // If no transform specified, use frame transform
+  if (!transform) {
+    transform = this->frameTransform;
+  }
+
   // Add the tags
   vtkSmartPointer<vtkSphereSource> glyphSource =
     vtkSmartPointer<vtkSphereSource>::New();
   glyphSource->SetRadius(2.5);
-  glyphSource->SetThetaResolution(5);
-  glyphSource->SetPhiResolution(10);
+  glyphSource->SetThetaResolution(8);
+  glyphSource->SetPhiResolution(8);
   glyphSource->Update();
   vtkSmartPointer<vtkExtractEdges> edgeFilter =
     vtkSmartPointer<vtkExtractEdges>::New();
