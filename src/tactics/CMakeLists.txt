@@ -34,6 +34,7 @@ add_executable(${project_BIN} MACOSX_BUNDLE ${project_BIN_SRCS})
 target_link_libraries(${project_BIN} ${project_LIB})
 if(APPLE)
   set_target_properties(${project_BIN} PROPERTIES
+    INSTALL_RPATH_USE_LINK_PATH ON
     MACOSX_BUNDLE_BUNDLE_NAME Tactics
     MACOSX_BUNDLE_BUNDLE_VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}"
     MACOSX_BUNDLE_ICON_FILE Tactics
@@ -58,7 +59,7 @@ set(plugin_dest_dir bin)
 set(qtconf_dest_dir bin)
 set(APPS "\${CMAKE_INSTALL_PREFIX}/Tactics")
 if(APPLE)
-  set(plugin_dest_dir Tactics.app/Contents/MacOS)
+  set(plugin_dest_dir Tactics.app/Contents)
   set(qtconf_dest_dir Tactics.app/Contents/Resources)
   set(APPS "\${CMAKE_INSTALL_PREFIX}/Tactics.app")
 endif()
@@ -74,9 +75,13 @@ install(TARGETS ${project_BIN}
 )
 
 # Install needed Qt plugins by copying directories from the qt installation
-# One can cull what gets copied by using 'REGEX "..." EXCLUDE'
-install(DIRECTORY "${QT_PLUGINS_DIR}/imageformats"
-        DESTINATION ${plugin_dest_dir}/plugins COMPONENT Runtime)
+foreach(plugin ${Qt5Gui_PLUGINS})
+  get_target_property(src ${plugin} LOCATION)
+  string(REGEX MATCH "plugins\\/*[^\\/]+\\/*[^\\/]+$" dst ${src})
+  get_filename_component(dst ${dst} PATH)
+  install(FILES ${src} DESTINATION ${plugin_dest_dir}/${dst}
+          COMPONENT Runtime)
+endforeach()
 
 # install a qt.conf file
 # this inserts some cmake code into the install script to write the file
