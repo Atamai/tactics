@@ -63,7 +63,7 @@
 #include "vtkDICOMReader.h"
 #include "vtkDICOMToRAS.h"
 #include "vtkNIFTIReader.h"
-#include "vtkMNITagPointReader.h"
+#include "vtkMNITagPointReader2.h"
 #include "vtkTransformPolyDataFilter.h"
 
 #include <QDate>
@@ -453,8 +453,8 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
         ttransform->PostMultiply();
         ttransform->Concatenate(flipXY);
         ttransform->Concatenate(work_matrix);
-        vtkSmartPointer<vtkMNITagPointReader> treader =
-          vtkSmartPointer<vtkMNITagPointReader>::New();
+        vtkSmartPointer<vtkMNITagPointReader2> treader =
+          vtkSmartPointer<vtkMNITagPointReader2>::New();
         treader->SetFileName(tagFile.toLocal8Bit().constData());
 
         vtkSmartPointer<vtkTransformPolyDataFilter> tfilter =

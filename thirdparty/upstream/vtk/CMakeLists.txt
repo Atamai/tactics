@@ -21,6 +21,7 @@ set(LIB_NAME cbVTK)
 set(LIB_DEPS vtkCommon vtkImaging vtkFiltering)
 set(LIB_SRCS
   vtkContourToPolygonFilter.cxx
+  vtkMNITagPointReader2.cxx
   vtkProgressAccumulator.cxx
 )
 
