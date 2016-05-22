@@ -148,6 +148,39 @@ int vtkMNITagPointReader2::ReadLine(
   std::getline(infile, linetext);
   pos = linetext.begin();
 
+  // look for non-ascii quotes and hyphens in utf-8, convert to ASCII
+  for (std::string::iterator iter = pos; iter != linetext.end(); ++iter)
+    {
+    if (*iter == '\xe2') // "General Punctuation Block" first utf-8 byte
+      {
+      std::string::iterator jter = iter;
+      ++jter;
+      if (jter != linetext.end() && *jter == '\x80') // second utf-8 byte
+        {
+        ++jter;
+        if (jter != linetext.end())
+          {
+          const char punct[] = {  // third and final utf-8 byte
+            '\x90', '-', '\x91', '-',    // hyphen
+            '\x98', '\'', '\x99', '\'',  // single quote
+            '\x9c', '\"', '\x9d', '\"',  // double quote
+            };
+          char c = *jter;
+          ++jter;
+          for (int i = 0; i < sizeof(punct); i += 2)
+            {
+            if (c == punct[i])
+              {
+              // replace the three utf-8 bytes by the ASCII char
+              linetext.replace(iter, jter, 1, punct[i+1]);
+              break;
+              }
+            }
+          }
+        }
+      }
+    }
+
   if (infile.fail())
     {
     if (infile.eof())
