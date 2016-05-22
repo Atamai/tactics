@@ -43,6 +43,7 @@
 #include "cbElectrodeAutomator.h"
 #include "cbElectrodeToolBarWidget.h"
 #include "cbProbe.h"
+#include "cbQtVTKOutputWindow.h"
 #include "cbStageManager.h"
 
 #include <QDebug>
@@ -73,6 +74,9 @@ void AutoOpen(cbStageManager *m, cbElectrodeOpenStage *s, const char *arg)
 
 int main(int argc, char *argv[])
 {
+  // install the VTK-to-Qt error message translator
+  cbQtVTKOutputWindow::Install();
+
   QApplication a(argc, argv);
 
   QDir dir(QApplication::applicationDirPath());

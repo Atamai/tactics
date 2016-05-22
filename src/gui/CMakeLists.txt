@@ -30,6 +30,7 @@ set(LIB_SRCS
   cbQtDicomDirModel.cxx
   cbQtDicomDirThread.cxx
   cbQtDicomDirView.cxx
+  cbQtVTKOutputWindow.cxx
   cbStage.cxx
   cbStageManager.cxx
 )
