@@ -2037,6 +2037,7 @@ void cbElectrodeView::CreateFrameObjects()
 void cbElectrodeView::CreateTagObjects()
 {
   this->Tags = vtkActor::New();
+  this->Tags->PickableOff();
   this->Tags->GetProperty()->SetColor(1.0, 0.0, 0.0);
   this->Tags->GetProperty()->SetAmbient(0.8);
   this->Tags->GetProperty()->SetDiffuse(0.2);
