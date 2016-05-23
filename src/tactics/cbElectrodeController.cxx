@@ -479,7 +479,8 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
 
 void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 {
-  emit initializeProgress(0, 0);
+  emit initializeProgress(0, 100);
+  emit displayProgress(20);
 
   vtkImageNode *mr = this->dataManager->FindImageNode(this->dataKey);
   vtkImageData *mr_d = mr->GetImage();
@@ -522,8 +523,7 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 
   ct_d->DeepCopy(reslicer->GetOutput());
 
-  emit initializeProgress(0, 1);
-  emit displayProgress(1);
+  emit displayProgress(100);
 }
 
 // Overloaded to include a pre-registered matrix
