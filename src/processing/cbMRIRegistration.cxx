@@ -308,12 +308,7 @@ int cbMRIRegistration::Execute()
     m_progressAccumulate->RegisterFilter(registration,0.05f);
   }
 
-  if (!m_modifySourceMatrix) {
-    registration->SetTransformTypeToScaleTargetAxes();
-  }
-  else {
-    registration->SetTransformTypeToRigid();
-  }
+  registration->SetTransformTypeToAffine();
 
   if (this->m_registrationMethod == MUTUAL_INFORMATION) {
     registration->SetMetricTypeToNormalizedMutualInformation();
