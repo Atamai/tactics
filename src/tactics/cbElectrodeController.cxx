@@ -414,12 +414,12 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
 
   // compute the change in coords due to the registration
   work_matrix->Invert();
-  vtkMatrix4x4::Multiply4x4(work_matrix, ct_matrix, work_matrix);
+  vtkMatrix4x4::Multiply4x4(ct_matrix, work_matrix, work_matrix);
   // finally, put the points into MR data coordinates
   vtkImageNode *mr = this->dataManager->FindImageNode(this->dataKey);
   mr_matrix->DeepCopy(mr->GetMatrix());
   mr_matrix->Invert();
-  vtkMatrix4x4::Multiply4x4(work_matrix, mr_matrix, work_matrix);
+  vtkMatrix4x4::Multiply4x4(mr_matrix, work_matrix, work_matrix);
 
   vtkSmartPointer<vtkImageNode> ct_node =
     vtkSmartPointer<vtkImageNode>::New();
