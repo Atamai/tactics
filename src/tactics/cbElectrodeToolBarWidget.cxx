@@ -77,6 +77,7 @@ cbElectrodeToolBarWidget::cbElectrodeToolBarWidget(vtkDataManager *dataManager,
   // first line toolbar
   QToolBar *fileToolBar = new QToolBar;
   fileToolBar->addAction(actionWinLevel);
+  fileToolBar->addAction(actionRotate);
   fileToolBar->addAction(actionPan);
   fileToolBar->addAction(actionZoom);
   fileToolBar->addAction(actionPlane);
@@ -107,6 +108,12 @@ void cbElectrodeToolBarWidget::createActions()
   actionWinLevel->setCheckable(true);
   actionWinLevel->setStatusTip("Change contrast and brightness of images.");
   connect(actionWinLevel, SIGNAL(triggered()), this, SLOT(onWinlevButtonDown()));
+
+  actionRotate = new QAction(QIcon(m_iconPath + "/rotate.png"),
+                          tr("&Rotate..."), this);
+  actionRotate->setCheckable(true);
+  actionRotate->setStatusTip("Rotate the 3D view.");
+  connect(actionRotate, SIGNAL(triggered()), this, SLOT(onRotateButtonDown()));
 
   actionPan = new QAction(QIcon(m_iconPath + "/pan.png"),
                           tr("&Pan..."), this);
@@ -141,10 +148,21 @@ void cbElectrodeToolBarWidget::createActions()
 
   m_groupMouseControl->setExclusive(true);
   m_groupMouseControl->setEnabled(false);
+  m_groupMouseControl->addAction(actionRotate);
   m_groupMouseControl->addAction(actionPan);
   m_groupMouseControl->addAction(actionZoom);
   m_groupMouseControl->addAction(actionWinLevel);
   m_groupMouseControl->addAction(actionPlane);
+}
+
+//----------------------------------------------------------------------------
+void cbElectrodeToolBarWidget::onRotateButtonDown()
+{
+  QPixmap pix(m_cursorPath + "/rotate.png");
+  QCursor cur(pix);
+  m_window->setActiveToolCursor(cur);
+  m_window->bindToolCursorAction(cbElectrodeView::Rotate, Qt::LeftButton);
+  m_window->bindToolCursorAction(cbElectrodeView::Rotate, Qt::RightButton);
 }
 
 //----------------------------------------------------------------------------

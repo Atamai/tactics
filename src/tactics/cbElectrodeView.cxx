@@ -741,7 +741,11 @@ void cbElectrodeView::bindToolCursorAction(int cursortool, int mousebutton)
     }
   }
   else if (cursortool == cbElectrodeView::Rotate) {
-    if (mousebutton == Qt::RightButton) {
+    if (mousebutton == Qt::LeftButton) {
+      int bind = planar->GetToolCursor()->AddAction(this->rotateTool);
+      planar->GetToolCursor()->BindAction(bind, 0, 0, VTK_TOOL_B1);
+    }
+    else if (mousebutton == Qt::RightButton) {
       int bind = planar->GetToolCursor()->AddAction(this->rotateTool);
       planar->GetToolCursor()->BindAction(bind, 0, 0, VTK_TOOL_B2);
     }

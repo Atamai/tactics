@@ -64,6 +64,9 @@ public slots:
   //! Click to change the window/level of current viewing image
   void onWinlevButtonDown();
 
+  //! Click to rotate current viewing image
+  void onRotateButtonDown();
+
   //! Click to pan current viewing image
   void onPanButtonDown();
 
