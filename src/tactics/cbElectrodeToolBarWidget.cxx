@@ -86,10 +86,12 @@ cbElectrodeToolBarWidget::cbElectrodeToolBarWidget(vtkDataManager *dataManager,
   fileToolBar->addAction(actionMaximizeToggle);
 
   QVBoxLayout *iconBarLayout = new QVBoxLayout;
-  iconBarLayout->setContentsMargins(9, 0, 9, 0);
+  iconBarLayout->setContentsMargins(0, 0, 0, 0);
   iconBarLayout->setSpacing(0);
   iconBarLayout->addWidget(fileToolBar);
   this->setLayout(iconBarLayout);
+
+  this->setContentsMargins(0, 0, 0, 0);
 }
 
 // Destructor

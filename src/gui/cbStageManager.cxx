@@ -68,6 +68,8 @@ cbStageManager::cbStageManager(QWidget *parent, QFrame *toolbar,
   // Hierarchy of widgets and layouts for the dock.
   QWidget *containerWidget = new QWidget;
       sidebarLayout = new QVBoxLayout;
+      sidebarLayout->setContentsMargins(0, 0, 0, 0);
+      sidebarLayout->setSpacing(0);
       // Previous and Next buttons
       QWidget *buttonWidget = new QWidget;
         QHBoxLayout *horizontal = new QHBoxLayout;
