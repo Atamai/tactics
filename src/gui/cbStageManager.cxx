@@ -55,6 +55,8 @@ cbStageManager::cbStageManager(QWidget *parent, QFrame *toolbar,
                                const std::vector<cbStage *> &stages)
 : QDockWidget(parent), current(0), performed(0)
 {
+  this->setTitleBarWidget(new QWidget);
+
   this->sidebar = 0;
   this->stages = stages;
 
