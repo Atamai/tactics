@@ -1131,7 +1131,7 @@ void cbElectrodeView::displayTags(vtkPolyData *points,
   // Add the tags
   vtkSmartPointer<vtkSphereSource> glyphSource =
     vtkSmartPointer<vtkSphereSource>::New();
-  glyphSource->SetRadius(2.5);
+  glyphSource->SetRadius(2.0);
   glyphSource->SetThetaResolution(8);
   glyphSource->SetPhiResolution(8);
   glyphSource->Update();
@@ -1912,7 +1912,6 @@ void cbElectrodeView::CreateMenu()
   QAction *openAction = fileMenu->addAction(tr("&Open Plan..."));
   QAction *saveAction = fileMenu->addAction(tr("&Save Plan"));
   QAction *saveAsAction = fileMenu->addAction(tr("Save Plan &As..."));
-  QAction *openCTAction = fileMenu->addAction(tr("Open Se&condary Series..."));
 
   QAction *aboutAction = aboutMenu->addAction(tr("&About"));
 
@@ -1927,7 +1926,6 @@ void cbElectrodeView::CreateMenu()
   connect(openAction, SIGNAL(triggered()), this, SLOT(Open()));
   connect(saveAction, SIGNAL(triggered()), this, SLOT(Save()));
   connect(saveAsAction, SIGNAL(triggered()), this, SLOT(SaveAs()));
-  connect(openCTAction, SIGNAL(triggered()), this, SLOT(OpenCT()));
 
   connect(aboutAction, SIGNAL(triggered()), this, SLOT(About()));
 
@@ -2224,7 +2222,7 @@ void cbElectrodeView::DisplayCTData(vtkDataManager::UniqueKey k)
   this->AppendMetaData(secondary_patient_label);
 
   this->CTProperty->DeepCopy(this->ImageProperty);
-  this->CTProperty->SetOpacity(0.30);
+  this->CTProperty->SetOpacity(1.00);
 
   // Set window/level to display up to the 99th percentile of image
   // pixels (i.e. the brightest 1% of the pixels will saturate).
@@ -2234,7 +2232,6 @@ void cbElectrodeView::DisplayCTData(vtkDataManager::UniqueKey k)
   // so that the brain case is transparent.
   double range[2];
   cbElectrodeView::ComputePercentileRange(ct_data, 99.0, range);
-  range[0] += 0.5*(range[1] - range[0]);
   this->CTProperty->SetColorWindow(range[1] - range[0]);
   this->CTProperty->SetColorLevel(0.5*(range[1] + range[0]));
   this->CTProperty->SetInterpolationTypeToCubic();
