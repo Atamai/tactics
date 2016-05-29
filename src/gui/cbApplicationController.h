@@ -63,6 +63,12 @@ signals:
   //! Tell the cbMainWindow to display a error message.
   void displayErrorMessage(QString message);
 
+  //! Display a status message for the specified number of milliseconds.
+  void displayStatus(const QString &message, int timeout = 0);
+
+  //! Clear the status message.
+  void clearStatus();
+
   //! Tell the cbMainWindow to update the progress bar.
   void displayProgress(int);
 

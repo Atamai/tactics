@@ -102,6 +102,11 @@ int main(int argc, char *argv[])
   cbElectrodeView window(dataManager);
   cbElectrodeController controller(dataManager);
 
+  QObject::connect(&controller, SIGNAL(displayStatus(const QString&, int)),
+                   &window, SLOT(displayStatus(const QString&, int)));
+  QObject::connect(&controller, SIGNAL(clearStatus()),
+                   &window, SLOT(clearStatus()));
+
   QObject::connect(&controller, SIGNAL(initializeProgress(int, int)),
                    &window, SLOT(initializeProgress(int, int)));
   QObject::connect(&controller, SIGNAL(displayProgress(int)),

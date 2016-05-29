@@ -90,6 +90,16 @@ cbMainWindow::~cbMainWindow()
   viewRect->Delete();
 }
 
+void cbMainWindow::displayStatus(const QString &message, int timeout)
+{
+  this->statusBar()->showMessage(message, timeout);
+}
+
+void cbMainWindow::clearStatus()
+{
+  this->statusBar()->clearMessage();
+}
+
 void cbMainWindow::displayProgress(int v)
 {
   this->progressBar->setValue(v);
@@ -101,7 +111,6 @@ void cbMainWindow::initializeProgress(int min, int max)
   this->progressBar->reset();
   this->progressBar->setMinimum(min);
   this->progressBar->setMaximum(max);
-  QApplication::processEvents();
 }
 
 void cbMainWindow::displaySuccessMessage(QString message)

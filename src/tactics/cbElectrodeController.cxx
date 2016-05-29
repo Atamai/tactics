@@ -480,6 +480,8 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
 void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 {
   emit initializeProgress(0, 100);
+  emit displayStatus("Registering secondary series to primary, "
+                     "this may take a while...");
   emit displayProgress(20);
 
   vtkImageNode *mr = this->dataManager->FindImageNode(this->dataKey);
@@ -523,6 +525,8 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 
   ct_d->DeepCopy(reslicer->GetOutput());
 
+  emit displayStatus("Completed registration of secondary series"
+                     " to primary series.", 5000);
   emit displayProgress(100);
 }
 
