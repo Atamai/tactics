@@ -1806,7 +1806,8 @@ void cbElectrodeView::Save()
 
   std::ofstream file;
   file.open(this->SaveFile.c_str());
-
+  file << std::endl << std::endl;
+  /*
   std::string image_path, ct_path;
   vtkImageNode *mr_node = this->dataManager->FindImageNode(this->dataKey);
   vtkImageNode *ct_node = this->dataManager->FindImageNode(this->ctKey);
@@ -1833,6 +1834,7 @@ void cbElectrodeView::Save()
     }
     file << std::endl;
   }
+  */
 
   file.close();
 
