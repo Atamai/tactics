@@ -52,6 +52,7 @@ set(APPLICATION_RESOURCE_PATH
 #
 set(INCLUDE_OUTPUT_PATH
   "${MAINFOLDER}/include"
+  "${MAINFOLDER}/thirdparty/jsoncpp"
   "${MAINFOLDER}/thirdparty/toolcursor"
   "${MAINFOLDER}/thirdparty/airs/ImageRegistration/"
   "${MAINFOLDER}/thirdparty/airs/ImageSegmentation/"
