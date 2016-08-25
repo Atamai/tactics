@@ -232,7 +232,7 @@ int cbMRIRegistration::Execute()
   }
 
   // parameters for registration
-  int interpolatorType = vtkImageRegistration::Linear;
+  int interpolatorType = vtkImageRegistration::Affine;
   double transformTolerance = 0.1; // tolerance on transformation result
   int numberOfBins = 64; // for Mattes' mutual information
   double initialBlurFactor = 4.0;
@@ -308,7 +308,7 @@ int cbMRIRegistration::Execute()
     m_progressAccumulate->RegisterFilter(registration,0.05f);
   }
 
-  registration->SetTransformTypeToAffine();
+  registration->SetTransformTypeToRigid();
 
   if (this->m_registrationMethod == MUTUAL_INFORMATION) {
     registration->SetMetricTypeToNormalizedMutualInformation();
@@ -331,24 +331,11 @@ int cbMRIRegistration::Execute()
   // do the registration
   // the registration starts at low-resolution
   double blurFactor = initialBlurFactor;
-  // two stages for each resolution:
-  // first without interpolation, and then with interpolation
-  int stage = 0;
   // will be set to "true" when registration is initialized
   bool initialized = false;
 
   for (;;)
   {
-    if (stage == 0)
-    {
-      registration->SetInterpolatorTypeToNearest();
-      registration->SetTransformTolerance(minSpacing);
-    }
-    else
-    {
-      registration->SetInterpolatorType(interpolatorType);
-      registration->SetTransformTolerance(transformTolerance);
-    }
     if (blurFactor < 1.1)
     {
       // full resolution: no blurring or resampling
@@ -359,6 +346,8 @@ int cbMRIRegistration::Execute()
       targetBlur->InterpolateOff();
       targetBlur->SetOutputSpacing(targetSpacing);
       targetBlur->Update();
+
+      registration->SetTransformTolerance(transformTolerance);
     }
     else
     {
@@ -371,6 +360,8 @@ int cbMRIRegistration::Execute()
         {
           spacing[j] = sourceSpacing[j];
         }
+
+      registration->SetTransformTolerance(transformTolerance*blurFactor);
       }
 
       sourceBlurKernel->SetBlurFactors(
@@ -425,21 +416,17 @@ int cbMRIRegistration::Execute()
     }
 
     double newTime = timer->GetUniversalTime();
-    cout << "blur " << blurFactor << " stage " << stage << " took "
+    cout << "blur " << blurFactor << " took "
     << (newTime - lastTime) << "s and "
     << registration->GetNumberOfEvaluations() << " evaluations" << endl;
     lastTime = newTime;
 
     // prepare for next iteration
-    if (stage == 1)
+    blurFactor /= 2.0;
+    if (blurFactor < 0.9)
     {
-      blurFactor /= 2.0;
-      if (blurFactor < 0.9)
-      {
-        break;
-      }
+      break;
     }
-    stage = (stage + 1) % 2;
   }
 
   if (m_progressAccumulate) {
