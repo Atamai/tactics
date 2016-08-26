@@ -232,7 +232,7 @@ int cbMRIRegistration::Execute()
   }
 
   // parameters for registration
-  int interpolatorType = vtkImageRegistration::Affine;
+  int interpolatorType = vtkImageRegistration::Rigid;
   double transformTolerance = 0.1; // tolerance on transformation result
   int numberOfBins = 64; // for Mattes' mutual information
   double initialBlurFactor = 4.0;
