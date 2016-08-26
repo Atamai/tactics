@@ -66,7 +66,15 @@ void cbQtVTKOutputWindow::DisplayText(const char* text)
 {
   if (text)
     {
+#if QT_VERSION < 0x050500
+#if QT_NO_DEBUG_OUTPUT
+    std::cerr << text << std::endl;
+#else
+    qDebug("%s", text);
+#endif
+#else
     qInfo("%s", text);
+#endif
     }
 }
 
