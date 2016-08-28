@@ -49,6 +49,7 @@
 #include "vtkImageMRIBrainExtractor.h"
 #include "vtkPolyDataToImageStencil.h"
 #include "vtkPolyData.h"
+#include "vtkTimerLog.h"
 
 #include "vtkMatrix4x4.h"
 #include "vtkImageNode.h"
@@ -479,29 +480,75 @@ void cbElectrodeController::OpenCTData(const QStringList& files)
 
 void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 {
+  QString baseStatus = "Registering secondary series to primary.";
+  QString finalStatus = "Registration complete.";
   emit initializeProgress(0, 100);
-  emit displayStatus("Registering secondary series to primary, "
-                     "this may take a while...");
-  emit displayProgress(20);
+  emit displayStatus(baseStatus);
 
   vtkImageNode *mr = this->dataManager->FindImageNode(this->dataKey);
   vtkImageData *mr_d = mr->GetImage();
   vtkMatrix4x4 *mr_m = mr->GetMatrix();
 
-  //TODO: skip registration if the matrix was opened from the save file
-  cbMRIRegistration *regist = cbMRIRegistration::New();
-  regist->SetInputSource(ct_d);
-  regist->SetInputSourceMatrix(ct_m);
-  regist->SetInputTarget(mr_d);
-  regist->SetInputTargetMatrix(mr_m);
-  regist->Execute();
-
-  // Allow the caller get the result of the registration
-  ct_m->DeepCopy(regist->GetModifiedSourceMatrix());
-
   //TODO: this should use the save-file matrix, if it exists
-  vtkSmartPointer<vtkMatrix4x4> registered_m =
-    regist->GetModifiedSourceMatrix();
+  vtkSmartPointer<vtkMatrix4x4> registered_m;
+
+  //TODO: skip registration if the matrix was opened from the save file
+  if (1) {
+    cbMRIRegistration *regist = cbMRIRegistration::New();
+    regist->SetInputSource(ct_d);
+    regist->SetInputSourceMatrix(ct_m);
+    regist->SetInputTarget(mr_d);
+    regist->SetInputTargetMatrix(mr_m);
+
+    const int levels = 3;
+    const double blurFactors[3] = { 4.0, 2.0, 1.0 };
+
+    regist->Initialize();
+    emit displayProgress(1);
+
+    // make a timer
+    vtkSmartPointer<vtkTimerLog> timer =
+    vtkSmartPointer<vtkTimerLog>::New();
+    double startTime = timer->GetUniversalTime();
+    double lastTime = startTime;
+
+    // do multi-level registration
+    for (int level = 1; level <= levels; level++) {
+      regist->StartLevel(blurFactors[level-1]);
+
+      double progressSeg = pow(2.0, -(levels - level + 1.0));
+
+      // iterate until regist level is done
+      int iterations = 0;
+      do {
+        ++iterations;
+        int evals = regist->GetNumberOfEvaluations();
+        emit displayStatus(baseStatus + " Level " + QString::number(level) +
+                           ", Iter " + QString::number(iterations) +
+                           " (" + QString::number(evals) + " Evals).");
+        double progressExp = (1.0 - exp(-0.005*evals));
+        int progress = 1 + static_cast<int>(
+          99*(progressSeg*(1.0 + progressExp)));
+        emit displayProgress(progress);
+      }
+      while (regist->Iterate());
+
+      double newTime = timer->GetUniversalTime();
+      lastTime = newTime;
+    }
+
+    regist->Finish();
+
+    emit displayProgress(100);
+    emit displayStatus(finalStatus + " Time: " +
+                       QString::number(lastTime - startTime) +
+                       " seconds.");
+
+    // Allow the caller get the result of the registration
+    ct_m->DeepCopy(regist->GetModifiedSourceMatrix());
+
+    registered_m = regist->GetModifiedSourceMatrix();
+  }
 
   vtkSmartPointer<vtkImageReslice> reslicer =
     vtkSmartPointer<vtkImageReslice>::New();
@@ -524,10 +571,6 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
   reslicer->Update();
 
   ct_d->DeepCopy(reslicer->GetOutput());
-
-  emit displayStatus("Completed registration of secondary series"
-                     " to primary series.", 5000);
-  emit displayProgress(100);
 }
 
 // Overloaded to include a pre-registered matrix
