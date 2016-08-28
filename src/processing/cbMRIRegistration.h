@@ -80,6 +80,9 @@ class vtkRenderWindow;
 class vtkImageData;
 class vtkMatrix4x4;
 class vtkProgressAccumulator;
+class vtkImageRegistration;
+class vtkImageResize;
+class vtkImageSincInterpolator;
 
 class cbMRIRegistration
 {
@@ -130,6 +133,23 @@ public:
   // Execute the image registration
   int Execute();
 
+  // Description:
+  // Initialize the image registration (will be called by Execute)
+  int Initialize();
+
+  // Description:
+  // Start one registration level (will be called by Execute).
+  // The blur factor should be unity or greater than unity.
+  int StartLevel(double blurFactor);
+
+  // Description:
+  // Iterate the registration (will be called by Execute).
+  int Iterate();
+
+  // Description:
+  // Finish the registration (will be called by Execute).
+  int Finish();
+
   enum RegistrationMethod {
     MUTUAL_INFORMATION = 1,
     CROSS_CORRELATION = 2,
@@ -146,6 +166,14 @@ private:
   vtkProgressAccumulator *m_progressAccumulate;
   bool m_modifySourceMatrix;
   int m_registrationMethod;
+
+  vtkImageRegistration *m_registration;
+  vtkImageResize *m_sourceBlur;
+  vtkImageResize *m_targetBlur;
+  vtkImageSincInterpolator *m_sourceBlurKernel;
+  vtkImageSincInterpolator *m_targetBlurKernel;
+  double m_transformTolerance;
+  bool m_registrationInitialized;
 };
 
 #endif // CBMRIREGISTRATION_H

@@ -97,36 +97,58 @@
 //----------------------------------------------------------------------------
 cbMRIRegistration::cbMRIRegistration()
 {
-  this->m_sourceImage = NULL;
-  this->m_targetImage = NULL;
-  this->m_sourceMatrix = NULL;
-  this->m_targetMatrix = NULL;
-  this->m_renderWindow = NULL;
-  this->m_progressAccumulate = NULL;
-  this->m_modifySourceMatrix = true;
-  this->m_registrationMethod = MUTUAL_INFORMATION;
+  m_sourceImage = NULL;
+  m_targetImage = NULL;
+  m_sourceMatrix = NULL;
+  m_targetMatrix = NULL;
+  m_renderWindow = NULL;
+  m_progressAccumulate = NULL;
+  m_modifySourceMatrix = true;
+  m_registrationMethod = MUTUAL_INFORMATION;
+  m_registration = NULL;
+  m_sourceBlur = NULL;
+  m_targetBlur = NULL;
+  m_sourceBlurKernel = NULL;
+  m_targetBlurKernel = NULL;
+  m_registrationInitialized = false;
+  m_transformTolerance = 0.1;
 }
 
 //----------------------------------------------------------------------------
 cbMRIRegistration::~cbMRIRegistration()
 {
+  if (m_registration) {
+    m_registration->Delete();
+  }
+  if (m_sourceBlur) {
+    m_sourceBlur->Delete();
+  }
+  if (m_sourceBlurKernel) {
+    m_sourceBlurKernel->Delete();
+  }
+  if (m_targetBlur) {
+    m_targetBlur->Delete();
+  }
+  if (m_targetBlurKernel) {
+    m_targetBlurKernel->Delete();
+  }
   if (m_sourceImage) {
-    this->m_sourceImage->Delete();
+    m_sourceImage->Delete();
   }
   if (m_targetImage) {
-    this->m_targetImage->Delete();
+    m_targetImage->Delete();
   }
   if (m_sourceMatrix) {
-    this->m_sourceMatrix->Delete();
+    m_sourceMatrix->Delete();
   }
   if (m_targetMatrix) {
-    this->m_targetMatrix->Delete();
+    m_targetMatrix->Delete();
   }
   if (m_renderWindow) {
-    this->m_renderWindow->Delete();
+    m_renderWindow->Delete();
   }
   if (m_progressAccumulate) {
-    this->m_progressAccumulate->Delete();
+    m_progressAccumulate->Delete();
   }
 }
 
@@ -139,92 +161,135 @@ void cbMRIRegistration::SetRenderWindow(vtkRenderWindow *renderwindow)
 //----------------------------------------------------------------------------
 void cbMRIRegistration::SetInputSource(vtkImageData *inputSource)
 {
-  this->m_sourceImage = inputSource;
+  m_sourceImage = inputSource;
 }
 
 //----------------------------------------------------------------------------
 vtkImageData *cbMRIRegistration::GetInputSource()
 {
-  return this->m_sourceImage;
+  return m_sourceImage;
 }
 
 //----------------------------------------------------------------------------
 void cbMRIRegistration::SetInputTarget(vtkImageData *inputTarget)
 {
-  this->m_targetImage = inputTarget;
+  m_targetImage = inputTarget;
 }
 
 //----------------------------------------------------------------------------
 vtkImageData *cbMRIRegistration::GetInputTarget()
 {
-  return this->m_targetImage;
+  return m_targetImage;
 }
 
 //----------------------------------------------------------------------------
 void cbMRIRegistration::SetInputSourceMatrix(vtkMatrix4x4 *inputSourceMatrix)
 {
-  this->m_sourceMatrix = inputSourceMatrix;
+  m_sourceMatrix = inputSourceMatrix;
 }
 
 //----------------------------------------------------------------------------
 vtkMatrix4x4 *cbMRIRegistration::GetInputSourceMatrix()
 {
-  return this->m_sourceMatrix;
+  return m_sourceMatrix;
 }
 
 //----------------------------------------------------------------------------
 void cbMRIRegistration::SetInputTargetMatrix(vtkMatrix4x4 *inputTargetMatrix)
 {
-  this->m_targetMatrix = inputTargetMatrix;
+  m_targetMatrix = inputTargetMatrix;
 }
 
 //----------------------------------------------------------------------------
 vtkMatrix4x4 *cbMRIRegistration::GetInputTargetMatrix()
 {
-  return this->m_targetMatrix;
+  return m_targetMatrix;
 }
 
 //----------------------------------------------------------------------------
 void cbMRIRegistration::SetRegistrationMethod(int method)
 {
   if (method == 0) {
-    this->m_registrationMethod = MUTUAL_INFORMATION;
+    m_registrationMethod = MUTUAL_INFORMATION;
   }
   else if (method == 1) {
-    this->m_registrationMethod = CROSS_CORRELATION;
+    m_registrationMethod = CROSS_CORRELATION;
   }
 }
 
 //----------------------------------------------------------------------------
 void cbMRIRegistration::SetModifyMatrixToSource()
 {
-  this->m_modifySourceMatrix = true;
+  m_modifySourceMatrix = true;
 }
 
 //----------------------------------------------------------------------------
 void cbMRIRegistration::SetModifyMatrixToTarget()
 {
-  this->m_modifySourceMatrix = false;
+  m_modifySourceMatrix = false;
 }
 
 //----------------------------------------------------------------------------
 void cbMRIRegistration::SetProgressAccumulator(
   vtkProgressAccumulator *progressAccumulate)
 {
-  this->m_progressAccumulate = progressAccumulate;
+  m_progressAccumulate = progressAccumulate;
 }
 
 //----------------------------------------------------------------------------
 vtkProgressAccumulator *cbMRIRegistration::GetProgressAccumulator()
 {
-  return this->m_progressAccumulate;
+  return m_progressAccumulate;
 }
 
 //----------------------------------------------------------------------------
 int cbMRIRegistration::Execute()
 {
-  if (this->m_sourceImage == NULL || this->m_targetImage == NULL ||
-      this->m_sourceMatrix == NULL || this->m_targetMatrix == NULL)
+  double initialBlurFactor = 4.0;
+  double blurFactor = initialBlurFactor;
+
+  this->Initialize();
+
+  // make a timer
+  vtkSmartPointer<vtkTimerLog> timer =
+  vtkSmartPointer<vtkTimerLog>::New();
+  double startTime = timer->GetUniversalTime();
+  double lastTime = startTime;
+
+  // do multi-level registration
+  for (;;)
+  {
+    this->StartLevel(blurFactor);
+
+    // iterate until this level is done
+    while (this->Iterate()) {}
+
+    double newTime = timer->GetUniversalTime();
+    cout << "blur " << blurFactor << " took "
+         << (newTime - lastTime) << "s and "
+         << m_registration->GetNumberOfEvaluations() << " evaluations" << endl;
+    lastTime = newTime;
+
+    // prepare for next iteration
+    blurFactor /= 2.0;
+    if (blurFactor < 0.9)
+    {
+      break;
+    }
+  }
+
+  this->Finish();
+
+  cout << "registration took " << (lastTime - startTime) << "s" << endl;
+
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int cbMRIRegistration::Initialize()
+{
+  if (m_sourceImage == NULL || m_targetImage == NULL ||
+      m_sourceMatrix == NULL || m_targetMatrix == NULL)
   {
     cout << "Execute: Input source image & matrix and"
             "target image & matrix are not set " << endl;
@@ -233,14 +298,12 @@ int cbMRIRegistration::Execute()
 
   // parameters for registration
   int interpolatorType = vtkImageRegistration::Rigid;
-  double transformTolerance = 0.1; // tolerance on transformation result
   int numberOfBins = 64; // for Mattes' mutual information
-  double initialBlurFactor = 4.0;
 
   // get information about the images
   double targetSpacing[3], sourceSpacing[3];
-  this->m_targetImage->GetSpacing(targetSpacing);
-  this->m_sourceImage->GetSpacing(sourceSpacing);
+  m_targetImage->GetSpacing(targetSpacing);
+  m_sourceImage->GetSpacing(sourceSpacing);
 
   for (int jj = 0; jj < 3; jj++)
   {
@@ -259,181 +322,199 @@ int cbMRIRegistration::Execute()
   }
 
   // blur source image with Hamming-windowed sinc
-  vtkSmartPointer<vtkImageSincInterpolator> sourceBlurKernel =
-  vtkSmartPointer<vtkImageSincInterpolator>::New();
-  sourceBlurKernel->SetWindowFunctionToHamming();
+  m_sourceBlurKernel = vtkImageSincInterpolator::New();
+  m_sourceBlurKernel->SetWindowFunctionToHamming();
 
   // reduce the source resolution
-  vtkSmartPointer<vtkImageResize> sourceBlur =
-  vtkSmartPointer<vtkImageResize>::New();
-  sourceBlur->SetInput(this->m_sourceImage);
-  sourceBlur->SetResizeMethodToOutputSpacing();
-  sourceBlur->SetInterpolator(sourceBlurKernel);
+  m_sourceBlur = vtkImageResize::New();
+  m_sourceBlur->SetInput(m_sourceImage);
+  m_sourceBlur->SetResizeMethodToOutputSpacing();
+  m_sourceBlur->SetInterpolator(m_sourceBlurKernel);
 
   if (m_progressAccumulate) {
-    m_progressAccumulate->RegisterFilter(sourceBlur,0.07f);
+    m_progressAccumulate->RegisterFilter(m_sourceBlur,0.07f);
   }
 
   // blur target with Hamming-windowed sinc
-  vtkSmartPointer<vtkImageSincInterpolator> targetBlurKernel =
-  vtkSmartPointer<vtkImageSincInterpolator>::New();
-  targetBlurKernel->SetWindowFunctionToHamming();
+  m_targetBlurKernel = vtkImageSincInterpolator::New();
+  m_targetBlurKernel->SetWindowFunctionToHamming();
 
   // keep target at full resolution
-  vtkSmartPointer<vtkImageResize> targetBlur =
-  vtkSmartPointer<vtkImageResize>::New();
-  targetBlur->SetInput(this->m_targetImage);
-  targetBlur->SetResizeMethodToOutputSpacing();
-  targetBlur->SetInterpolator(targetBlurKernel);
+  m_targetBlur = vtkImageResize::New();
+  m_targetBlur->SetInput(m_targetImage);
+  m_targetBlur->SetResizeMethodToOutputSpacing();
+  m_targetBlur->SetInterpolator(m_targetBlurKernel);
 
   if (m_progressAccumulate) {
-    m_progressAccumulate->RegisterFilter(targetBlur,0.07f);
+    m_progressAccumulate->RegisterFilter(m_targetBlur,0.07f);
+  }
+
+  // set up the registration
+  m_registration = vtkImageRegistration::New();
+  m_registration->SetTargetImageInputConnection(m_targetBlur->GetOutputPort());
+  m_registration->SetSourceImageInputConnection(m_sourceBlur->GetOutputPort());
+  m_registration->SetInitializerTypeToCentered();
+
+  if (m_progressAccumulate) {
+    m_progressAccumulate->RegisterFilter(m_registration,0.05f);
+  }
+
+  m_registration->SetTransformTypeToRigid();
+
+  if (m_registrationMethod == MUTUAL_INFORMATION) {
+    m_registration->SetMetricTypeToNormalizedMutualInformation();
+  }
+  else if (m_registrationMethod == CROSS_CORRELATION) {
+    m_registration->SetMetricTypeToNormalizedCrossCorrelation();
+  }
+  m_registration->SetInterpolatorType(interpolatorType);
+  m_registration->SetJointHistogramSize(numberOfBins,numberOfBins);
+  m_registration->SetMetricTolerance(1e-4);
+  m_registration->SetTransformTolerance(m_transformTolerance);
+  m_registration->SetMaximumNumberOfIterations(500);
+
+  m_registrationInitialized = false;
+
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int cbMRIRegistration::StartLevel(double blurFactor)
+{
+  // get information about the images
+  double targetSpacing[3], sourceSpacing[3];
+  m_targetImage->GetSpacing(targetSpacing);
+  m_sourceImage->GetSpacing(sourceSpacing);
+
+  for (int jj = 0; jj < 3; jj++)
+  {
+    targetSpacing[jj] = fabs(targetSpacing[jj]);
+    sourceSpacing[jj] = fabs(sourceSpacing[jj]);
+  }
+
+  double minSpacing = sourceSpacing[0];
+  if (minSpacing > sourceSpacing[1])
+  {
+    minSpacing = sourceSpacing[1];
+  }
+  if (minSpacing > sourceSpacing[2])
+  {
+    minSpacing = sourceSpacing[2];
+  }
+
+  if (blurFactor < 1.1)
+  {
+    // full resolution: no blurring or resampling
+    m_sourceBlur->InterpolateOff();
+    m_sourceBlur->SetOutputSpacing(sourceSpacing);
+    m_sourceBlur->Update();
+
+    m_targetBlur->InterpolateOff();
+    m_targetBlur->SetOutputSpacing(targetSpacing);
+    m_targetBlur->Update();
+
+    m_registration->SetTransformTolerance(m_transformTolerance);
+  }
+  else
+  {
+    // reduced resolution: set the blurring
+    double spacing[3];
+    for (int j = 0; j < 3; j++)
+    {
+      spacing[j] = blurFactor*minSpacing;
+      if (spacing[j] < sourceSpacing[j])
+      {
+        spacing[j] = sourceSpacing[j];
+      }
+    }
+
+    m_registration->SetTransformTolerance(m_transformTolerance*blurFactor);
+
+    m_sourceBlurKernel->SetBlurFactors(spacing[0]/sourceSpacing[0],
+                                       spacing[1]/sourceSpacing[1],
+                                       spacing[2]/sourceSpacing[2]);
+
+    m_sourceBlur->SetOutputSpacing(spacing);
+    m_sourceBlur->Update();
+
+    m_targetBlurKernel->SetBlurFactors(blurFactor*minSpacing/targetSpacing[0],
+                                       blurFactor*minSpacing/targetSpacing[1],
+                                       blurFactor*minSpacing/targetSpacing[2]);
+
+    m_targetBlur->Update();
   }
 
   // get the initial transformation
   vtkSmartPointer<vtkMatrix4x4> matrix =
-  vtkSmartPointer<vtkMatrix4x4>::New();
-  matrix->DeepCopy(this->m_targetMatrix);
-  matrix->Invert();
-  vtkMatrix4x4::Multiply4x4(matrix, this->m_sourceMatrix, matrix);
+    vtkSmartPointer<vtkMatrix4x4>::New();
 
-  // set up the registration
-  vtkSmartPointer<vtkImageRegistration> registration =
-  vtkSmartPointer<vtkImageRegistration>::New();
-  registration->SetTargetImageInputConnection(targetBlur->GetOutputPort());
-  registration->SetSourceImageInputConnection(sourceBlur->GetOutputPort());
-  registration->SetInitializerTypeToCentered();
-
-  if (m_progressAccumulate) {
-    m_progressAccumulate->RegisterFilter(registration,0.05f);
-  }
-
-  registration->SetTransformTypeToRigid();
-
-  if (this->m_registrationMethod == MUTUAL_INFORMATION) {
-    registration->SetMetricTypeToNormalizedMutualInformation();
-  }
-  else if (this->m_registrationMethod == CROSS_CORRELATION) {
-    registration->SetMetricTypeToNormalizedCrossCorrelation();
-  }
-  registration->SetInterpolatorType(interpolatorType);
-  registration->SetJointHistogramSize(numberOfBins,numberOfBins);
-  registration->SetMetricTolerance(1e-4);
-  registration->SetTransformTolerance(transformTolerance);
-  registration->SetMaximumNumberOfIterations(500);
-
-  // make a timer
-  vtkSmartPointer<vtkTimerLog> timer =
-  vtkSmartPointer<vtkTimerLog>::New();
-  double startTime = timer->GetUniversalTime();
-  double lastTime = startTime;
-
-  // do the registration
-  // the registration starts at low-resolution
-  double blurFactor = initialBlurFactor;
-  // will be set to "true" when registration is initialized
-  bool initialized = false;
-
-  for (;;)
+  if (m_registrationInitialized)
   {
-    if (blurFactor < 1.1)
-    {
-      // full resolution: no blurring or resampling
-      sourceBlur->InterpolateOff();
-      sourceBlur->SetOutputSpacing(sourceSpacing);
-      sourceBlur->Update();
-
-      targetBlur->InterpolateOff();
-      targetBlur->SetOutputSpacing(targetSpacing);
-      targetBlur->Update();
-
-      registration->SetTransformTolerance(transformTolerance);
-    }
-    else
-    {
-      // reduced resolution: set the blurring
-      double spacing[3];
-      for (int j = 0; j < 3; j++)
-      {
-        spacing[j] = blurFactor*minSpacing;
-        if (spacing[j] < sourceSpacing[j])
-        {
-          spacing[j] = sourceSpacing[j];
-        }
-
-      registration->SetTransformTolerance(transformTolerance*blurFactor);
-      }
-
-      sourceBlurKernel->SetBlurFactors(
-                                       spacing[0]/sourceSpacing[0],
-                                       spacing[1]/sourceSpacing[1],
-                                       spacing[2]/sourceSpacing[2]);
-
-      sourceBlur->SetOutputSpacing(spacing);
-      sourceBlur->Update();
-
-      targetBlurKernel->SetBlurFactors(
-                                       blurFactor*minSpacing/targetSpacing[0],
-                                       blurFactor*minSpacing/targetSpacing[1],
-                                       blurFactor*minSpacing/targetSpacing[2]);
-
-      targetBlur->Update();
-    }
-
-    if (initialized)
-    {
-      // re-initialize with the matrix from the previous step
-      registration->SetInitializerTypeToNone();
-      matrix->DeepCopy(registration->GetTransform()->GetMatrix());
-    }
-
-    registration->Initialize(matrix);
-
-    initialized = true;
-
-    while (registration->Iterate())
-    {
-      //registration->UpdateRegistration();
-      // will iterate until convergence or failure
-      if (m_modifySourceMatrix) {
-        vtkMatrix4x4::Multiply4x4(this->m_targetMatrix,
-                                  registration->GetTransform()->GetMatrix(),
-                                  this->m_sourceMatrix);
-        this->m_sourceMatrix->Modified();
-      }
-      else {
-        vtkMatrix4x4::Multiply4x4(
-                                  this->m_sourceMatrix,
-                                  registration->GetTransform()->GetLinearInverse()->GetMatrix(),
-                                  this->m_targetMatrix);
-        this->m_targetMatrix->Modified();
-      }
-
-
-      if (m_renderWindow) {
-        m_renderWindow->Render();
-      }
-    }
-
-    double newTime = timer->GetUniversalTime();
-    cout << "blur " << blurFactor << " took "
-    << (newTime - lastTime) << "s and "
-    << registration->GetNumberOfEvaluations() << " evaluations" << endl;
-    lastTime = newTime;
-
-    // prepare for next iteration
-    blurFactor /= 2.0;
-    if (blurFactor < 0.9)
-    {
-      break;
-    }
+    // re-initialize with the matrix from the previous step
+    m_registration->SetInitializerTypeToNone();
+    matrix->DeepCopy(m_registration->GetTransform()->GetMatrix());
   }
+  else
+  {
+    matrix->DeepCopy(m_targetMatrix);
+    matrix->Invert();
+    vtkMatrix4x4::Multiply4x4(matrix, m_sourceMatrix, matrix);
+  }
+
+  m_registration->Initialize(matrix);
+  m_registrationInitialized = true;
+
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int cbMRIRegistration::Iterate()
+{
+  if (m_registration->Iterate())
+  {
+    //m_registration->UpdateRegistration();
+    // will iterate until convergence or failure
+    if (m_modifySourceMatrix) {
+      vtkMatrix4x4::Multiply4x4(m_targetMatrix,
+                                m_registration->GetTransform()->GetMatrix(),
+                                m_sourceMatrix);
+      m_sourceMatrix->Modified();
+    }
+    else {
+      vtkMatrix4x4::Multiply4x4(m_sourceMatrix,
+                                m_registration->GetTransform()->GetLinearInverse()->GetMatrix(),
+                                m_targetMatrix);
+      m_targetMatrix->Modified();
+    }
+
+
+    if (m_renderWindow) {
+      m_renderWindow->Render();
+    }
+
+    return 1;
+  }
+
+  return 0;
+}
+
+//----------------------------------------------------------------------------
+int cbMRIRegistration::Finish()
+{
+  m_sourceBlur->Delete();
+  m_sourceBlur = NULL;
+  m_sourceBlurKernel->Delete();
+  m_sourceBlurKernel = NULL;
+  m_targetBlur->Delete();
+  m_targetBlur = NULL;
+  m_targetBlurKernel->Delete();
+  m_targetBlurKernel = NULL;
+  m_registration->Delete();
+  m_registration = NULL;
 
   if (m_progressAccumulate) {
     m_progressAccumulate->RegisterEndEvent();
   }
-
-  cout << "registration took " << (lastTime - startTime) << "s" << endl;
 
   return 1;
 }
@@ -441,11 +522,11 @@ int cbMRIRegistration::Execute()
 //----------------------------------------------------------------------------
 vtkMatrix4x4 *cbMRIRegistration::GetModifiedSourceMatrix()
 {
-  return this->m_sourceMatrix;
+  return m_sourceMatrix;
 }
 
 //----------------------------------------------------------------------------
 vtkMatrix4x4 *cbMRIRegistration::GetModifiedTargetMatrix()
 {
-  return this->m_targetMatrix;
+  return m_targetMatrix;
 }
