@@ -183,7 +183,6 @@ cbElectrodeView::~cbElectrodeView()
 
 void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
 {
-  this->initializeProgress(0,1);
   this->dataKey = k;
   this->SaveFile = "";
 
@@ -578,7 +577,6 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   planar->GetRenderer()->AddActor2D(annotation);
 
   this->resetViewOrientations();
-  this->displayProgress(1);
   viewRect->Start();
 
   this->SetSavedState(false);
@@ -1254,8 +1252,6 @@ void cbElectrodeView::buildProbeMarker(vtkPolyData *probeData, cbProbe p)
 
 void cbElectrodeView::displaySurfaceVolume(vtkDataManager::UniqueKey k)
 {
-  this->initializeProgress(0,1);
-
   vtkSmartPointer<vtkImageNode> node = vtkSmartPointer<vtkImageNode>::New();
   node = this->dataManager->FindImageNode(k);
 
@@ -1313,8 +1309,6 @@ void cbElectrodeView::displaySurfaceVolume(vtkDataManager::UniqueKey k)
   this->surface->SetAllocatedRenderTime(0.2);
 
   this->viewRect->GetRenderWindow()->Render();
-
-  this->displayProgress(1);
 }
 
 void cbElectrodeView::addRendererLabel(vtkRenderer *r, const char *str,

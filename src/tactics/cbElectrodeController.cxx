@@ -192,6 +192,7 @@ void cbElectrodeController::requestOpenImage(const QStringList& files)
   assert(path && "Path can't be NULL!");
 
   emit initializeProgress(0, 100);
+  emit displayStatus("Loading primary image...");
 
   this->log(QString("Opening Data: "));
 
@@ -211,7 +212,8 @@ void cbElectrodeController::requestOpenImage(const QStringList& files)
 
   ReadImage(sarray, data, matrix, meta);
 
-  emit displayProgress(33);
+  emit displayProgress(25);
+  emit displayStatus("Finding frame, registering to frame space...");
 
   // Right now there is an order issue with these functions. The
   // buildAndDisplayFrame function uses matrix in the registration where it
@@ -220,10 +222,12 @@ void cbElectrodeController::requestOpenImage(const QStringList& files)
   // for the actors is correct
   this->buildAndDisplayFrame(data, matrix);
 
-  emit displayProgress(66);
+  emit displayProgress(50);
+  emit displayStatus("Extracting brain from image...");
   this->extractAndDisplaySurface(data, matrix);
 
-  emit displayProgress(100);
+  emit displayProgress(75);
+  emit displayStatus("Rendering brain volume...");
 
   this->dataManager->FindImageNode(dataKey)->ShallowCopyImage(data);
   this->dataManager->FindImageNode(dataKey)->SetMatrix(matrix);
@@ -231,6 +235,8 @@ void cbElectrodeController::requestOpenImage(const QStringList& files)
 
   emit displayData(dataKey);
   emit displaySurfaceVolume(volumeKey);
+  emit displayProgress(100);
+  emit displayStatus("Finished loading primary image.", 5000);
   emit finished();
 }
 
