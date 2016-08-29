@@ -74,7 +74,7 @@ signals:
   void finished();
 
   //! Tell the view to display the frame
-  void displayLeksellFrame(vtkPolyData *, vtkMatrix4x4 *);
+  void displayLeksellFrame(vtkMatrix4x4 *);
 
   //! Tell the view to display the tags
   void displayTags(vtkPolyData *, vtkMatrix4x4 *);

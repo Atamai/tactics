@@ -81,8 +81,6 @@
 #include "vtkMatrix4x4.h"
 #include "vtkStringArray.h"
 
-#include "LeksellFiducial.h"
-
 void ReadImage(vtkStringArray *sarray, vtkImageData *data,
                vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta);
 
@@ -320,45 +318,6 @@ void cbElectrodeController::extractAndDisplaySurface(vtkImageData *data,
 void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
                                                  vtkMatrix4x4 *matrix)
 {
-  LeksellFiducial lFrame(LeksellFiducial::left);
-  LeksellFiducial rFrame(LeksellFiducial::right);
-  LeksellFiducial fFrame(LeksellFiducial::front);
-  LeksellFiducial bFrame(LeksellFiducial::back);
-
-  std::vector<LeksellFiducial> frame;
-  frame.push_back(lFrame);
-  frame.push_back(rFrame);
-  frame.push_back(fFrame);
-  frame.push_back(bFrame);
-
-  vtkSmartPointer<vtkPoints> points =
-    vtkSmartPointer<vtkPoints>::New();
-  points->SetNumberOfPoints(16);
-
-  vtkSmartPointer<vtkCellArray> cells =
-    vtkSmartPointer<vtkCellArray>::New();
-
-  for (size_t i = 0; i < frame.size(); ++i)
-    {
-    double vertices[4][3];
-    frame[i].GetCornerOriginPoints(vertices);
-
-    points->SetPoint(i*4 + 0, vertices[0][0], vertices[0][1], vertices[0][2]);
-    points->SetPoint(i*4 + 1, vertices[1][0], vertices[1][1], vertices[1][2]);
-    points->SetPoint(i*4 + 2, vertices[2][0], vertices[2][1], vertices[2][2]);
-    points->SetPoint(i*4 + 3, vertices[3][0], vertices[3][1], vertices[3][2]);
-
-    cells->InsertNextCell(4);
-    cells->InsertCellPoint(i*4 + 0);
-    cells->InsertCellPoint(i*4 + 1);
-    cells->InsertCellPoint(i*4 + 2);
-    cells->InsertCellPoint(i*4 + 3);
-    }
-
-  vtkPolyData *frameData = vtkPolyData::New();
-  frameData->SetPoints(points);
-  frameData->SetLines(cells);
-
   vtkSmartPointer<vtkFrameFinder> regist =
     vtkSmartPointer<vtkFrameFinder>::New();
   regist->SetInput(data);
@@ -371,7 +330,7 @@ void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
     vtkMatrix4x4 *registeredImageMatrix = vtkMatrix4x4::New();
     registeredImageMatrix->DeepCopy(regist->GetImageToFrameMatrix());
 
-    emit displayLeksellFrame(frameData, registeredImageMatrix);
+    emit displayLeksellFrame(registeredImageMatrix);
   }
   else {
     QMessageBox box;

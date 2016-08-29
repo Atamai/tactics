@@ -117,7 +117,7 @@ public slots:
   void ToggleMaximizeSurface();
 
   //! Incoming signal to display the frame polydata.
-  void displayLeksellFrame(vtkPolyData *frame, vtkMatrix4x4 *transform);
+  void displayLeksellFrame(vtkMatrix4x4 *transform);
 
   //! Incoming signal to display the tags that were loaded.
   void displayTags(vtkPolyData *points, vtkMatrix4x4 *transform);

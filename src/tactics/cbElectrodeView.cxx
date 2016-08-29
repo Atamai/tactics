@@ -1092,18 +1092,55 @@ namespace cb {
   }
 } /* namespace cb */
 
-void cbElectrodeView::displayLeksellFrame(vtkPolyData *frame,
-                                          vtkMatrix4x4 *transform)
+void cbElectrodeView::displayLeksellFrame(vtkMatrix4x4 *transform)
 {
-  assert("Input frame can't be null!" && frame);
   assert("Input transform can't be null!" && transform);
 
   this->frameTransform->DeepCopy(transform);
   transform->Delete();
 
+  LeksellFiducial lFrame(LeksellFiducial::left);
+  LeksellFiducial rFrame(LeksellFiducial::right);
+  LeksellFiducial fFrame(LeksellFiducial::front);
+  LeksellFiducial bFrame(LeksellFiducial::back);
+
+  std::vector<LeksellFiducial> frame;
+  frame.push_back(lFrame);
+  frame.push_back(rFrame);
+  frame.push_back(fFrame);
+  frame.push_back(bFrame);
+
+  vtkSmartPointer<vtkPoints> points =
+    vtkSmartPointer<vtkPoints>::New();
+  points->SetNumberOfPoints(16);
+
+  vtkSmartPointer<vtkCellArray> cells =
+    vtkSmartPointer<vtkCellArray>::New();
+
+  for (size_t i = 0; i < frame.size(); ++i) {
+    double vertices[4][3];
+    frame[i].GetCornerOriginPoints(vertices);
+
+    points->SetPoint(i*4 + 0, vertices[0][0], vertices[0][1], vertices[0][2]);
+    points->SetPoint(i*4 + 1, vertices[1][0], vertices[1][1], vertices[1][2]);
+    points->SetPoint(i*4 + 2, vertices[2][0], vertices[2][1], vertices[2][2]);
+    points->SetPoint(i*4 + 3, vertices[3][0], vertices[3][1], vertices[3][2]);
+
+    cells->InsertNextCell(4);
+    cells->InsertCellPoint(i*4 + 0);
+    cells->InsertCellPoint(i*4 + 1);
+    cells->InsertCellPoint(i*4 + 2);
+    cells->InsertCellPoint(i*4 + 3);
+  }
+
+  vtkSmartPointer<vtkPolyData> frameData =
+    vtkSmartPointer<vtkPolyData>::New();
+  frameData->SetPoints(points);
+  frameData->SetLines(cells);
+
   vtkSmartPointer<vtkPolyDataMapper> mapper =
     vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper->SetInput(frame);
+  mapper->SetInput(frameData);
 
   vtkSmartPointer<vtkActor> actor = this->Frame;
   actor->SetMapper(mapper);

@@ -113,9 +113,9 @@ int main(int argc, char *argv[])
                    &window, SLOT(displayProgress(int)));
 
   QObject::connect(&controller,
-                   SIGNAL(displayLeksellFrame(vtkPolyData *, vtkMatrix4x4 *)),
+                   SIGNAL(displayLeksellFrame(vtkMatrix4x4 *)),
                    &window,
-                   SLOT(displayLeksellFrame(vtkPolyData *, vtkMatrix4x4 *)));
+                   SLOT(displayLeksellFrame(vtkMatrix4x4 *)));
   QObject::connect(&controller,
                    SIGNAL(displayTags(vtkPolyData *, vtkMatrix4x4 *)),
                    &window,
