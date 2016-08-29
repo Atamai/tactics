@@ -489,66 +489,58 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
   vtkImageData *mr_d = mr->GetImage();
   vtkMatrix4x4 *mr_m = mr->GetMatrix();
 
-  //TODO: this should use the save-file matrix, if it exists
-  vtkSmartPointer<vtkMatrix4x4> registered_m;
+  cbMRIRegistration *regist = cbMRIRegistration::New();
+  regist->SetInputSource(ct_d);
+  regist->SetInputSourceMatrix(ct_m);
+  regist->SetInputTarget(mr_d);
+  regist->SetInputTargetMatrix(mr_m);
 
-  //TODO: skip registration if the matrix was opened from the save file
-  if (1) {
-    cbMRIRegistration *regist = cbMRIRegistration::New();
-    regist->SetInputSource(ct_d);
-    regist->SetInputSourceMatrix(ct_m);
-    regist->SetInputTarget(mr_d);
-    regist->SetInputTargetMatrix(mr_m);
+  const int levels = 3;
+  const double blurFactors[3] = { 4.0, 2.0, 1.0 };
 
-    const int levels = 3;
-    const double blurFactors[3] = { 4.0, 2.0, 1.0 };
+  regist->Initialize();
+  emit displayProgress(1);
 
-    regist->Initialize();
-    emit displayProgress(1);
+  // make a timer
+  vtkSmartPointer<vtkTimerLog> timer =
+  vtkSmartPointer<vtkTimerLog>::New();
+  double startTime = timer->GetUniversalTime();
+  double lastTime = startTime;
 
-    // make a timer
-    vtkSmartPointer<vtkTimerLog> timer =
-    vtkSmartPointer<vtkTimerLog>::New();
-    double startTime = timer->GetUniversalTime();
-    double lastTime = startTime;
+  // do multi-level registration
+  for (int level = 1; level <= levels; level++) {
+    regist->StartLevel(blurFactors[level-1]);
 
-    // do multi-level registration
-    for (int level = 1; level <= levels; level++) {
-      regist->StartLevel(blurFactors[level-1]);
+    double progressSeg = pow(2.0, -(levels - level + 1.0));
 
-      double progressSeg = pow(2.0, -(levels - level + 1.0));
-
-      // iterate until regist level is done
-      int iterations = 0;
-      do {
-        ++iterations;
-        int evals = regist->GetNumberOfEvaluations();
-        emit displayStatus(baseStatus + " Level " + QString::number(level) +
-                           ", Iter " + QString::number(iterations) +
-                           " (" + QString::number(evals) + " Evals).");
-        double progressExp = (1.0 - exp(-0.005*evals));
-        int progress = 1 + static_cast<int>(
-          99*(progressSeg*(1.0 + progressExp)));
-        emit displayProgress(progress);
-      }
-      while (regist->Iterate());
-
-      double newTime = timer->GetUniversalTime();
-      lastTime = newTime;
+    // iterate until regist level is done
+    int iterations = 0;
+    do {
+      ++iterations;
+      int evals = regist->GetNumberOfEvaluations();
+      emit displayStatus(baseStatus + " Level " + QString::number(level) +
+                         ", Iter " + QString::number(iterations) +
+                         " (" + QString::number(evals) + " Evals).");
+      double progressExp = (1.0 - exp(-0.005*evals));
+      int progress = 1 + static_cast<int>(
+        99*(progressSeg*(1.0 + progressExp)));
+      emit displayProgress(progress);
     }
-
-    regist->Finish();
-
-    emit displayProgress(100);
-    emit displayStatus(finalStatus + " Time: " +
-                       QString::number(lastTime - startTime) +
-                       " seconds.");
-
-    // Allow the caller get the result of the registration
-    ct_m->DeepCopy(regist->GetModifiedSourceMatrix());
-
-    registered_m = regist->GetModifiedSourceMatrix();
+    while (regist->Iterate());
   }
+
+  double newTime = timer->GetUniversalTime();
+  lastTime = newTime;
+
+  regist->Finish();
+
+  emit displayProgress(100);
+  emit displayStatus(finalStatus + " Time: " +
+                     QString::number(lastTime - startTime) +
+                     " seconds.");
+
+  // Allow the caller get the result of the registration
+  ct_m->DeepCopy(regist->GetModifiedSourceMatrix());
 
   vtkSmartPointer<vtkImageReslice> reslicer =
     vtkSmartPointer<vtkImageReslice>::New();
@@ -558,7 +550,7 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 
   vtkSmartPointer<vtkMatrix4x4> invertedMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  invertedMatrix->DeepCopy(registered_m);
+  invertedMatrix->DeepCopy(ct_m);
   invertedMatrix->Invert();
 
   vtkSmartPointer<vtkTransform> resliceTransform =
