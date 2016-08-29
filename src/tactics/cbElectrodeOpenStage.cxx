@@ -76,7 +76,7 @@ cbElectrodeOpenStage::cbElectrodeOpenStage() : cbStage()
       );
   desc->setStyleSheet("background-color: aliceblue");
 
-  anteriorPosteriorCheck->setChecked(true);
+  anteriorPosteriorCheck->setChecked(false);
 
   connect(openButton, SIGNAL(clicked()), this, SLOT(Execute()));
   connect(anteriorPosteriorCheck, SIGNAL(stateChanged(int)),

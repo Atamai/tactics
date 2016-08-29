@@ -102,7 +102,7 @@ cbElectrodeController::cbElectrodeController(vtkDataManager *dataManager)
     vtkSmartPointer<vtkImageNode>::New();
   this->dataManager->AddDataNode(volumeNode, this->volumeKey);
 
-  this->useAnteriorPosteriorFiducials = true;
+  this->useAnteriorPosteriorFiducials = false;
 }
 
 cbElectrodeController::~cbElectrodeController()
