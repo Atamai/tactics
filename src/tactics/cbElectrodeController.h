@@ -38,6 +38,7 @@
 #define CBELECTRODECONTROLLER_H
 
 #include "cbApplicationController.h"
+#include "cbProbe.h"
 #include "vtkDataManager.h"
 #include "LeksellFiducial.h"
 
@@ -57,9 +58,12 @@ public:
   cbElectrodeController(vtkDataManager *dataManager);
   ~cbElectrodeController();
 
+  void setPlan(std::vector<cbProbe> *plan) { this->Plan = plan; }
+
 public slots:
+  void OpenPlan(const QString& file);
+  void SavePlan(const QString& file);
   void OpenCTData(const QStringList& files);
-  void OpenCTData(const QStringList& files, vtkMatrix4x4 *matrix);
   void requestOpenImage(const QStringList& files);
   void registerAntPost(int s);
 
@@ -67,8 +71,19 @@ signals:
   void DisplayCTData(vtkDataManager::UniqueKey k);
   void displayData(vtkDataManager::UniqueKey);
 
+  //! Outgoing signal to clear the current probe plan.
+  void ClearCurrentPlan();
+
+  //! Outgoing signal to create a new probe.
+  void CreateProbeRequest(double x, double y, double z,
+                          double a, double d, double depth,
+                          std::string n, std::string s);
+
   //! Signal for logging controller actions.
   void Log(QString message);
+
+  //! Outgoing signal to get manager on last stage.
+  void jumpToLastStage();
 
   //! Signal to observers that a process has finished
   void finished();
@@ -77,7 +92,7 @@ signals:
   void displayLeksellFrame(vtkMatrix4x4 *);
 
   //! Tell the view to display the tags
-  void displayTags(vtkPolyData *, vtkMatrix4x4 *);
+  void displayTags(vtkDataManager::UniqueKey);
 
   //! Tell the viw to display the surface volume of the brain.
   void displaySurfaceVolume(vtkDataManager::UniqueKey);
@@ -95,12 +110,18 @@ private:
   //! Register the CT data to the MR data.
   void RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m);
 
+  void OpenCTWithMatrix(const QStringList& files, vtkMatrix4x4 *matrix);
+  void OpenImageWithMatrix(const QStringList& files, vtkMatrix4x4 *matrix);
+
   vtkDataManager::UniqueKey dataKey;
   vtkDataManager::UniqueKey volumeKey;
   vtkDataManager::UniqueKey ctKey;
   vtkDataManager::UniqueKey tagKey;
 
   bool useAnteriorPosteriorFiducials;
+
+  std::vector<cbProbe> *Plan;
+  vtkMatrix4x4 *FrameMatrix;
 };
 
 #endif // CBELECTRODECONTROLLER_H

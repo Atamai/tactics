@@ -31,7 +31,7 @@ if(APPLE)
 endif()
 
 add_executable(${project_BIN} MACOSX_BUNDLE ${project_BIN_SRCS})
-target_link_libraries(${project_BIN} ${project_LIB})
+target_link_libraries(${project_BIN} ${project_LIB} jsoncpp)
 if(APPLE)
   set_target_properties(${project_BIN} PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH ON

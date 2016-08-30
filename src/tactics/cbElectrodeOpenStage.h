@@ -59,9 +59,6 @@ signals:
   void requestOpenCT(const QStringList& files);
 
 public slots:
-  //! Incoming signal to open the image at the path.
-  void OpenImage(const QStringList& files);
-
   //! Load the CT.
   virtual void ExecuteCT();
 

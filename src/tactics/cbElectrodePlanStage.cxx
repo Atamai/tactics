@@ -237,7 +237,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
 
   opacitySlider->setMinimum(0);
   opacitySlider->setMaximum(100);
-  opacitySlider->setValue(30);
+  opacitySlider->setValue(100);
   opacitySlider->setOrientation(Qt::Horizontal);
 
   tabWidget->addTab(planWidget, "&Planning");
@@ -762,20 +762,6 @@ void cbElectrodePlanStage::updateCurrentProbeName(QString n)
 
   QString str(this->Plan.at(pos).ToString().c_str());
   item->setText(str);
-}
-
-void cbElectrodePlanStage::SavePlanToFile(std::string path)
-{
-  std::ofstream file;
-
-  // make sure to append to the file, since the view added the image path
-  file.open(path.c_str(), std::ios::app);
-
-  for (size_t i = 0; i < this->Plan.size(); i++) {
-    file << this->Plan.at(i) << std::endl;
-  }
-
-  file.close();
 }
 
 void cbElectrodePlanStage::ClearCurrentPlan()

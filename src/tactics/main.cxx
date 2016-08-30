@@ -117,9 +117,9 @@ int main(int argc, char *argv[])
                    &window,
                    SLOT(displayLeksellFrame(vtkMatrix4x4 *)));
   QObject::connect(&controller,
-                   SIGNAL(displayTags(vtkPolyData *, vtkMatrix4x4 *)),
+                   SIGNAL(displayTags(vtkDataManager::UniqueKey)),
                    &window,
-                   SLOT(displayTags(vtkPolyData *, vtkMatrix4x4 *)));
+                   SLOT(displayTags(vtkDataManager::UniqueKey)));
   QObject::connect(&controller,
                    SIGNAL(displaySurfaceVolume(vtkDataManager::UniqueKey)),
                    &window,
@@ -127,8 +127,6 @@ int main(int argc, char *argv[])
 
   QObject::connect(&window, SIGNAL(OpenCTData(const QStringList&)),
                    &controller, SLOT(OpenCTData(const QStringList&)));
-  QObject::connect(&window, SIGNAL(OpenCTData(const QStringList&, vtkMatrix4x4 *)),
-                   &controller, SLOT(OpenCTData(const QStringList&, vtkMatrix4x4 *)));
   QObject::connect(&controller, SIGNAL(DisplayCTData(vtkDataManager::UniqueKey)),
                    &window, SLOT(DisplayCTData(vtkDataManager::UniqueKey)));
 
@@ -142,17 +140,20 @@ int main(int argc, char *argv[])
   QObject::connect(&controller, SIGNAL(displayData(vtkDataManager::UniqueKey)),
                    &window, SLOT(displayData(vtkDataManager::UniqueKey)));
 
-  QObject::connect(&window, SIGNAL(OpenImage(const QStringList&)),
-                   &openStage, SLOT(OpenImage(const QStringList&)));
-
   cbElectrodePlanStage planStage;
+  QObject::connect(&controller, SIGNAL(CreateProbeRequest(double, double, double, double, double, double, std::string, std::string)),
+                   &planStage, SLOT(CreateProbeRequest(double, double, double, double, double, double, std::string, std::string)));
+
   QObject::connect(&window, SIGNAL(CreateProbeRequest(double, double, double, double, double, double, std::string, std::string)),
                    &planStage, SLOT(CreateProbeRequest(double, double, double, double, double, double, std::string, std::string)));
 
-  QObject::connect(&window, SIGNAL(SavePlanToFile(std::string)),
-                   &planStage, SLOT(SavePlanToFile(std::string)));
+  QObject::connect(&window, SIGNAL(OpenPlan(const QString&)),
+                   &controller, SLOT(OpenPlan(const QString&)));
 
-  QObject::connect(&window, SIGNAL(ClearCurrentPlan()),
+  QObject::connect(&window, SIGNAL(SavePlan(const QString&)),
+                   &controller, SLOT(SavePlan(const QString&)));
+
+  QObject::connect(&controller, SIGNAL(ClearCurrentPlan()),
                    &planStage, SLOT(ClearCurrentPlan()));
 
   QObject::connect(&planStage, SIGNAL(SetCTOpacity(double)),
@@ -214,8 +215,10 @@ int main(int argc, char *argv[])
   QObject::connect(&controller, SIGNAL(Log(QString)),
                    &manager, SLOT(Log(QString)));
 
-  QObject::connect(&window, SIGNAL(jumpToLastStage()),
+  QObject::connect(&controller, SIGNAL(jumpToLastStage()),
                    &manager, SLOT(jumpToLastStage()));
+
+  controller.setPlan(planStage.getPlan());
 
   //QThread controllerThread;
   //controller.moveToThread(&controllerThread);

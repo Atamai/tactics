@@ -148,8 +148,3 @@ const char *cbElectrodeOpenStage::getStageName() const
 {
   return "Open";
 }
-
-void cbElectrodeOpenStage::OpenImage(const QStringList& files)
-{
-  emit requestOpenImage(files);
-}

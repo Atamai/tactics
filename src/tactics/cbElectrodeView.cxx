@@ -88,6 +88,7 @@
 #include "vtkImageHistogramStatistics.h"
 #include "vtkImageImport.h"
 #include "vtkImageNode.h"
+#include "vtkSurfaceNode.h"
 #include "vtkImageProperty.h"
 #include "vtkImageReslice.h"
 #include "vtkImageResliceMapper.h"
@@ -106,6 +107,7 @@
 #include "vtkPiecewiseFunction.h"
 #include "vtkPlane.h"
 #include "vtkPlaneCollection.h"
+#include "vtkPointData.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
 #include "vtkPushPlaneTool.h"
@@ -140,7 +142,7 @@ namespace cb {
 } /* namespace cb */
 
 cbElectrodeView::cbElectrodeView(vtkDataManager *dataManager, QWidget *parent)
-: cbMainWindow(dataManager, parent), dataKey(), ctKey(), SaveFile(), SelectedIndex(0), SavedState(false)
+: cbMainWindow(dataManager, parent), dataKey(), ctKey(), SaveFile(), SavedState(false), SelectedIndex(0)
 {
   QDesktopWidget desktop;
   int width = desktop.width();
@@ -187,7 +189,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   this->SaveFile = "";
 
   // If this is not the first time rendering, clear stack actors
-  for (int i = 0; i < this->Slices.size(); i++) {
+  for (size_t i = 0; i < this->Slices.size(); i++) {
     planar->GetRenderer()->RemoveViewProp(this->Slices[i].Stack);
     planar->GetRenderer()->RemoveViewProp(this->Slices[i].Border);
     planar->GetRenderer()->RemoveViewProp(this->Slices[i].Intersect);
@@ -1095,7 +1097,6 @@ void cbElectrodeView::displayLeksellFrame(vtkMatrix4x4 *transform)
   assert("Input transform can't be null!" && transform);
 
   this->frameTransform->DeepCopy(transform);
-  transform->Delete();
 
   LeksellFiducial lFrame(LeksellFiducial::left);
   LeksellFiducial rFrame(LeksellFiducial::right);
@@ -1150,18 +1151,20 @@ void cbElectrodeView::displayLeksellFrame(vtkMatrix4x4 *transform)
   this->viewRect->Start();
 }
 
-void cbElectrodeView::displayTags(vtkPolyData *points,
-                                  vtkMatrix4x4 *transform)
+void cbElectrodeView::displayTags(vtkDataManager::UniqueKey k)
 {
-  if (!points) {
+  vtkSurfaceNode *node = this->dataManager->FindSurfaceNode(k);
+
+  assert("node should not be NULL!" && node);
+
+  vtkSmartPointer<vtkPolyData> points = node->GetSurface();
+
+  if (!points.GetPointer()) {
     planar->GetRenderer()->RemoveViewProp(this->Tags);
     return;
   }
 
-  // If no transform specified, use frame transform
-  if (!transform) {
-    transform = this->frameTransform;
-  }
+  vtkMatrix4x4 *transform = this->frameTransform;
 
   // Add the tags
   vtkSmartPointer<vtkSphereSource> glyphSource =
@@ -1252,8 +1255,7 @@ void cbElectrodeView::buildProbeMarker(vtkPolyData *probeData, cbProbe p)
 
 void cbElectrodeView::displaySurfaceVolume(vtkDataManager::UniqueKey k)
 {
-  vtkSmartPointer<vtkImageNode> node = vtkSmartPointer<vtkImageNode>::New();
-  node = this->dataManager->FindImageNode(k);
+  vtkImageNode *node = this->dataManager->FindImageNode(k);
 
   assert("node should not be NULL!" && node);
 
@@ -1669,7 +1671,7 @@ void cbElectrodeView::ToggleProbeVisualizationMode(int s)
     vtkActor *a = vtkActor::SafeDownCast(o);
 
     if (!a) {
-      std::cout << "Could not find at " << index << std::endl;
+      std::cout << "Could not find at " << this->SelectedIndex << std::endl;
     }
 
     vtkCollectionSimpleIterator iter;
@@ -1768,108 +1770,21 @@ void cbElectrodeView::Open()
 
   QFileInfo fileInfo(fileName);
   this->SetPlanFolder(fileInfo.path());
-  this->SaveFile = fileName.toStdString();
+  this->SaveFile = fileName;
 
-  // Clear the current plan for a fresh state.
-  emit ClearCurrentPlan();
-
-  std::ifstream in(fileName.toStdString().c_str());
-
-  // Get the image path from the save file
-  std::string image_path, ct_path;
-  std::getline(in, image_path);
-  std::getline(in, ct_path);
-
-  // Open the image path from the save file
-  QStringList image_files(QString(image_path.c_str()));
-  emit OpenImage(image_files);
-
-  if (ct_path.empty()) {
-    std::cout << "empty ct, don't do anything" << std::endl;
-  } else {
-    std::string line;
-    std::getline(in, line);
-    std::istringstream iss(line);
-
-    double matrix[16];
-    for (int i = 0; i < 16; i++) {
-      iss >> matrix[i];
-      std::cout << matrix[i] << std::endl;
-    }
-
-    vtkMatrix4x4 *matrix_obj = vtkMatrix4x4::New();
-    matrix_obj->DeepCopy(matrix);
-
-    QStringList ct_files(QString(ct_path.c_str()));
-    emit OpenCTData(ct_files, matrix_obj);
-  }
-
-  // Open the probes
-  std::string line;
-  while (std::getline(in, line)) {
-    if (line.empty()) {
-      break;
-    }
-    std::istringstream iss(line);
-
-    std::string name, spec;
-    double pos[3], orient[2], depth;
-
-    iss >> name >> spec >> pos[0] >> pos[1] >> pos[2]
-        >> orient[0] >> orient[1] >> depth;
-
-    emit CreateProbeRequest(pos[0], pos[1], pos[2],
-                            orient[1], orient[0], depth,
-                            name, spec);
-  }
-
-  emit jumpToLastStage();
+  emit OpenPlan(this->SaveFile);
 
   this->SetSavedState(true);
 }
 
 void cbElectrodeView::Save()
 {
-  if (this->SaveFile.empty()) {
+  if (this->SaveFile.isEmpty()) {
     this->SaveAs();
     return;
   }
 
-  std::ofstream file;
-  file.open(this->SaveFile.c_str());
-  file << std::endl << std::endl;
-  /*
-  std::string image_path, ct_path;
-  vtkImageNode *mr_node = this->dataManager->FindImageNode(this->dataKey);
-  vtkImageNode *ct_node = this->dataManager->FindImageNode(this->ctKey);
-
-  if (mr_node) {
-    image_path = mr_node->GetFileURL();
-  }
-
-  vtkMatrix4x4 *ct_matrix = NULL;
-  if (ct_node) {
-    ct_path = ct_node->GetFileURL();
-
-    ct_matrix = ct_node->GetMatrix();
-  }
-
-  file << image_path << std::endl << ct_path << std::endl;
-
-  // if the CT exists, save it's registration matrix
-  if (!ct_path.empty()) {
-    for (int i = 0; i < 4; i++) {
-      for (int j = 0; j < 4; j++) {
-        file << ct_matrix->GetElement(i, j) << " ";
-      }
-    }
-    file << std::endl;
-  }
-  */
-
-  file.close();
-
-  emit SavePlanToFile(this->SaveFile);
+  emit SavePlan(this->SaveFile);
 
   this->SetSavedState(true);
 }
@@ -1878,7 +1793,7 @@ void cbElectrodeView::SaveAs()
 {
   QString path;
   if (this->SaveFile != "") {
-    path = this->SaveFile.c_str();
+    path = this->SaveFile;
   } else {
     path = this->GetPlanFolder();
   }
@@ -1892,7 +1807,7 @@ void cbElectrodeView::SaveAs()
 
   QFileInfo fileInfo(fileName);
   this->SetPlanFolder(fileInfo.path());
-  this->SaveFile = fileName.toStdString();
+  this->SaveFile = fileName;
   this->Save();
 }
 
@@ -1900,11 +1815,10 @@ void cbElectrodeView::SetSavedState(bool s)
 {
   this->SavedState = s;
   if (s) {
-    this->setWindowTitle(this->SaveFile.c_str());
+    this->setWindowTitle(this->SaveFile);
   } else {
-    std::string unsaved = this->SaveFile;
-    unsaved.append("*");
-    this->setWindowTitle(unsaved.c_str());
+    QString unsaved = this->SaveFile + "*";
+    this->setWindowTitle(unsaved);
   }
 }
 
@@ -2178,7 +2092,6 @@ void cbElectrodeView::PaneScrollCallback(vtkObject *o, unsigned long, void *)
   }
 
   double focal_point[3];
-  double offset = 120.0;
 
   // Sagittal pane
   vtkRenderer *sagittal_renderer = this->sagittalPane->GetRenderer();

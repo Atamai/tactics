@@ -61,6 +61,9 @@ public:
   //! Returns the stages name (ie. "Plan")
   virtual const char *getStageName() const;
 
+  //! Get the plan
+  std::vector<cbProbe> *getPlan() { return &this->Plan; }
+
 signals:
   //! Outgoing signal to allow view to render a probe.
   void CreateProbeCallback(cbProbe);
@@ -108,9 +111,6 @@ signals:
 public slots:
   //! Incoming signal to destroy all placed probes currently in plan.
   void ClearCurrentPlan();
-
-  //! Incoming signal to save the plan to disk.
-  void SavePlanToFile(std::string path);
 
   //! Actions to perform for the stage
   virtual void Execute();

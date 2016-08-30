@@ -120,7 +120,7 @@ public slots:
   void displayLeksellFrame(vtkMatrix4x4 *transform);
 
   //! Incoming signal to display the tags that were loaded.
-  void displayTags(vtkPolyData *points, vtkMatrix4x4 *transform);
+  void displayTags(vtkDataManager::UniqueKey);
 
   //! Incoming signal to display the surface rendering.
   void displaySurfaceVolume(vtkDataManager::UniqueKey);
@@ -183,30 +183,16 @@ signals:
   //! Outgoing signal requesting controller to open CT data.
   void OpenCTData(const QStringList& files);
 
-  //! Outgoing signal (overloaded) requesting the secondary series to be opened.
-  void OpenCTData(const QStringList& files, vtkMatrix4x4 *matrix);
-
-  //! Outgoing signal to get manager on last stage.
-  void jumpToLastStage();
-
   //! Outgoing signal to create a new probe.
   void CreateProbeRequest(double x, double y, double z,
                           double a, double d, double depth,
                           std::string n, std::string s);
 
   //! Outgoing signal to save the probe plan to disk.
-  void SavePlanToFile(std::string path);
-
-  //! Outgoing signal to clear the current probe plan.
-  void ClearCurrentPlan();
-
-  //! Outgoing signal to open the image at path.
-  void OpenImage(const QStringList& files);
+  void SavePlan(const QString& file);
+  void OpenPlan(const QString& file);
 
 private:
-  //! File path to the save file.
-  std::string SaveFile;
-
   //! Caching for previous and current tool.
   cursortool lastTool;
   QCursor lastCursor;
@@ -262,6 +248,10 @@ private:
   vtkDataManager::UniqueKey dataKey;
   vtkDataManager::UniqueKey ctKey;
 
+  //! File path to the save file.
+  QString SaveFile;
+  bool SavedState;
+
   //! Set the provided renderer's view up/right/etc to match a specific view.
   void SetOrientationToAxial(vtkRenderer *r);
   void SetOrientationToSagittal(vtkRenderer *r);
@@ -278,7 +268,6 @@ private:
 
   //! Set whether or not the application has been saved.
   void SetSavedState(bool s);
-  bool SavedState;
 
   //! Determines the recommended save/open path.
   QString GetPlanFolder();
