@@ -150,6 +150,10 @@ public:
   // Finish the registration (will be called by Execute).
   int Finish();
 
+  // Description:
+  // Get the number of function evaluations thus far
+  int GetNumberOfEvaluations() { return m_funcEvals; }
+
   enum RegistrationMethod {
     MUTUAL_INFORMATION = 1,
     CROSS_CORRELATION = 2,
@@ -173,6 +177,7 @@ private:
   vtkImageSincInterpolator *m_sourceBlurKernel;
   vtkImageSincInterpolator *m_targetBlurKernel;
   double m_transformTolerance;
+  int m_funcEvals;
   bool m_registrationInitialized;
 };
 

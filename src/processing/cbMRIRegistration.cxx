@@ -112,6 +112,7 @@ cbMRIRegistration::cbMRIRegistration()
   m_targetBlurKernel = NULL;
   m_registrationInitialized = false;
   m_transformTolerance = 0.1;
+  m_funcEvals = 0;
 }
 
 //----------------------------------------------------------------------------
@@ -374,6 +375,7 @@ int cbMRIRegistration::Initialize()
   m_registration->SetMaximumNumberOfIterations(500);
 
   m_registrationInitialized = false;
+  m_funcEvals = 0;
 
   return 1;
 }
@@ -463,6 +465,7 @@ int cbMRIRegistration::StartLevel(double blurFactor)
 
   m_registration->Initialize(matrix);
   m_registrationInitialized = true;
+  m_funcEvals = 0; // start fresh
 
   return 1;
 }
@@ -491,6 +494,8 @@ int cbMRIRegistration::Iterate()
     if (m_renderWindow) {
       m_renderWindow->Render();
     }
+
+    m_funcEvals = m_registration->GetNumberOfEvaluations();
 
     return 1;
   }
