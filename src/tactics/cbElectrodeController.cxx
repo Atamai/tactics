@@ -65,6 +65,7 @@
 #include "vtkMath.h"
 #include "vtkDICOMMetaData.h"
 #include "vtkDICOMReader.h"
+#include "vtkDICOMFileSorter.h"
 #include "vtkDICOMToRAS.h"
 #include "vtkNIFTIReader.h"
 #include "vtkNIFTIWriter.h"
@@ -81,6 +82,7 @@
 #include <QDebug>
 
 #include <vector>
+#include <sstream>
 
 #include "vtkImageData.h"
 #include "vtkMatrix4x4.h"
@@ -458,6 +460,112 @@ bool cbJsonReadTransform(const Json::Value& value, double matrix[16])
 
 };
 
+void cbElectrodeController::OpenLegacyPlan(const QString& file)
+{
+  std::ifstream ifile(file.toLocal8Bit().constData());
+
+  std::string image_path, ct_path;
+  std::getline(ifile, image_path);
+  std::getline(ifile, ct_path);
+
+  // get the directory
+  QDir startDir = QFileInfo(file).dir();
+
+  QString fullpath = QString::fromLocal8Bit(image_path.c_str());
+  QFileInfo finfo(fullpath);
+  if (!finfo.exists() || !finfo.isReadable()) {
+    QMessageBox box;
+    box.setText("Unable to find planning image.");
+    box.setInformativeText(fullpath);
+    box.setStandardButtons(QMessageBox::Ok);
+    box.exec();
+    // Bring up the file dialog
+    cbQtDicomDirDialog dialog(NULL, "Open Primary Series", startDir.path());
+    if (dialog.exec()) {
+      this->requestOpenImage(dialog.selectedFiles());
+      startDir = QFileInfo(dialog.directory().absolutePath()).dir();
+    }
+  }
+  else {
+    // Open the image path from the save file
+    vtkSmartPointer<vtkDICOMFileSorter> sorter =
+      vtkSmartPointer<vtkDICOMFileSorter>::New();
+    sorter->SetInputFileName(image_path.c_str());
+    sorter->Update();
+    vtkStringArray *fileArray = sorter->GetOutputFileNames();
+    QStringList image_files;
+    for (vtkIdType i = 0; i < fileArray->GetNumberOfValues(); i++) {
+      image_files.append(QString::fromLocal8Bit(fileArray->GetValue(i)));
+    }
+    this->requestOpenImage(image_files);
+  }
+
+  if (ct_path.empty()) {
+    std::cout << "empty ct, don't do anything" << std::endl;
+  }
+  else {
+    std::string line;
+    std::getline(ifile, line);
+    std::istringstream iss(line);
+
+    double matrix[16];
+    for (int i = 0; i < 16; i++) {
+      iss >> matrix[i];
+    }
+
+    vtkMatrix4x4 *matrix_obj = vtkMatrix4x4::New();
+    matrix_obj->DeepCopy(matrix);
+
+    QString fullpath2 = QString::fromLocal8Bit(ct_path.c_str());
+    QFileInfo finfo(fullpath2);
+    if (!finfo.exists() || !finfo.isReadable()) {
+      QMessageBox box;
+      box.setText("Unable to find secondary image.");
+      box.setInformativeText(fullpath2);
+      box.setStandardButtons(QMessageBox::Ok);
+      box.exec();
+      // Bring up the file dialog
+      cbQtDicomDirDialog dialog(NULL, "Open Secondary Series", startDir.path());
+      if (dialog.exec()) {
+        this->OpenCTData(dialog.selectedFiles(), matrix_obj);
+      }
+    }
+    else {
+      // Open the image path from the save file
+      vtkSmartPointer<vtkDICOMFileSorter> sorter =
+        vtkSmartPointer<vtkDICOMFileSorter>::New();
+      sorter->SetInputFileName(ct_path.c_str());
+      sorter->Update();
+      vtkStringArray *fileArray = sorter->GetOutputFileNames();
+      QStringList ct_files;
+      for (vtkIdType i = 0; i < fileArray->GetNumberOfValues(); i++) {
+        ct_files.append(QString::fromLocal8Bit(fileArray->GetValue(i)));
+      }
+      this->OpenCTData(ct_files, matrix_obj);
+    }
+  }
+
+  // Open the probes
+  std::string line;
+  while (std::getline(ifile, line)) {
+    if (line.empty()) {
+      break;
+    }
+    std::istringstream iss(line);
+    std::string name, spec;
+    double pos[3], orient[2], depth;
+
+    iss >> name >> spec >> pos[0] >> pos[1] >> pos[2]
+        >> orient[0] >> orient[1] >> depth;
+
+    emit CreateProbeRequest(pos[0], pos[1], pos[2],
+                            orient[1], orient[0], depth,
+                            name, spec);
+  }
+
+  emit jumpToLastStage();
+}
+
 void cbElectrodeController::OpenPlan(const QString& file)
 {
   // clear the current plan for a fresh state.
@@ -471,6 +579,13 @@ void cbElectrodeController::OpenPlan(const QString& file)
     box.setInformativeText(file);
     box.setStandardButtons(QMessageBox::Ok);
     box.exec();
+    return;
+  }
+
+  // check for an old Tactics 1.0 plan file
+  if (ifile.peek() == '/') {
+    ifile.close();
+    this->OpenLegacyPlan(file);
     return;
   }
 
@@ -964,6 +1079,65 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 }
 
 // Overloaded to include a pre-registered matrix
+void cbElectrodeController::OpenCTData(
+  const QStringList& files, vtkMatrix4x4 *m)
+{
+  vtkSmartPointer<vtkImageData> ct_data =
+    vtkSmartPointer<vtkImageData>::New();
+  vtkSmartPointer<vtkMatrix4x4> ct_matrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  vtkSmartPointer<vtkStringArray> ct_files =
+    vtkSmartPointer<vtkStringArray>::New();
+  vtkSmartPointer<vtkDICOMMetaData> ct_meta =
+    vtkSmartPointer<vtkDICOMMetaData>::New();
+
+  for (int i = 0; i < files.size(); i++) {
+    ct_files->InsertNextValue(files[i].toUtf8());
+  }
+
+  ReadImage(ct_files, ct_data, ct_matrix, ct_meta);
+
+  vtkImageNode *mr = this->dataManager->FindImageNode(this->dataKey);
+  vtkImageData *mr_d = mr->GetImage();
+  vtkMatrix4x4 *mr_m = mr->GetMatrix();
+
+  vtkSmartPointer<vtkMatrix4x4> registered_m = m;
+
+  vtkSmartPointer<vtkImageReslice> reslicer =
+    vtkSmartPointer<vtkImageReslice>::New();
+  reslicer->SetInterpolationModeToCubic();
+  reslicer->SetInput(ct_data);
+  reslicer->SetInformationInput(mr_d);
+
+  vtkSmartPointer<vtkMatrix4x4> invertedMatrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  invertedMatrix->DeepCopy(registered_m);
+  invertedMatrix->Invert();
+
+  vtkSmartPointer<vtkTransform> resliceTransform =
+    vtkSmartPointer<vtkTransform>::New();
+  resliceTransform->PostMultiply();
+  resliceTransform->Concatenate(mr_m);
+  resliceTransform->Concatenate(invertedMatrix);
+
+  reslicer->SetResliceTransform(resliceTransform);
+  reslicer->Update();
+
+  ct_data->DeepCopy(reslicer->GetOutput());
+
+  vtkSmartPointer<vtkImageNode> ct_node =
+    vtkSmartPointer<vtkImageNode>::New();
+
+  this->dataManager->AddDataNode(ct_node, this->ctKey);
+
+  this->dataManager->FindImageNode(this->ctKey)->ShallowCopyImage(ct_data);
+  this->dataManager->FindImageNode(this->ctKey)->SetMatrix(m);
+  this->dataManager->FindImageNode(this->ctKey)->SetMetaData(ct_meta);
+
+  emit DisplayCTData(this->ctKey);
+}
+
+// For a pre-resampled image
 void cbElectrodeController::OpenCTWithMatrix(
   const QStringList& files, vtkMatrix4x4 *m)
 {

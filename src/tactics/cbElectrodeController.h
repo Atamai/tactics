@@ -61,9 +61,11 @@ public:
   void setPlan(std::vector<cbProbe> *plan) { this->Plan = plan; }
 
 public slots:
+  void OpenLegacyPlan(const QString& file);
   void OpenPlan(const QString& file);
   void SavePlan(const QString& file);
   void OpenCTData(const QStringList& files);
+  void OpenCTData(const QStringList& files, vtkMatrix4x4 *matrix);
   void requestOpenImage(const QStringList& files);
   void registerAntPost(int s);
 
