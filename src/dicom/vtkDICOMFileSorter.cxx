@@ -369,7 +369,7 @@ void vtkDICOMFileSorter::Execute()
   this->OutputFileNames->Reset();
   this->Series->clear();
   this->Studies->Reset();
-  this->SetInputFileName(0);
+  this->SetInternalFileName(0);
   this->ErrorCode = 0;
 
   if (this->InputFileName) // The input was a single file
@@ -442,7 +442,6 @@ void vtkDICOMFileSorter::Execute()
       pattern += ext;
       }
     path.PopBack();
-    path.PushBack(pattern);
     std::string dirname = path.AsString();
 
     // Find all the files that match the pattern
@@ -460,7 +459,9 @@ void vtkDICOMFileSorter::Execute()
         if (vtkDICOMUtilities::PatternMatches(pattern.c_str(), filename) &&
             !d.IsDirectory(i))
           {
-          array->InsertNextValue(filename);
+          path.PushBack(filename);
+          array->InsertNextValue(path.AsString());
+          path.PopBack();
           }
         }
       }
