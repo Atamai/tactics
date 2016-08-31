@@ -2,7 +2,7 @@
   Program: Cerebra
   Module:  cbElectrodeController.cxx
 
-  Copyright (c) 2011-2013 David Adair, David Gobbi
+  Copyright (c) 2011-2016 David Adair, David Gobbi
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
