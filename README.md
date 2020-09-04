@@ -18,6 +18,12 @@ b) by providing an intuitive 3D interface to allow the surgeon to
 visualize the positions of the electrodes relative to the structures
 in the brain.
 
+# Citing
+
+To reference this work, please use the following citation:
+
+David S. P. Adair, Keith S. Gomes, Zelma H. T. Kiss, David G. Gobbi & Yves P. Starreveld (2020) Tactics: an open-source platform for planning, simulating and validating stereotactic surgery, Computer Assisted Surgery, 25:1, 1-14, DOI: 10.1080/24699322.2020.1760354
+
 # Dependencies and Building
 
 This project requires:
