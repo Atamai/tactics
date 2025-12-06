@@ -31,6 +31,7 @@
 #ifndef __vtkContourToPolygonFilter_h
 #define __vtkContourToPolygonFilter_h
 
+#include <vtkPolygon.h>
 #include <vtkPolyDataAlgorithm.h>
 
 class vtkCellArray;

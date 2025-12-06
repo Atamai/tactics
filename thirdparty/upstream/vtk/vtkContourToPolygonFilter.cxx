@@ -531,7 +531,7 @@ int vtkCTPFTriangulate(
       }
 
     triangles->Initialize();
-    if (!polygon->Triangulate(triangles))
+    if (!polygon->Triangulate(0, triangles, polygon->Points))
       {
       triangulationFailure = 1;
       }
@@ -561,7 +561,7 @@ void vtkCTPFMakePolysFromLines(
   std::vector<size_t> &incompletePolys)
 {
   vtkIdType npts = 0;
-  vtkIdType *pts = 0;
+  vtkIdType const *pts = nullptr;
 
   // Bitfield for marking lines as used
   vtkCTPFBitArray usedLines;
@@ -625,8 +625,8 @@ void vtkCTPFMakePolysFromLines(
       for (int endIdx = 0; endIdx < 2; endIdx++)
         {
         std::vector<vtkIdType> matches;
-        unsigned short ncells;
-        vtkIdType *cells;
+        vtkIdType ncells = 0;
+        vtkIdType *cells = nullptr;
         data->GetPointCells(endPts[endIdx], ncells, cells);
 
         // Go through all lines that contain this endpoint
@@ -1310,7 +1310,7 @@ static void vtkCTPFInsertTriangle(
     edgePtIds[2] = poly[trids[2]];
     edgePtIds[3] = poly[trids[0]];
 
-    vtkIdType *edgePts[3];
+    const vtkIdType *edgePts[3];
     edgePts[0] = &edgePtIds[0];
     edgePts[1] = &edgePtIds[1];
     edgePts[2] = &edgePtIds[2];
@@ -1327,7 +1327,8 @@ static void vtkCTPFInsertTriangle(
       {
       if (edgeLocs[i] >= 0)
         {
-        vtkIdType npts, *pts;
+        vtkIdType npts=0;
+        vtkIdType const *pts = nullptr;
         originalEdges->GetCell(edgeLocs[i], npts, pts);
         assert(edgePts[i][0] == pts[0]);
         assert(edgePts[i][1] == pts[npts-1]);
