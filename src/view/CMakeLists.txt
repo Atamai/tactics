@@ -3,8 +3,7 @@ project(cbView)
 set(Cerebra_LIBRARIES ${Cerebra_LIBRARIES} ${PROJECT_NAME} PARENT_SCOPE)
 set(INCLUDE_OUTPUT_PATH ${INCLUDE_OUTPUT_PATH} ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
-# CMake version requirements
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.16)
 
 # Mandatory policy setting
 if(COMMAND CMAKE_POLICY)

@@ -1,109 +1,72 @@
-# David Adair (Calgary Image Processing and Analysis Centre).
-# Copyright (C) 2011-2016. BSD(3) License.
+# Modernized CMakeLists.txt for VTK 9.6, Qt5/6, and clean CMake practices
+cmake_minimum_required(VERSION 3.20)
+project(Tactics VERSION 1.1.0 LANGUAGES CXX)
 
-#
-# Project Properties
-#
-cmake_minimum_required(VERSION 2.6.2)
-project(Tactics)
+# ---------------------------------------------------------------
+# Global Build Settings
+# ---------------------------------------------------------------
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+
+# ---------------------------------------------------------------
+# Project Metadata
+# ---------------------------------------------------------------
 set(APPLICATION_NAME "Tactics")
-set(APPLICATION_CODENAME "${PROJECT_NAME}")
-set(APPLICATION_COPYRIGHT_YEARS "2016")
-set(APPLICATION_VERSION_MAJOR 1)
-set(APPLICATION_VERSION_MINOR 1)
-set(APPLICATION_VERSION_PATCH 0)
-set(APPLICATION_VERSION_TYPE SNAPSHOT)
-set(APPLICATION_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}-${APPLICATION_VERSION_TYPE}")
-set(APPLICATION_VENDOR_ID "ca.calgaryimageanalysis")
 set(APPLICATION_VENDOR_NAME "Calgary Image Processing and Analysis Centre")
 set(APPLICATION_VENDOR_URL "calgaryimageanalysis.ca")
-set(APPLICATION_ID "${APPLICATION_VENDOR_ID}.${PROJECT_NAME}")
 
-#
-# Debugging Options
-#
-set(CMAKE_VERBOSE_MAKEFILE 0) # Use 1 for debugging, 0 for release
-
-#
-# Project Output Paths
-#
-set(MAINFOLDER ${PROJECT_SOURCE_DIR})
-set(EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
-set(LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
-set(CONFIGURE_OUTPUT_PATH "${MAINFOLDER}/build")
+# ---------------------------------------------------------------
+# Output Paths
+# ---------------------------------------------------------------
+set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
+set(LIBRARY_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/lib")
 
 file(MAKE_DIRECTORY
- "${EXECUTABLE_OUTPUT_PATH}"
- "${LIBRARY_OUTPUT_PATH}"
- "${CONFIGURE_OUTPUT_PATH}")
+  "${EXECUTABLE_OUTPUT_PATH}"
+  "${LIBRARY_OUTPUT_PATH}"
+)
 
-#
-# Project Data Path
-#
-set(APPLICATION_DATA_PATH "${MAINFOLDER}/share")
-set(APPLICATION_ICON_PATH
-  "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Icons")
-set(APPLICATION_RESOURCE_PATH
-  "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Resources")
+# ---------------------------------------------------------------
+# Include Paths (Prefer target_include_directories later)
+# ---------------------------------------------------------------
+set(PROJECT_INCLUDE_DIRS
+  "${PROJECT_SOURCE_DIR}/include"
+  "${PROJECT_SOURCE_DIR}/thirdparty/toolcursor"
+  "${PROJECT_SOURCE_DIR}/src"
+)
 
-#
-# FIXME: These directories should append themselves to the list
-# (apart from thirdparty applications that are compiled into libraries)
-#
-set(INCLUDE_OUTPUT_PATH
-  "${MAINFOLDER}/include"
-  "${MAINFOLDER}/thirdparty/jsoncpp"
-  "${MAINFOLDER}/thirdparty/toolcursor"
-  "${MAINFOLDER}/thirdparty/airs/ImageRegistration/"
-  "${MAINFOLDER}/thirdparty/airs/ImageSegmentation/"
-  "${MAINFOLDER}/thirdparty/upstream/vtk/"
-  "${MAINFOLDER}/thirdparty/upstream/airs/"
-  )
+# ---------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------
+# VTK
+set(VTK_DIR "/Users/ystarrev/Development/vtkbin")
+find_package(VTK 9.5 REQUIRED COMPONENTS
+  CommonCore
+  CommonDataModel
+  FiltersCore
+  FiltersSources
+  IOImage
+  InteractionStyle
+  RenderingCore
+  RenderingFreeType
+  RenderingOpenGL2
+)
 
-include_directories(${INCLUDE_OUTPUT_PATH})
-include_directories("${MAINFOLDER}/src/view")
-include_directories("${MAINFOLDER}/src/data")
-include_directories("${MAINFOLDER}/src/gui")
-include_directories("${MAINFOLDER}/src/processing")
-include_directories("${MAINFOLDER}/src/dicom")
-include_directories("${MAINFOLDER}/build/src/dicom")
-include_directories("${MAINFOLDER}/src/tactics")
-
-#
-# Libraries built
-#
-set(Cerebra_LIBRARIES "vtkToolCursor")
-
-#
-# Project Search Paths
-#
-list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
-list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/tools")
-list(APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/thirdparty")
-set(CMAKE_MODULE_PATH "${MAINFOLDER}/tools/share/cmake")
-
-#
-# Locate Project Prerequisites
-#
-find_package(VTK REQUIRED)
-include(${VTK_USE_FILE})
-
-find_package(Qt5Widgets)
+# Qt (Prefer Qt6 if available)
+find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 
-find_package(GDCM)
-include(${GDCM_USE_FILE})
-set(GDCM_LIBS gdcmMSFF gdcmIOD gdcmDSED gdcmDICT)
-set(USE_GDCM ON)
+# GDCM modern style
+set(GDCM_DIR "/Users/ystarrev/Development/GDCMbin")
+find_package(GDCM REQUIRED)
 
-#
-# Application icon
-#
-set(TACTICS_ICON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/resources/Tactics.icns)
-
-#
-# Add Build Targets
-#
+# ---------------------------------------------------------------
+# Subdirectories
+# ---------------------------------------------------------------
 add_subdirectory(thirdparty)
 add_subdirectory(src/gui)
 add_subdirectory(src/data)
@@ -113,57 +76,43 @@ add_subdirectory(src/processing)
 add_subdirectory(src/tactics)
 add_subdirectory(test)
 
-#
-# Copy icons
-#
+# ---------------------------------------------------------------
+# Resources (Icons, Probes)
+# ---------------------------------------------------------------
+set(APPLICATION_ICON_PATH "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Icons")
+set(APPLICATION_RESOURCE_PATH "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Resources")
+
 foreach(ICONTYPE Icons Cursors)
   string(TOLOWER "${ICONTYPE}" LC_ICONTYPE)
-  file(GLOB_RECURSE ICON_FILES
-       RELATIVE ${CMAKE_SOURCE_DIR}/resources/${LC_ICONTYPE}
-       resources/${LC_ICONTYPE}/*.png)
-  set(ALL_ICON_FILES)
+  file(GLOB_RECURSE ICON_FILES "resources/${LC_ICONTYPE}/*.png")
+
   foreach(ICON_FILE ${ICON_FILES})
-    set(src ${CMAKE_SOURCE_DIR}/resources/${LC_ICONTYPE}/${ICON_FILE})
-    set(tgt ${APPLICATION_ICON_PATH}/${ICONTYPE}/${ICON_FILE})
-    add_custom_command(DEPENDS ${src}
-                       COMMAND ${CMAKE_COMMAND} -E copy ${src} ${tgt}
-                       OUTPUT ${tgt}
-                       COMMENT "icon copy ${LC_ICONTYPE}/${ICON_FILE}")
-    set(ALL_ICON_FILES ${ALL_ICON_FILES} ${tgt})
+    set(dest "${APPLICATION_ICON_PATH}/${ICONTYPE}/${ICON_FILE}")
+    add_custom_command(
+      OUTPUT ${dest}
+      DEPENDS ${ICON_FILE}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${ICON_FILE} ${dest}
+    )
+    list(APPEND ALL_ICON_FILES ${dest})
   endforeach()
 
-  add_custom_target(Copy${ICONTYPE} ALL echo "..."
-    DEPENDS ${ALL_ICON_FILES})
-
-  install(FILES ${ALL_ICON_FILES}
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/Icons/${ICONTYPE})
+  add_custom_target(Copy${ICONTYPE} ALL DEPENDS ${ALL_ICON_FILES})
 endforeach()
 
-#
-# Copy probes
-#
-file(GLOB_RECURSE PROBE_FILES
-     RELATIVE ${CMAKE_SOURCE_DIR}/share
-     share/*.txt)
-set(ALL_PROBE_FILES)
+# Probes
+file(GLOB_RECURSE PROBE_FILES "share/*.txt")
 foreach(PROBE_FILE ${PROBE_FILES})
-  set(src ${CMAKE_SOURCE_DIR}/share/${PROBE_FILE})
-  set(tgt ${APPLICATION_RESOURCE_PATH}/Probes/${PROBE_FILE})
-  add_custom_command(DEPENDS ${src}
-                     COMMAND ${CMAKE_COMMAND} -E copy ${src} ${tgt}
-                     OUTPUT ${tgt}
-                     COMMENT "probe copy ${PROBE_FILE}")
-  set(ALL_PROBE_FILES ${ALL_PROBE_FILES} ${tgt})
+  set(dest "${APPLICATION_RESOURCE_PATH}/Probes/${PROBE_FILE}")
+  add_custom_command(
+    OUTPUT ${dest}
+    DEPENDS ${PROBE_FILE}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PROBE_FILE} ${dest}
+  )
+  list(APPEND ALL_PROBE_FILES ${dest})
 endforeach()
+add_custom_target(CopyProbes ALL DEPENDS ${ALL_PROBE_FILES})
 
-add_custom_target(CopyProbes ALL echo "..." DEPENDS ${ALL_PROBE_FILES})
-
-install(FILES ${ALL_PROBE_FILES}
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/Resources/Probes)
-
-#
-# Add Install Targets
-#
-if(EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
-    install(DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}" DESTINATION "include")
-endif(EXISTS "${MAINFOLDER}/include/${PROJECT_NAME}" AND IS_DIRECTORY "${MAINFOLDER}/include/${PROJECT_NAME}")
+# ---------------------------------------------------------------
+# Install
+# ---------------------------------------------------------------
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}" DESTINATION include OPTIONAL)
