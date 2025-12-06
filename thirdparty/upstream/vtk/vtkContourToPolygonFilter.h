@@ -34,6 +34,7 @@
 #include <vtkPolygon.h>
 #include <vtkPolyDataAlgorithm.h>
 
+
 class vtkCellArray;
 class vtkIdList;
 

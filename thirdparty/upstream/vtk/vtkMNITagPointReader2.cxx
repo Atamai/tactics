@@ -119,7 +119,7 @@ int vtkMNITagPointReader2::CanReadFile(const char* fname)
   // Try to read the first line of the file.
   int status = 0;
 
-  ifstream infile(fname);
+  std::ifstream infile(fname);
 
   if (infile.good())
     {
@@ -480,7 +480,7 @@ int vtkMNITagPointReader2::ReadFile(
     }
 
   // Make sure that the file is readable.
-  ifstream infile(this->FileName);
+  std::ifstream infile(this->FileName);
   std::string linetext;
   std::string::iterator pos = linetext.begin();
 

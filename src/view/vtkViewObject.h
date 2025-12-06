@@ -37,7 +37,7 @@
 #ifndef VTKVIEWOBJECT_H
 #define VTKVIEWOBJECT_H
 
-#include "vtkObject.h"
+#include <vtkObject.h>
 
 class vtkViewObjectCollection;
 

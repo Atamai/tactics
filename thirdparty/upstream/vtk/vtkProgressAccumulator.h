@@ -35,71 +35,71 @@
 // .SECTION See also
 // vtkCommand vtkTimeStamp
 
-#ifndef __vtkProgressAccumulator_h
-#define __vtkProgressAccumulator_h
+#ifndef vtkProgressAccumulator_h
+#define vtkProgressAccumulator_h
 
-#include "vtkProcessObject.h"
+#include <vtkObject.h>
+#include <vtkSmartPointer.h>
 #include <vector>
 
 class vtkCallbackCommand;
-class vtkObject;
 class vtkAlgorithm;
 
-class VTK_COMMON_EXPORT vtkProgressAccumulator : public vtkProcessObject
+class vtkProgressAccumulator : public vtkObject
 {
 public:
-  vtkTypeMacro(vtkProgressAccumulator,vtkProcessObject);
-  
-  // Description:
-  static vtkProgressAccumulator *New();
-  
-  void PrintSelf(ostream& os, vtkIndent indent);
+  static vtkProgressAccumulator* New();
+  vtkTypeMacro(vtkProgressAccumulator, vtkObject);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
+  // Reset global and per-filter progress
   void ResetProgress();
-  void RegisterFilter(vtkAlgorithm *filter, float weight);
+
+  // Add a filter with a relative weight (must be called before execution)
+  void RegisterFilter(vtkAlgorithm* filter, float weight = 1.0f);
+
+  // Remove all filter records
   void UnregisterAllFilters();
-  
-  vtkSetMacro(AccumulatedProgressBase,float);
-  vtkGetMacro(AccumulatedProgressBase,float);
-  
-  vtkGetMacro(AccumulatedProgress,float);
-  
-  void RegisterEndEvent();
-  
+
+  // Base progress offset (useful when accumulating stages)
+  vtkSetMacro(AccumulatedProgressBase, float);
+  vtkGetMacro(AccumulatedProgressBase, float);
+
+  // Total accumulated progress [0–1]
+  vtkGetMacro(AccumulatedProgress, float);
+
+  // If enabled, emit an EndEvent() when the last filter completes
+  vtkSetMacro(EmitEndEvent, bool);
+  vtkGetMacro(EmitEndEvent, bool);
+
 protected:
   vtkProgressAccumulator();
-  virtual ~vtkProgressAccumulator();
-  
+  ~vtkProgressAccumulator() override;
+
 private:
-  struct ProgressData
+  struct FilterRecordEntry
   {
-    vtkAlgorithm *Filter;
-    float Weight;
-    unsigned long ProgressTag;
-    unsigned long IterationTag;
-    unsigned long StartTag;
-    unsigned long EndTag;
-    float Progress;
+    vtkAlgorithm* Filter = nullptr;
+    float Weight = 1.0f;
+    float CurrentProgress = 0.0f;
+
+    unsigned long ProgressTag = 0;
   };
-  
-  static void FilterCallback(vtkObject *caller, unsigned long eventId, void* clientData, void* callData);
-  
-  void CallbackStart(vtkAlgorithm *filter);
-  void CallbackProgress(vtkAlgorithm *filter, double progress);
-  void CallbackEnd(vtkAlgorithm *filter);
-  
-  typedef std::vector<struct ProgressData> FilterRecordVector;
-  FilterRecordVector FilterRecord;
-  vtkAlgorithm *InternalFilter;
-  
-  float AccumulatedProgress;
-  float AccumulatedProgressBase;
-  
-  vtkCallbackCommand *CallbackCommand;
-  
-  bool AccumulateEnd;
+
+  static void FilterProgressCallback(
+      vtkObject* caller, unsigned long eventId,
+      void* clientData, void* callData);
+
+  void OnFilterProgress(vtkAlgorithm* filter, double progress);
+
+  // Internal records of child filters
+  std::vector<FilterRecordEntry> Records;
+
+  vtkSmartPointer<vtkCallbackCommand> ProgressCallbackCommand;
+
+  float AccumulatedProgress = 0.0f;
+  float AccumulatedProgressBase = 0.0f;
+  bool EmitEndEvent = true;
 };
 
-#endif 
-  
-  
+#endif

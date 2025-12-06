@@ -14,170 +14,132 @@
  =========================================================================*/
 #include "vtkProgressAccumulator.h"
 
-#include "vtkCommand.h"
-#include "vtkCallbackCommand.h"
-#include "vtkAlgorithm.h"
-#include "vtkObject.h"
-#include "vtkObjectFactory.h"
+#include <vtkAlgorithm.h>
+#include <vtkCallbackCommand.h>
+#include <vtkCommand.h>
+#include <vtkObjectFactory.h>
 
 vtkStandardNewMacro(vtkProgressAccumulator);
 
-//----------------------------------------------------------------------------
-// Constructor sets default values
 vtkProgressAccumulator::vtkProgressAccumulator()
 {
-  InternalFilter = 0;
-  AccumulatedProgress = 0.0f;
-  AccumulatedProgressBase = 0.0f;
-  AccumulateEnd = false;
-  
+  this->ProgressCallbackCommand = vtkSmartPointer<vtkCallbackCommand>::New();
+  this->ProgressCallbackCommand->SetCallback(
+      &vtkProgressAccumulator::FilterProgressCallback);
+  this->ProgressCallbackCommand->SetClientData(this);
+
   this->ResetProgress();
-  
-  CallbackCommand = vtkCallbackCommand::New();
-  CallbackCommand->SetCallback(vtkProgressAccumulator::FilterCallback );
-  CallbackCommand->SetClientData(this);
 }
 
-//----------------------------------------------------------------------------
 vtkProgressAccumulator::~vtkProgressAccumulator()
 {
   this->UnregisterAllFilters();
-  CallbackCommand->Delete();
 }
 
-//----------------------------------------------------------------------------
 void vtkProgressAccumulator::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  os << indent << "AccumulatedProgress " << this->AccumulatedProgress << "\n";
-  os << indent << "AccumulatedProgressBase " << this->AccumulatedProgressBase << "\n";
+  os << indent << "AccumulatedProgress: " << this->AccumulatedProgress << "\n";
+  os << indent << "AccumulatedProgressBase: " << this->AccumulatedProgressBase << "\n";
+  os << indent << "EmitEndEvent: " << this->EmitEndEvent << "\n";
 }
 
-//----------------------------------------------------------------------------
 void vtkProgressAccumulator::ResetProgress()
 {
-  AccumulatedProgress = 0.0f;
-  AccumulatedProgressBase = 0.0f;
-  FilterRecordVector::iterator it;
-  for (it = FilterRecord.begin(); it != FilterRecord.end(); ++it) {
-    it->Progress = 0.0f;
-    it->Filter->SetProgress(0.0f);
+  this->AccumulatedProgress = this->AccumulatedProgressBase;
+
+  for (auto& rec : this->Records)
+  {
+    rec.CurrentProgress = 0.0f;
   }
 }
 
-//----------------------------------------------------------------------------
 void vtkProgressAccumulator::UnregisterAllFilters()
 {
-  // The filters should no longer be observing us
- /* FilterRecordVector::iterator it;
-  for(it = FilterRecord.begin(); it != FilterRecord.end();++it)
+  for (auto& rec : this->Records)
   {
-    it->Filter->RemoveObserver(vtkCommand::ProgressEvent);
-  } */
-  
-  // Clear the filter array
-  FilterRecord.clear();
-  
-  // Reset the progress meter
-  this->ResetProgress();  
-}
-
-//----------------------------------------------------------------------------
-void vtkProgressAccumulator::RegisterFilter(vtkAlgorithm *filter, float weight)
-{
-  ProgressData pd;
-  pd.Filter = filter;
-  pd.Weight = weight;
-
-  // Register callbacks with the filter
-  vtkCallbackCommand *cbc = vtkCallbackCommand::New();
-  cbc->SetCallback(&vtkProgressAccumulator::FilterCallback);
-  cbc->SetClientData(this);
-  pd.StartTag = filter->AddObserver(vtkCommand::StartEvent, cbc);
-  pd.EndTag = filter->AddObserver(vtkCommand::EndEvent, cbc);
-  pd.ProgressTag = filter->AddObserver(vtkCommand::ProgressEvent, cbc);
-  cbc->Delete();
-  
-  FilterRecord.push_back(pd);
-  
-  AccumulatedProgress = AccumulatedProgressBase;
-}
-
-//----------------------------------------------------------------------------
-void vtkProgressAccumulator::FilterCallback(vtkObject *caller, unsigned long eventId, void* clientData, void*)
-{
-  vtkAlgorithm* filter = static_cast<vtkAlgorithm*>(caller);
-  vtkProgressAccumulator *self = static_cast<vtkProgressAccumulator *>(clientData);
-    
-  // Call the appropriate handler
-  if(eventId == vtkCommand::ProgressEvent) 
-    self->CallbackProgress(filter,filter->GetProgress());
-  else if(eventId == vtkCommand::EndEvent)
-    self->CallbackEnd(filter);
-  else if(eventId == vtkCommand::StartEvent)
-    self->CallbackStart(filter);
-}
-
-//----------------------------------------------------------------------------
-void vtkProgressAccumulator::CallbackStart(vtkAlgorithm *filter)
-{
-  FilterRecordVector::iterator it;
-  for(it = FilterRecord.begin(); it != FilterRecord.end();++it)
-  {
-    if (it->Filter == filter) 
+    if (rec.Filter)
     {
-      if (it == FilterRecord.begin())         
-      {
-        this->SetProgress(AccumulatedProgressBase);
-        this->InvokeEvent(vtkCommand::StartEvent,CallbackCommand);
-      }
-      else {
-        this->InvokeEvent(vtkCommand::ProgressEvent,CallbackCommand);
-      }
+      rec.Filter->RemoveObserver(rec.ProgressTag);
     }
   }
+
+  this->Records.clear();
+  this->ResetProgress();
 }
 
-//----------------------------------------------------------------------------
-void vtkProgressAccumulator::CallbackProgress(vtkAlgorithm *filter, double progress)
+void vtkProgressAccumulator::RegisterFilter(vtkAlgorithm* filter, float weight)
 {
-  // Accumulate progress event  
-  FilterRecordVector::iterator it;
-  for(it = FilterRecord.begin(); it != FilterRecord.end();++it)
+  if (!filter)
   {
-    if (it->Filter == filter) 
-    {
-      AccumulatedProgress = progress * it->Weight + AccumulatedProgressBase;
-      this->SetProgress(AccumulatedProgress);      
-      this->InvokeEvent(vtkCommand::ProgressEvent,CallbackCommand);
-    }
+    vtkErrorMacro("Attempt to register nullptr filter!");
+    return;
   }
+
+  FilterRecordEntry rec;
+  rec.Filter = filter;
+  rec.Weight = weight;
+
+  rec.ProgressTag =
+      filter->AddObserver(vtkCommand::ProgressEvent,
+                          this->ProgressCallbackCommand);
+
+  this->Records.push_back(rec);
+
+  this->ResetProgress();
 }
 
-//----------------------------------------------------------------------------
-void vtkProgressAccumulator::CallbackEnd(vtkAlgorithm *filter)
+void vtkProgressAccumulator::FilterProgressCallback(
+    vtkObject* caller, unsigned long eventId,
+    void* clientData, void* callData)
 {
-  FilterRecordVector::iterator it;  
-  for(it = FilterRecord.begin(); it != FilterRecord.end();++it)
+  if (eventId != vtkCommand::ProgressEvent)
+    return;
+
+  auto* filter = vtkAlgorithm::SafeDownCast(caller);
+  if (!filter)
+    return;
+
+  auto* self = static_cast<vtkProgressAccumulator*>(clientData);
+
+  double progress =
+      (callData ? *static_cast<double*>(callData) : filter->GetProgress());
+
+  self->OnFilterProgress(filter, progress);
+}
+
+void vtkProgressAccumulator::OnFilterProgress(vtkAlgorithm* filter, double progress)
+{
+  float totalWeight = 0.0f;
+  float weightedSum = 0.0f;
+
+  for (auto& rec : this->Records)
   {
-    if (it->Filter == filter) 
+    if (rec.Filter == filter)
     {
-      if (it == FilterRecord.end())         
-      {
-        this->InvokeEvent(vtkCommand::EndEvent,CallbackCommand);
-      }
-      else {
-        this->InvokeEvent(vtkCommand::ProgressEvent,CallbackCommand);
-        AccumulatedProgressBase = AccumulatedProgress;
-      }
+      rec.CurrentProgress = static_cast<float>(progress);
     }
-  }
-}
 
-//------------------------------------------------------------------------------
-void vtkProgressAccumulator::RegisterEndEvent()
-{
-  cerr << "Force Program End" << endl;
-  AccumulatedProgress = 1;
-  this->InvokeEvent(vtkCommand::EndEvent,CallbackCommand);  
+    weightedSum += rec.CurrentProgress * rec.Weight;
+    totalWeight += rec.Weight;
+  }
+
+  if (totalWeight <= 0.0f)
+    return;
+
+  this->AccumulatedProgress =
+      this->AccumulatedProgressBase + weightedSum / totalWeight;
+
+  this->InvokeEvent(vtkCommand::ProgressEvent, &this->AccumulatedProgress);
+
+  // Check if all filters have completed
+  const bool allDone = std::all_of(
+      this->Records.begin(), this->Records.end(),
+      [](const FilterRecordEntry& r) { return r.CurrentProgress >= 1.0f; });
+
+  if (allDone && this->EmitEndEvent)
+  {
+    float endVal = 1.0f;
+    this->InvokeEvent(vtkCommand::EndEvent, &endVal);
+  }
 }

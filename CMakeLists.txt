@@ -33,7 +33,6 @@ file(MAKE_DIRECTORY
 # ---------------------------------------------------------------
 set(PROJECT_INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}/include"
-  "${PROJECT_SOURCE_DIR}/thirdparty/toolcursor"
   "${PROJECT_SOURCE_DIR}/src"
 )
 
