@@ -1,47 +1,53 @@
-project(cbVTK)
-
 cmake_minimum_required(VERSION 3.16)
 
-# Mandatory policy setting
-if(COMMAND CMAKE_POLICY)
-  cmake_policy(SET CMP0003 NEW)
-endif()
+# 1. Project definition
+project(cbVTK LANGUAGES CXX)
 
-# Find VTK
-if(NOT VTK_FOUND)
-  find_package(VTK)
-  if(VTK_FOUND)
-    include(${VTK_USE_FILE})
-  endif()
-endif()
+# 2. VTK 9.5 requires C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# The library name, dependencies, and source files
-set(LIB_NAME cbVTK)
-set(LIB_DEPS vtkCommon vtkImaging vtkFiltering)
+# 3. Find VTK with specific components
+# vtkCommon -> VTK::CommonCore, VTK::CommonDataModel
+# vtkFiltering -> VTK::FiltersCore, VTK::CommonExecutionModel
+# vtkImaging -> VTK::ImagingCore
+# Reader support -> VTK::IOLegacy (likely needed for vtkMNITagPointReader2)
+find_package(VTK 9.5 REQUIRED COMPONENTS
+  CommonCore
+  CommonDataModel
+  CommonExecutionModel
+  FiltersCore
+  ImagingCore
+  IOLegacy
+)
+
+# 4. Define Sources
 set(LIB_SRCS
   vtkContourToPolygonFilter.cxx
   vtkMNITagPointReader2.cxx
   vtkProgressAccumulator.cxx
+  # You can list headers here if you want them to show up in IDEs
+  # vtkContourToPolygonFilter.h 
 )
 
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
+# 5. Create the Library
+add_library(cbVTK ${LIB_SRCS})
+
+# 6. Link Libraries (Using modern namespaced targets)
+# We use PUBLIC so that projects linking to cbVTK automatically
+# get the VTK include paths and link flags.
+target_link_libraries(cbVTK PUBLIC
+  VTK::CommonCore
+  VTK::CommonDataModel
+  VTK::CommonExecutionModel
+  VTK::FiltersCore
+  VTK::ImagingCore
+  VTK::IOLegacy
 )
 
-# Create a list of header files (source files that end in .h)
-set(LIB_HDRS)
-foreach(source_file ${LIB_SRCS})
-  get_filename_component(file_extension ${source_file} EXT)
-  if("${file_extension}" STREQUAL ".h")
-    set(LIB_HDRS ${LIB_HDRS} ${source_file})
-  endif()
-endforeach()
-
-# Let CMake know which sources have .h without a .cxx
-if(LIB_HDRS)
-  set_source_files_properties(${LIB_HDRS} HEADER_FILE_ONLY)
-endif()
-
-# Create the library
-add_library(${LIB_NAME} ${LIB_SRCS})
-target_link_libraries(${LIB_NAME} ${LIB_DEPS})
+# 7. Include Directories
+target_include_directories(cbVTK PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  $<INSTALL_INTERFACE:include>
+)
