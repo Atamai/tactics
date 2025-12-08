@@ -60,17 +60,18 @@
 #include "qx11info_x11.h"
 #endif
 
-#include "vtkstd/map"
+//#include "vtkstd/map"
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkRenderWindow.h"
 #include "vtkCommand.h"
 #include "vtkOStrStreamWrapper.h"
 #include "vtkObjectFactory.h"
 #include "vtkCallbackCommand.h"
-#include "vtkConfigure.h"
+//#include "vtkConfigure.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkImageData.h"
 #include "vtkPointData.h"
+#include <iostream>
 
 // function to dirty cache when a render occurs.
 static void dirty_cache(vtkObject *, unsigned long, void *, void *);
@@ -104,9 +105,9 @@ qvtkViewToolCursorWidget::qvtkViewToolCursorWidget(QWidget* p, Qt::WindowFlags f
   mPaintEngine = NULL;
 
   this->mCachedImage = vtkImageData::New();
-  this->mCachedImage->SetScalarTypeToUnsignedChar();
   this->mCachedImage->SetOrigin(0,0,0);
   this->mCachedImage->SetSpacing(1,1,1);
+  this->mCachedImage->AllocateScalars(VTK_UNSIGNED_CHAR, 3);
 
   this->FocusCursor = NULL;
   this->FocusCursorShape.setShape(Qt::ArrowCursor);
@@ -238,9 +239,8 @@ void qvtkViewToolCursorWidget::saveImageToCache()
 
   int w = this->width();
   int h = this->height();
-  this->mCachedImage->SetNumberOfScalarComponents(3);
   this->mCachedImage->SetExtent(0, w-1, 0, h-1, 0, 0);
-  this->mCachedImage->AllocateScalars();
+  this->mCachedImage->AllocateScalars(VTK_UNSIGNED_CHAR, 3);
   vtkUnsignedCharArray* array = vtkUnsignedCharArray::SafeDownCast(
       this->mCachedImage->GetPointData()->GetScalars());
   // We use back-buffer if
@@ -256,9 +256,9 @@ void qvtkViewToolCursorWidget::setAutomaticImageCacheEnabled(bool flag)
   if (!flag)
   {
     this->mCachedImage->Initialize();
-    this->mCachedImage->SetScalarTypeToUnsignedChar();
     this->mCachedImage->SetOrigin(0,0,0);
     this->mCachedImage->SetSpacing(1,1,1);
+    this->mCachedImage->AllocateScalars(VTK_UNSIGNED_CHAR, 3);
   }
 }
 

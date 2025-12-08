@@ -59,11 +59,17 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+# vtk-dicom
+find_package(dicom REQUIRED)
+
 # GDCM modern style
 find_package(GDCM REQUIRED)
 
 # ToolCursor
 find_package(ToolCursor REQUIRED)
+
+#AIRS
+find_package(AIRS REQUIRED)
 
 # ---------------------------------------------------------------
 # Subdirectories

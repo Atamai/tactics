@@ -178,7 +178,7 @@ QStringList cbQtDicomDirModel::fileNames(
   vtkStringArray *a = m_Directory->GetFileNamesForSeries(series);
   vtkIdType n = a->GetNumberOfValues();
   for (vtkIdType i = 0; i < n; i++) {
-    files.append(QString::fromUtf8(a->GetValue(i)));
+    files.append(QString::fromStdString(a->GetValue(i)));
   }
 
   return files;

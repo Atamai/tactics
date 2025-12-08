@@ -75,11 +75,8 @@ void vtkImageNode::ShallowCopyImage(vtkImageData *image)
 {
   // This copies just the parts we want, and nothing else.
   this->Image->CopyStructure(image);
-  this->Image->GetPointData()->PassData(image->GetPointData());
-  this->Image->SetNumberOfScalarComponents(image->GetNumberOfScalarComponents());
-  this->Image->SetScalarType(image->GetScalarType());
+  this->Image->GetPointData()->ShallowCopy(image->GetPointData());
   this->Image->Modified();
-
   this->Modified();
 }
 

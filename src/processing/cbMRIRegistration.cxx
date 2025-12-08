@@ -69,7 +69,7 @@
  =========================================================================*/
 
 #include "cbMRIRegistration.h"
-
+//VTK includes
 #include <vtkSmartPointer.h>
 #include <vtkMath.h>
 #include <vtkImageResize.h>
@@ -90,10 +90,11 @@
 #include <vtkImageProperty.h>
 #include <vtkTimerLog.h>
 #include <vtkErrorCode.h>
-
+//AIRS includes
 #include <vtkImageRegistration.h>
 #include <vtkProgressAccumulator.h>
 
+#include <iostream>
 //----------------------------------------------------------------------------
 cbMRIRegistration::cbMRIRegistration()
 {
@@ -266,7 +267,7 @@ int cbMRIRegistration::Execute()
     while (this->Iterate()) {}
 
     double newTime = timer->GetUniversalTime();
-    cout << "blur " << blurFactor << " took "
+    std::cout << "blur " << blurFactor << " took "
          << (newTime - lastTime) << "s and "
          << m_registration->GetNumberOfEvaluations() << " evaluations" << endl;
     lastTime = newTime;
@@ -281,7 +282,7 @@ int cbMRIRegistration::Execute()
 
   this->Finish();
 
-  cout << "registration took " << (lastTime - startTime) << "s" << endl;
+  std::cout << "registration took " << (lastTime - startTime) << "s" << endl;
 
   return 1;
 }
@@ -292,7 +293,7 @@ int cbMRIRegistration::Initialize()
   if (m_sourceImage == NULL || m_targetImage == NULL ||
       m_sourceMatrix == NULL || m_targetMatrix == NULL)
   {
-    cout << "Execute: Input source image & matrix and"
+    std::cout << "Execute: Input source image & matrix and"
             "target image & matrix are not set " << endl;
     return 0;
   }
@@ -328,7 +329,7 @@ int cbMRIRegistration::Initialize()
 
   // reduce the source resolution
   m_sourceBlur = vtkImageResize::New();
-  m_sourceBlur->SetInput(m_sourceImage);
+  m_sourceBlur->SetInputData(m_sourceImage);
   m_sourceBlur->SetResizeMethodToOutputSpacing();
   m_sourceBlur->SetInterpolator(m_sourceBlurKernel);
 
@@ -342,7 +343,7 @@ int cbMRIRegistration::Initialize()
 
   // keep target at full resolution
   m_targetBlur = vtkImageResize::New();
-  m_targetBlur->SetInput(m_targetImage);
+  m_targetBlur->SetInputData(m_targetImage);
   m_targetBlur->SetResizeMethodToOutputSpacing();
   m_targetBlur->SetInterpolator(m_targetBlurKernel);
 
@@ -370,7 +371,7 @@ int cbMRIRegistration::Initialize()
   }
   m_registration->SetInterpolatorType(interpolatorType);
   m_registration->SetJointHistogramSize(numberOfBins,numberOfBins);
-  m_registration->SetMetricTolerance(1e-4);
+  m_registration->SetCostTolerance(1e-4);
   m_registration->SetTransformTolerance(m_transformTolerance);
   m_registration->SetMaximumNumberOfIterations(500);
 
@@ -518,7 +519,7 @@ int cbMRIRegistration::Finish()
   m_registration = NULL;
 
   if (m_progressAccumulate) {
-    m_progressAccumulate->RegisterEndEvent();
+//    m_progressAccumulate->RegisterEndEvent();
   }
 
   return 1;

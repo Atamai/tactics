@@ -39,8 +39,8 @@
 
 #include <QWidget>
 
-#include <vtkConfigure.h>
-#include <vtkToolkits.h>
+//#include <vtkConfigure.h>
+//#include <vtkToolkits.h>
 
 class vtkRenderWindow;
 class vtkImageData;
