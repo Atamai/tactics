@@ -8,3 +8,4 @@ docs/*.js
 docs/search/*
 
 src/tactics/appinfo.h
+.DS_Store
