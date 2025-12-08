@@ -1,6 +1,7 @@
-# Modernized CMakeLists.txt for VTK 9.6, Qt5/6, and clean CMake practices
 cmake_minimum_required(VERSION 3.20)
 project(Tactics VERSION 1.1.0 LANGUAGES CXX)
+
+SET (CONFIGURE_OUTPUT_PATH "/tmp")
 
 # ---------------------------------------------------------------
 # Global Build Settings
@@ -40,7 +41,6 @@ set(PROJECT_INCLUDE_DIRS
 # Dependencies
 # ---------------------------------------------------------------
 # VTK
-set(VTK_DIR "/Users/ystarrev/Development/vtkbin")
 find_package(VTK 9.5 REQUIRED COMPONENTS
   CommonCore
   CommonDataModel
@@ -53,15 +53,17 @@ find_package(VTK 9.5 REQUIRED COMPONENTS
   RenderingOpenGL2
 )
 
-# Qt (Prefer Qt6 if available)
+# Qt
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 # GDCM modern style
-set(GDCM_DIR "/Users/ystarrev/Development/GDCMbin")
 find_package(GDCM REQUIRED)
+
+# ToolCursor
+find_package(ToolCursor REQUIRED)
 
 # ---------------------------------------------------------------
 # Subdirectories
@@ -70,7 +72,6 @@ add_subdirectory(thirdparty)
 add_subdirectory(src/gui)
 add_subdirectory(src/data)
 add_subdirectory(src/view)
-add_subdirectory(src/dicom)
 add_subdirectory(src/processing)
 add_subdirectory(src/tactics)
 add_subdirectory(test)

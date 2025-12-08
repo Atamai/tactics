@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(cbView LANGUAGES CXX)
+project(cbView VERSION 1.0 LANGUAGES CXX)
 
 set(LIB_NAME ${PROJECT_NAME})
 
+# --------------------------------------------------------------
 # 1. Sources
+# --------------------------------------------------------------
 set(LIB_SRCS
   vtkViewObject.cxx
   vtkViewObjectCollection.cxx
@@ -20,7 +22,9 @@ set(LIB_SRCS
   vtkViewToolCursorInteractorObserver.cxx
 )
 
+# --------------------------------------------------------------
 # 2. Find VTK
+# --------------------------------------------------------------
 find_package(VTK 9.5 REQUIRED COMPONENTS
   CommonCore
   CommonDataModel
@@ -31,25 +35,48 @@ find_package(VTK 9.5 REQUIRED COMPONENTS
   IOLegacy
 )
 
-# 3. Library
+# --------------------------------------------------------------
+# 3. Find or link ToolCursor
+# --------------------------------------------------------------
+find_package(ToolCursor REQUIRED)
+
+
+# --------------------------------------------------------------
+# 4. Library
+# --------------------------------------------------------------
 add_library(${LIB_NAME} ${LIB_SRCS})
 
-target_include_directories(${LIB_NAME} PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${MAINFOLDER}/thirdparty/toolcursor/"
+target_include_directories(${LIB_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include/cbView>
+        /usr/local/include/vtk-9.5
 )
 
-target_link_libraries(${LIB_NAME} PUBLIC
-  VTK::CommonCore
-  VTK::CommonDataModel
-  VTK::CommonExecutionModel
-  VTK::FiltersCore
-  VTK::ImagingCore
-  VTK::RenderingCore
-  VTK::IOLegacy
+target_link_libraries(${LIB_NAME}
+    PUBLIC
+        VTK::CommonCore
+        VTK::CommonDataModel
+        VTK::CommonExecutionModel
+        VTK::FiltersCore
+        VTK::ImagingCore
+        VTK::RenderingCore
+        VTK::IOLegacy
+        ToolCursor
 )
 
-# 4. Export for external use
-export(TARGETS ${LIB_NAME}
-    APPEND FILE "${CONFIGURE_OUTPUT_PATH}/CerebraTargets.cmake"
+# --------------------------------------------------------------
+# 5. Install + export
+# --------------------------------------------------------------
+install(TARGETS ${LIB_NAME}
+    EXPORT cbViewTargets
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+
+install(EXPORT cbViewTargets
+    FILE cbViewTargets.cmake
+    NAMESPACE cbView::
+    DESTINATION lib/cmake/cbView
 )

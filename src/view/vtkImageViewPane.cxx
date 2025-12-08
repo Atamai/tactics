@@ -47,6 +47,8 @@
 #include "vtkObjectFactory.h"
 #include "vtkRenderer.h"
 
+#include <iostream>
+
 vtkStandardNewMacro(vtkImageViewPane);
 
 vtkImageViewPane::vtkImageViewPane() : Table(0)
@@ -71,7 +73,7 @@ int vtkImageViewPane::AddImage(vtkImageData *data,
   vtkImageSlice *actor = vtkImageSlice::New();
   vtkImageResliceMapper *mapper = vtkImageResliceMapper::New();
 
-  mapper->SetInput(data);
+  mapper->SetInputData(data);
   mapper->SliceAtFocalPointOn();
   mapper->SliceFacesCameraOn();
   mapper->JumpToNearestSliceOn();

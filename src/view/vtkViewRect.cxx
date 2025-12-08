@@ -51,6 +51,8 @@
 #include "vtkViewPane.h"
 #include "vtkViewRect.h"
 
+#include <iostream>
+
 vtkStandardNewMacro(vtkViewRect);
 
 vtkViewRect::vtkViewRect()

@@ -183,7 +183,7 @@ void vtkViewPane::AddBorder()
   data->GetCellData()->SetScalars(scalars);
 
   vtkSmartPointer<vtkPolyDataMapper2D> mapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
-  mapper->SetInput(data);
+  mapper->SetInputData(data);
 
   vtkSmartPointer<vtkActor2D> actor = vtkSmartPointer<vtkActor2D>::New();
   actor->SetMapper(mapper);

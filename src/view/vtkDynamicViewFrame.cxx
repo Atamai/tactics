@@ -48,6 +48,8 @@
 #include "vtkObjectFactory.h"
 #include "vtkVViewFrame.h"
 
+#include <iostream>
+
 vtkStandardNewMacro(vtkDynamicViewFrame);
 
 vtkDynamicViewFrame::vtkDynamicViewFrame()
@@ -80,7 +82,7 @@ void vtkDynamicViewFrame::SetOrientation(vtkDynamicViewFrame::Orientation o)
     frame->DeepCopy(this->Frame);
     break;
   default:
-    cerr << "ERROR!" << std::endl;
+    std::cerr << "ERROR!" << std::endl;
   }
   this->Frame = frame;
   this->Frame->SetViewRect(this->Rect);
