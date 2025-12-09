@@ -2,82 +2,129 @@ cmake_minimum_required(VERSION 3.16)
 project(cbGUI LANGUAGES CXX)
 
 # ------------------------------------------------------------------------------
-# Policies
+# CMake Policies
 # ------------------------------------------------------------------------------
 if(POLICY CMP0043)
   cmake_policy(SET CMP0043 NEW)
 endif()
 
 # ------------------------------------------------------------------------------
-# Library name, dependencies, and sources
+# Qt Setup (Modern)
 # ------------------------------------------------------------------------------
-set(LIB_NAME ${PROJECT_NAME})
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 
-set(LIB_DEPS
-  vtkCommon
-  vtkRendering
-  vtkToolCursor
-  cbView
-  cbData
-  cbVTK
+find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui Svg Xml)
+
+# ------------------------------------------------------------------------------
+# VTK Setup (Modern, target-based)
+# ------------------------------------------------------------------------------
+find_package(VTK 9.5 REQUIRED
+    COMPONENTS
+        CommonCore
+        CommonDataModel
+        FiltersCore
+        FiltersGeneral
+        IOImage
 )
 
+# ------------------------------------------------------------------------------
+# Source files
+# ------------------------------------------------------------------------------
 set(LIB_SRCS
-  qvtkViewToolCursorWidget.cxx
-  cbMainWindow.cxx
-  cbApplicationController.cxx
-  cbQtDicomDirDialog.cxx
-  cbQtDicomDirModel.cxx
-  cbQtDicomDirThread.cxx
-  cbQtDicomDirView.cxx
-  cbQtVTKOutputWindow.cxx
-  cbStage.cxx
-  cbStageManager.cxx
+    qvtkViewToolCursorWidget.cxx
+    cbMainWindow.cxx
+    cbApplicationController.cxx
+    cbQtDicomDirDialog.cxx
+    cbQtDicomDirModel.cxx
+    cbQtDicomDirThread.cxx
+    cbQtDicomDirView.cxx
+    cbQtVTKOutputWindow.cxx
+    cbStage.cxx
+    cbStageManager.cxx
 )
 
-set(CEREBRA_QT_HEADER
-  qvtkViewToolCursorWidget.h
-  cbMainWindow.h
-  cbApplicationController.h
-  cbStage.h
-  cbStageManager.h
-)
-
-# ------------------------------------------------------------------------------
-# Create the library FIRST
-# ------------------------------------------------------------------------------
-add_library(${LIB_NAME} ${LIB_SRCS} ${CEREBRA_QT_HEADER})
-
-# ------------------------------------------------------------------------------
-# Include paths (must come AFTER add_library)
-# ------------------------------------------------------------------------------
-target_include_directories(${LIB_NAME} PRIVATE
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "${MAINFOLDER}/src/view"
-  "${MAINFOLDER}/src/data"
-  "${MAINFOLDER}/thirdparty/toolcursor"
+set(LIB_HDRS
+    qvtkViewToolCursorWidget.h
+    cbMainWindow.h
+    cbApplicationController.h
+    cbStage.h
+    cbStageManager.h
 )
 
 # ------------------------------------------------------------------------------
-# Link libraries
+# Create library
 # ------------------------------------------------------------------------------
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
-target_link_libraries(${LIB_NAME} PRIVATE Qt5::Widgets)
-target_link_libraries(${LIB_NAME} PRIVATE ${LIB_DEPS})
+add_library(${PROJECT_NAME} STATIC ${LIB_SRCS} ${LIB_HDRS})
 
 # ------------------------------------------------------------------------------
-# Export for parent scopes
+# Include directories (single root for all project headers)
+# ------------------------------------------------------------------------------
+target_include_directories(${PROJECT_NAME} PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src"                # root: gui/, data/, view/
+)
+
+# ------------------------------------------------------------------------------
+# Link Qt libraries
+# ------------------------------------------------------------------------------
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    Qt5::Widgets
+    Qt5::Core
+    Qt5::Gui
+    Qt5::Svg
+    Qt5::Xml
+)
+
+# ------------------------------------------------------------------------------
+# Link VTK libraries (modern targets)
+# ------------------------------------------------------------------------------
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    VTK::CommonCore
+    VTK::CommonDataModel
+    VTK::FiltersCore
+    VTK::FiltersGeneral
+    VTK::IOImage
+)
+
+# ------------------------------------------------------------------------------
+# Link other internal libraries
+# ------------------------------------------------------------------------------
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    cbView
+    cbData
+    cbVTK
+    vtkToolCursor       # ensure this is correctly installed and findable
+)
+
+# ------------------------------------------------------------------------------
+# VTK automatic module initialization
+# ------------------------------------------------------------------------------
+vtk_module_autoinit(
+    TARGETS ${PROJECT_NAME}
+    MODULES
+        VTK::CommonCore
+        VTK::CommonDataModel
+        VTK::FiltersCore
+        VTK::FiltersGeneral
+        VTK::IOImage
+)
+
+# ------------------------------------------------------------------------------
+# Export to parent scope
 # ------------------------------------------------------------------------------
 set(Cerebra_LIBRARIES
     ${Cerebra_LIBRARIES} ${PROJECT_NAME}
-    PARENT_SCOPE)
+    PARENT_SCOPE
+)
 
 set(INCLUDE_OUTPUT_PATH
-    ${INCLUDE_OUTPUT_PATH} ${CMAKE_CURRENT_SOURCE_DIR}
-    PARENT_SCOPE)
+    ${INCLUDE_OUTPUT_PATH} "${CMAKE_CURRENT_SOURCE_DIR}"
+    PARENT_SCOPE
+)
 
 export(
-  TARGETS ${LIB_NAME}
+  TARGETS ${PROJECT_NAME}
   APPEND
   FILE "${CONFIGURE_OUTPUT_PATH}/CerebraTargets.cmake"
 )

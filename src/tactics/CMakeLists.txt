@@ -2,166 +2,183 @@ cmake_minimum_required(VERSION 3.16)
 project(Tactics LANGUAGES CXX)
 
 # ==============================================================================
-#  POLICIES
+#  Project version
 # ==============================================================================
-if(POLICY CMP0043)
-  cmake_policy(SET CMP0043 NEW)
-endif()
+set(APPLICATION_VERSION_MAJOR 1)
+set(APPLICATION_VERSION_MINOR 0)
+set(APPLICATION_VERSION_PATCH 0)
+set(APPLICATION_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}")
 
 # ==============================================================================
-#  QT SETUP (Modern)
+#  CMake Policies
+# ==============================================================================
+cmake_policy(SET CMP0043 NEW)  # find_package Qt5 behavior
+
+# ==============================================================================
+#  Qt Setup (Modern)
 # ==============================================================================
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
-
 find_package(Qt5 REQUIRED COMPONENTS Widgets Gui Core Svg Xml)
 
 # ==============================================================================
-#  SOURCE FILE COLLECTION
+#  VTK Setup (Modern Target-based)
 # ==============================================================================
-file(GLOB_RECURSE project_SRCS
-    CONFIGURE_DEPENDS
-    *.cpp *.cxx *.cc *.C
-    *.h *.hpp)
-
-file(GLOB_RECURSE project_MAIN
-    CONFIGURE_DEPENDS
-    main.cpp main.cxx main.cc main.C
-    main.h main.hpp)
-
-list(REMOVE_ITEM project_SRCS ${project_MAIN})
-
-set(project_LIB cbElectrode)
-set(project_BIN ${PROJECT_NAME})
-
-set(project_LIBS
-    ${GDCM_LIBS}
-    ${Cerebra_LIBRARIES}
-    cbVTK
-    vtkImageRegistration
-    vtkImageSegmentation
+find_package(VTK 9.5 REQUIRED
+    COMPONENTS
+        CommonCore
+        CommonDataModel
+        FiltersCore
+        FiltersGeneral
+        IOImage
 )
 
 # ==============================================================================
-#  DESTINATION / BUNDLE PATHS (Define BEFORE install() commands!)
+#  Project source files
 # ==============================================================================
-# Defaults (Linux)
-set(plugin_dest_dir bin)
-set(qtconf_dest_dir bin)
-set(APPS "\${CMAKE_INSTALL_PREFIX}/Tactics")
+file(GLOB_RECURSE PROJECT_SRCS CONFIGURE_DEPENDS src/*.cpp src/*.cxx src/*.cc src/*.C)
+file(GLOB_RECURSE PROJECT_HDRS CONFIGURE_DEPENDS src/*.h src/*.hpp)
+file(GLOB_RECURSE PROJECT_MAIN CONFIGURE_DEPENDS main.cpp main.cxx main.cc)
 
-if(APPLE)
-    set(plugin_dest_dir Tactics.app/Contents)
-    set(qtconf_dest_dir Tactics.app/Contents/Resources)
-    set(APPS "\${CMAKE_INSTALL_PREFIX}/Tactics.app")
-elseif(WIN32)
-    set(APPS "\${CMAKE_INSTALL_PREFIX}/bin/Tactics.exe")
-endif()
+list(REMOVE_ITEM PROJECT_SRCS ${PROJECT_MAIN})
 
 # ==============================================================================
-#  LIBRARY: cbElectrode
+#  Library: cbElectrode
 # ==============================================================================
-add_library(${project_LIB} STATIC ${project_SRCS})
+set(PROJECT_LIB cbElectrode)
+add_library(${PROJECT_LIB} STATIC ${PROJECT_SRCS} ${PROJECT_HDRS})
 
-target_link_libraries(${project_LIB}
+# Include paths for your library (PUBLIC so executable inherits)
+target_include_directories(${PROJECT_LIB}
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${CMAKE_CURRENT_SOURCE_DIR}/../gui
+        ${CMAKE_CURRENT_SOURCE_DIR}/../view
+        ${CMAKE_CURRENT_SOURCE_DIR}/../data
+)
+
+# Link libraries (Qt, VTK, internal)
+target_link_libraries(${PROJECT_LIB}
     PRIVATE
-        ${project_LIBS}
         Qt5::Core
         Qt5::Gui
+        Qt5::Widgets
         Qt5::Svg
         Qt5::Xml
-        Qt5::Widgets
+        ${Cerebra_LIBRARIES}
+        cbVTK
+        vtkImageRegistration
+        vtkImageSegmentation
+        ${GDCM_LIBS}
+        VTK::CommonCore
+        VTK::CommonDataModel
+        VTK::FiltersCore
+        VTK::FiltersGeneral
+        VTK::IOImage
 )
 
 # ==============================================================================
-#  EXECUTABLE: Tactics
+#  Executable: Tactics
 # ==============================================================================
-set(project_BIN_SRCS ${project_MAIN})
+add_executable(${PROJECT_NAME} MACOSX_BUNDLE ${PROJECT_MAIN})
 
+# Link executable against library and dependencies
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+        ${PROJECT_LIB}
+        Qt5::Core
+        Qt5::Gui
+        Qt5::Widgets
+        Qt5::Svg
+        Qt5::Xml
+        VTK::CommonCore
+        VTK::CommonDataModel
+        VTK::FiltersCore
+        VTK::FiltersGeneral
+        VTK::IOImage
+)
+
+# ==============================================================================
+#  VTK automatic module initialization
+# ==============================================================================
+vtk_module_autoinit(
+    TARGETS ${PROJECT_NAME}
+    MODULES
+        VTK::CommonCore
+        VTK::CommonDataModel
+        VTK::FiltersCore
+        VTK::FiltersGeneral
+        VTK::IOImage
+)
+
+# ==============================================================================
+#  macOS bundle variables
+# ==============================================================================
 if(APPLE)
-    set_source_files_properties(${TACTICS_ICON_FILE}
-        PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-    list(APPEND project_BIN_SRCS ${TACTICS_ICON_FILE})
+    set(plugin_dest_dir "${PROJECT_NAME}.app/Contents")
+    set(qtconf_dest_dir "${PROJECT_NAME}.app/Contents/Resources")
+    set(APPS "${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app")
+else()
+    set(plugin_dest_dir "bin")
+    set(qtconf_dest_dir "bin")
+    set(APPS "${CMAKE_INSTALL_PREFIX}/bin/${PROJECT_NAME}")
 endif()
 
-add_executable(${project_BIN} MACOSX_BUNDLE ${project_BIN_SRCS})
-
-target_link_libraries(${project_BIN}
-    PRIVATE
-        ${project_LIB}
-        jsoncpp
-)
-
-# ------------------------------------------------------------------------------
-# macOS bundle metadata
-# ------------------------------------------------------------------------------
+# ==============================================================================
+#  macOS bundle properties
+# ==============================================================================
 if(APPLE)
-    set_target_properties(${project_BIN} PROPERTIES
+    set_target_properties(${PROJECT_NAME} PROPERTIES
         INSTALL_RPATH_USE_LINK_PATH ON
-        MACOSX_BUNDLE_BUNDLE_NAME Tactics
-        MACOSX_BUNDLE_BUNDLE_VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}"
+        MACOSX_BUNDLE_BUNDLE_NAME ${PROJECT_NAME}
         MACOSX_BUNDLE_ICON_FILE Tactics
-        MACOSX_BUNDLE_GUI_IDENTIFIER ca.calgaryimageanalysis.Tactics
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}"
-        MACOSX_BUNDLE_LONG_VERSION_STRING "${APPLICATION_VERSION_STRING}"
-        MACOSX_BUNDLE_COPYRIGHT "Copyright 2016 David Gobbi and David Adair."
+        MACOSX_BUNDLE_GUI_IDENTIFIER ca.calgaryimageanalysis.${PROJECT_NAME}
     )
 else()
-    set_target_properties(${project_BIN} PROPERTIES
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        OUTPUT_NAME ${PROJECT_NAME}
         VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}"
-        OUTPUT_NAME ${project_BIN}
         CLEAN_DIRECT_OUTPUT 1
     )
 endif()
 
 # ==============================================================================
-#  INSTALLATION
+#  Installation
 # ==============================================================================
-install(TARGETS ${project_BIN}
+install(TARGETS ${PROJECT_NAME}
     BUNDLE DESTINATION .        COMPONENT Runtime
     RUNTIME DESTINATION bin     COMPONENT Runtime
 )
 
-# ==============================================================================
-#  QT PLUGIN INSTALLATION
-# ==============================================================================
-foreach(plugin ${Qt5Gui_PLUGINS})
-    install(FILES "$<TARGET_FILE:${plugin}>"
-            DESTINATION ${plugin_dest_dir}
-            COMPONENT Runtime)
-endforeach()
-
-# ==============================================================================
-#  qt.conf (required for macOS bundle relocatability)
-# ==============================================================================
+# qt.conf for relocatability
 install(CODE "
     file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${qtconf_dest_dir}/qt.conf\" \"\")
 " COMPONENT Runtime)
 
 # ==============================================================================
-#  BundleUtilities fixup_bundle
+#  macOS fixup_bundle (inside install-time code block)
 # ==============================================================================
-set(DIRS
-    ${VTK_DIR}
-    ${CMAKE_INSTALL_PREFIX}/lib
-)
-
-install(CODE "
-file(GLOB_RECURSE QTPLUGINS
-  \"\${CMAKE_INSTALL_PREFIX}/${plugin_dest_dir}/plugins/*${CMAKE_SHARED_LIBRARY_SUFFIX}\")
-include(BundleUtilities)
-fixup_bundle(\"${APPS}\" \"\${QTPLUGINS}\" \"${DIRS}\")
-" COMPONENT Runtime)
+if(APPLE)
+    set(DIRS
+        ${VTK_DIR}
+        ${CMAKE_INSTALL_PREFIX}/lib
+    )
+    install(CODE "
+        file(GLOB_RECURSE QTPLUGINS
+            \"\${CMAKE_INSTALL_PREFIX}/${plugin_dest_dir}/plugins/*${CMAKE_SHARED_LIBRARY_SUFFIX}\")
+        include(BundleUtilities)
+        fixup_bundle(\"${APPS}\" \"\${QTPLUGINS}\" \"${DIRS}\")
+    " COMPONENT Runtime)
+endif()
 
 # ==============================================================================
-#  CPack PACKAGE SETTINGS
+#  CPack package settings
 # ==============================================================================
 set(CPACK_PACKAGE_VERSION_MAJOR ${APPLICATION_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${APPLICATION_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${APPLICATION_VERSION_PATCH})
 set(CPACK_PACKAGE_VERSION       ${APPLICATION_VERSION_STRING})
-
 set(CPACK_BINARY_DRAGNDROP ON)  # macOS .dmg
 
 include(CPack)
