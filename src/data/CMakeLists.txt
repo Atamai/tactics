@@ -10,6 +10,8 @@ find_package(VTK 9.5 REQUIRED
     FiltersGeneral
 )
 
+find_package(dicom REQUIRED)
+
 # ---- Library ----
 set(LIB_NAME ${PROJECT_NAME})
 
@@ -37,7 +39,6 @@ target_link_libraries(${LIB_NAME}
     VTK::CommonDataModel
     VTK::FiltersCore
     VTK::FiltersGeneral
-    cbDICOM
 )
 
 # ---- Export ----

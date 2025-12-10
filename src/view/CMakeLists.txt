@@ -62,7 +62,7 @@ target_link_libraries(${LIB_NAME}
         VTK::ImagingCore
         VTK::RenderingCore
         VTK::IOLegacy
-        ToolCursor
+        VTK::ToolCursor
 )
 
 # --------------------------------------------------------------

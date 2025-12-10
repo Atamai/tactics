@@ -28,6 +28,7 @@ find_package(VTK 9.5 REQUIRED
         FiltersGeneral
         IOImage
 )
+find_package(ToolCursor REQUIRED)
 
 # ------------------------------------------------------------------------------
 # Source files
@@ -94,7 +95,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     cbView
     cbData
     cbVTK
-    vtkToolCursor       # ensure this is correctly installed and findable
 )
 
 # ------------------------------------------------------------------------------

@@ -1,124 +1,138 @@
-cmake_minimum_required(VERSION 3.20)
-project(Tactics VERSION 1.1.0 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+project(TacticsProject LANGUAGES CXX)
 
-SET (CONFIGURE_OUTPUT_PATH "/tmp")
+# -------------------------------------------------------------------------
+# Globals: versions / options
+# -------------------------------------------------------------------------
+set(APPLICATION_VERSION_MAJOR 1)
+set(APPLICATION_VERSION_MINOR 0)
+set(APPLICATION_VERSION_PATCH 0)
+set(APPLICATION_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}")
 
-# ---------------------------------------------------------------
-# Global Build Settings
-# ---------------------------------------------------------------
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_VERBOSE_MAKEFILE OFF)
 
-# ---------------------------------------------------------------
-# Project Metadata
-# ---------------------------------------------------------------
-set(APPLICATION_NAME "Tactics")
-set(APPLICATION_VENDOR_NAME "Calgary Image Processing and Analysis Centre")
-set(APPLICATION_VENDOR_URL "calgaryimageanalysis.ca")
+# -------------------------------------------------------------------------
+# Make a variable many small CMakeLists in the tree rely on
+# -------------------------------------------------------------------------
+# MAINFOLDER used by many child CMakeLists in this repo
+set(MAINFOLDER "${CMAKE_SOURCE_DIR}" CACHE PATH "Project root (used by subprojects)")
 
-# ---------------------------------------------------------------
-# Output Paths
-# ---------------------------------------------------------------
-set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
-set(LIBRARY_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/lib")
+# A path used by older child CMakeLists to append exported targets
+set(CONFIGURE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/cmake" CACHE PATH "Where generated target files are written")
 
-file(MAKE_DIRECTORY
-  "${EXECUTABLE_OUTPUT_PATH}"
-  "${LIBRARY_OUTPUT_PATH}"
-)
+# Convenience: install prefix default (macOS-friendly)
+if(NOT CMAKE_INSTALL_PREFIX)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "Install path" FORCE)
+endif()
 
-# ---------------------------------------------------------------
-# Include Paths (Prefer target_include_directories later)
-# ---------------------------------------------------------------
-set(PROJECT_INCLUDE_DIRS
-  "${PROJECT_SOURCE_DIR}/include"
-  "${PROJECT_SOURCE_DIR}/src"
-)
-
-# ---------------------------------------------------------------
-# Dependencies
-# ---------------------------------------------------------------
-# VTK
-find_package(VTK 9.5 REQUIRED COMPONENTS
-  CommonCore
-  CommonDataModel
-  FiltersCore
-  FiltersSources
-  IOImage
-  InteractionStyle
-  RenderingCore
-  RenderingFreeType
-  RenderingOpenGL2
-)
-
-# Qt
-find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
+# -------------------------------------------------------------------------
+# Enable Qt automagic for all subprojects
+# -------------------------------------------------------------------------
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-# vtk-dicom
-find_package(dicom REQUIRED)
+# Find Qt once at top level so child CMakeLists can rely on Qt5:: targets
+find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui Svg Xml)
 
-# GDCM modern style
-find_package(GDCM REQUIRED)
+# -------------------------------------------------------------------------
+# Find VTK once at top level (modules may vary — children can find more if needed)
+# -------------------------------------------------------------------------
+find_package(VTK 9.5 REQUIRED COMPONENTS
+  CommonCore
+  CommonDataModel
+  FiltersCore
+  FiltersGeneral
+  IOImage
+)
 
-# ToolCursor
-find_package(ToolCursor REQUIRED)
+# make VTK targets available to subdirectories
+if(VTK_VERSION)
+  message(STATUS "Found VTK ${VTK_VERSION}")
+  # export VTK include dirs / targets already done by find_package
+endif()
 
-#AIRS
-find_package(AIRS REQUIRED)
+# -------------------------------------------------------------------------
+# Useful convenience variables for children
+# -------------------------------------------------------------------------
+# Where third-party code lives
+set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/thirdparty" CACHE PATH "Thirdparty directory")
 
-# ---------------------------------------------------------------
-# Subdirectories
-# ---------------------------------------------------------------
-add_subdirectory(thirdparty)
-add_subdirectory(src/gui)
-add_subdirectory(src/data)
-add_subdirectory(src/view)
-add_subdirectory(src/processing)
-add_subdirectory(src/tactics)
-add_subdirectory(test)
+# make vars available to children
+set(MAINFOLDER ${MAINFOLDER} PARENT_SCOPE)
+set(CONFIGURE_OUTPUT_PATH ${CONFIGURE_OUTPUT_PATH} PARENT_SCOPE)
 
-# ---------------------------------------------------------------
-# Resources (Icons, Probes)
-# ---------------------------------------------------------------
-set(APPLICATION_ICON_PATH "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Icons")
-set(APPLICATION_RESOURCE_PATH "${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.app/Contents/Resources")
+# -------------------------------------------------------------------------
+# Add thirdparty before project modules if present (toolcursor etc)
+# -------------------------------------------------------------------------
+if(EXISTS "${CMAKE_SOURCE_DIR}/thirdparty/CMakeLists.txt")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/thirdparty")
+endif()
 
-foreach(ICONTYPE Icons Cursors)
-  string(TOLOWER "${ICONTYPE}" LC_ICONTYPE)
-  file(GLOB_RECURSE ICON_FILES "resources/${LC_ICONTYPE}/*.png")
+# -------------------------------------------------------------------------
+# Add project modules in dependency order
+# (data -> view -> gui -> processing -> tactics app)
+# -------------------------------------------------------------------------
+# cbData
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/data/CMakeLists.txt")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/src/data")
+endif()
 
-  foreach(ICON_FILE ${ICON_FILES})
-    set(dest "${APPLICATION_ICON_PATH}/${ICONTYPE}/${ICON_FILE}")
-    add_custom_command(
-      OUTPUT ${dest}
-      DEPENDS ${ICON_FILE}
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${ICON_FILE} ${dest}
-    )
-    list(APPEND ALL_ICON_FILES ${dest})
-  endforeach()
+# cbVTK or other view-level modules
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/view/CMakeLists.txt")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/src/view")
+endif()
 
-  add_custom_target(Copy${ICONTYPE} ALL DEPENDS ${ALL_ICON_FILES})
-endforeach()
+# cbGUI
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/gui/CMakeLists.txt")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/src/gui")
+endif()
 
-# Probes
-file(GLOB_RECURSE PROBE_FILES "share/*.txt")
-foreach(PROBE_FILE ${PROBE_FILES})
-  set(dest "${APPLICATION_RESOURCE_PATH}/Probes/${PROBE_FILE}")
-  add_custom_command(
-    OUTPUT ${dest}
-    DEPENDS ${PROBE_FILE}
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PROBE_FILE} ${dest}
-  )
-  list(APPEND ALL_PROBE_FILES ${dest})
-endforeach()
-add_custom_target(CopyProbes ALL DEPENDS ${ALL_PROBE_FILES})
+# processing (utilities)
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/processing/CMakeLists.txt")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/src/processing")
+endif()
 
-# ---------------------------------------------------------------
-# Install
-# ---------------------------------------------------------------
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/${PROJECT_NAME}" DESTINATION include OPTIONAL)
+# tactics app (depends on the libs above)
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/tactics/CMakeLists.txt")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/src/tactics")
+endif()
+
+# -------------------------------------------------------------------------
+# Provide a convenient 'all-libs' target that depends on exported static libs
+# so 'cmake --build . --target all-libs' works. We only add if the libs exist.
+# -------------------------------------------------------------------------
+add_custom_target(all-libs)
+if(TARGET cbData)
+  add_dependencies(all-libs cbData)
+endif()
+if(TARGET cbVTK)
+  add_dependencies(all-libs cbVTK)
+endif()
+if(TARGET cbView)
+  add_dependencies(all-libs cbView)
+endif()
+if(TARGET cbGUI)
+  add_dependencies(all-libs cbGUI)
+endif()
+if(TARGET cbElectrode)
+  add_dependencies(all-libs cbElectrode)
+endif()
+
+# -------------------------------------------------------------------------
+# Install and packaging helpers (minimal)
+# -------------------------------------------------------------------------
+include(GNUInstallDirs)
+# ensure configure output directory exists
+file(MAKE_DIRECTORY "${CONFIGURE_OUTPUT_PATH}")
+
+# Print summary
+message(STATUS "Project root (MAINFOLDER): ${MAINFOLDER}")
+message(STATUS "Configure output path: ${CONFIGURE_OUTPUT_PATH}")
+message(STATUS "CMake install prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "Qt5 found: ${Qt5_VERSION}")
+message(STATUS "VTK found: ${VTK_VERSION}")
+
+# End of top-level CMake

@@ -34,6 +34,9 @@ find_package(VTK 9.5 REQUIRED
         IOImage
 )
 
+find_package(ToolCursor REQUIRED)
+find_package(AIRS REQUIRED)
+
 # ==============================================================================
 #  Project source files
 # ==============================================================================
@@ -68,14 +71,14 @@ target_link_libraries(${PROJECT_LIB}
         Qt5::Xml
         ${Cerebra_LIBRARIES}
         cbVTK
-        vtkImageRegistration
-        vtkImageSegmentation
         ${GDCM_LIBS}
         VTK::CommonCore
         VTK::CommonDataModel
         VTK::FiltersCore
         VTK::FiltersGeneral
         VTK::IOImage
+        VTK::ImageRegistration
+        VTK::ImageSegmentation
 )
 
 # ==============================================================================
@@ -97,6 +100,7 @@ target_link_libraries(${PROJECT_NAME}
         VTK::FiltersCore
         VTK::FiltersGeneral
         VTK::IOImage
+        VTK::ToolCursor
 )
 
 # ==============================================================================
@@ -157,28 +161,4 @@ install(CODE "
 " COMPONENT Runtime)
 
 # ==============================================================================
-#  macOS fixup_bundle (inside install-time code block)
-# ==============================================================================
-if(APPLE)
-    set(DIRS
-        ${VTK_DIR}
-        ${CMAKE_INSTALL_PREFIX}/lib
-    )
-    install(CODE "
-        file(GLOB_RECURSE QTPLUGINS
-            \"\${CMAKE_INSTALL_PREFIX}/${plugin_dest_dir}/plugins/*${CMAKE_SHARED_LIBRARY_SUFFIX}\")
-        include(BundleUtilities)
-        fixup_bundle(\"${APPS}\" \"\${QTPLUGINS}\" \"${DIRS}\")
-    " COMPONENT Runtime)
-endif()
-
-# ==============================================================================
-#  CPack package settings
-# ==============================================================================
-set(CPACK_PACKAGE_VERSION_MAJOR ${APPLICATION_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${APPLICATION_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${APPLICATION_VERSION_PATCH})
-set(CPACK_PACKAGE_VERSION       ${APPLICATION_VERSION_STRING})
-set(CPACK_BINARY_DRAGNDROP ON)  # macOS .dmg
-
-include(CPack)
+#  macOS fixup_bundle (in
