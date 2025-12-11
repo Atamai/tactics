@@ -135,6 +135,7 @@
 // SYSTEM INCLUDES
 #include <assert.h>
 #include <sstream>
+#include <iostream>
 
 namespace cb {
   template<class T>
@@ -240,7 +241,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   // Create the orthogonal planes
   double center[4];
   int extent[6];
-  data->GetWholeExtent(extent);
+  data->GetExtent(extent);
   double spacing[3];
   data->GetSpacing(spacing);
 
@@ -273,7 +274,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
     this->Slices[i].WorldPlane->SetNormal(normal);
 
     vtkImageSlice *image = this->GetImageSlice(cbElectrodeView::kMR, i);
-    image->GetMapper()->SetInput(data);
+    image->GetMapper()->SetInputData(data);
     image->GetProperty()->SetColorWindow(range[1] - range[0]);
     image->GetProperty()->SetColorLevel(0.5*(range[1] + range[0]));
     image->SetUserMatrix(matrix);
@@ -331,7 +332,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
       vtkSmartPointer<vtkPolyDataMapper>::New();
     vtkSmartPointer<vtkActor> ctpA = this->Slices[i].Intersect;
 
-    ctp->SetInput(planeBorderCutter->GetOutput());
+    ctp->SetInputData(planeBorderCutter->GetOutput());
     ctpC->SetInputConnection(ctp->GetOutputPort());
     ctpC->SetCutFunction(this->Slices[(i + 1)%3].DataPlane);
     ctpS->SetInputConnection(ctpC->GetOutputPort());
@@ -545,8 +546,8 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
     leftLabelMapper->SetInputConnection(leftLabel->GetOutputPort());
     rightLabelMapper->SetInputConnection(rightLabel->GetOutputPort());
 
-    leftLabel->GetOutput()->Update();
-    rightLabel->GetOutput()->Update();
+    leftLabel->Update();
+    rightLabel->Update();
     leftFollower->SetOrigin(leftLabel->GetOutput()->GetCenter());
     rightFollower->SetOrigin(rightLabel->GetOutput()->GetCenter());
 
@@ -805,7 +806,7 @@ void cbElectrodeView::resetViewOrientations()
 
   double center[4];
   int extent[6];
-  data->GetWholeExtent(extent);
+  data->GetExtent(extent);
   double spacing[3];
   data->GetSpacing(spacing);
 
@@ -1139,7 +1140,7 @@ void cbElectrodeView::displayLeksellFrame(vtkMatrix4x4 *transform)
 
   vtkSmartPointer<vtkPolyDataMapper> mapper =
     vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper->SetInput(frameData);
+  mapper->SetInputData(frameData);
 
   vtkSmartPointer<vtkActor> actor = this->Frame;
   actor->SetMapper(mapper);
@@ -1175,12 +1176,12 @@ void cbElectrodeView::displayTags(vtkDataManager::UniqueKey k)
   glyphSource->Update();
   vtkSmartPointer<vtkExtractEdges> edgeFilter =
     vtkSmartPointer<vtkExtractEdges>::New();
-  edgeFilter->SetInput(glyphSource->GetOutput());
+  edgeFilter->SetInputData(glyphSource->GetOutput());
   edgeFilter->Update();
   vtkSmartPointer<vtkGlyph3D> glyph =
     vtkSmartPointer<vtkGlyph3D>::New();
-  glyph->SetSource(edgeFilter->GetOutput());
-  glyph->SetInput(points);
+  glyph->SetSourceConnection(edgeFilter->GetOutputPort());
+  glyph->SetInputData(points);
   vtkSmartPointer<vtkPolyDataMapper> tagMapper =
     vtkSmartPointer<vtkPolyDataMapper>::New();
   tagMapper->SetInputConnection(glyph->GetOutputPort());
@@ -1244,7 +1245,7 @@ void cbElectrodeView::buildProbeMarker(vtkPolyData *probeData, cbProbe p)
 
   vtkSmartPointer<vtkTubeFilter> electrodeShaft =
     vtkSmartPointer<vtkTubeFilter>::New();
-  electrodeShaft->SetInput(electrodeShaftProfile);
+  electrodeShaft->SetInputData(electrodeShaftProfile);
   electrodeShaft->SetNumberOfSides(26);
   electrodeShaft->SetRadius(0.5);
   electrodeShaft->SetCapping(1);
@@ -1298,7 +1299,7 @@ void cbElectrodeView::displaySurfaceVolume(vtkDataManager::UniqueKey k)
 
   vtkSmartPointer<vtkSmartVolumeMapper> mapper =
     vtkSmartPointer<vtkSmartVolumeMapper>::New();
-  mapper->SetInput(data);
+  mapper->SetInputData(data);
 
   vtkSmartPointer<vtkVolume> volume = vtkSmartPointer<vtkVolume>::New();
   volume->SetMapper(mapper);
@@ -1367,7 +1368,7 @@ void cbElectrodeView::CreateProbeCallback(cbProbe p)
 
   vtkSmartPointer<vtkPolyDataMapper> mapper =
     vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper->SetInput(data);
+  mapper->SetInputData(data);
 
   static double table[2][4] = {
     {56.0/256.0, 117.0/256.0, 215.0/256.0, 1.0},
@@ -1434,7 +1435,7 @@ void cbElectrodeView::UpdateProbeCallback(int index, cbProbe p)
 
   vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
 
-  mapper->SetInput(data);
+  mapper->SetInputData(data);
   actor->SetMapper(mapper);
 
   vtkObject *o = this->Probes->GetItemAsObject(index);
@@ -1884,7 +1885,7 @@ void cbElectrodeView::CreateMenu()
 void cbElectrodeView::CreateAndBindTools()
 {
   this->planeTool = vtkPushPlaneTool::New();
-  this->planeTool->SetMaximumRotationDegree(60);
+  //this->planeTool->SetMaximumRotationDegree(60);
   this->planeTool->AddObserver(vtkCommand::InteractionEvent,
                                this, &cbElectrodeView::FocalPointSliceCallback);
 
@@ -2194,7 +2195,7 @@ void cbElectrodeView::DisplayCTData(vtkDataManager::UniqueKey k)
     vtkSmartPointer<vtkImageSlice> slice =
       vtkSmartPointer<vtkImageSlice>::New();
 
-    mapper->SetInput(ct_data);
+    mapper->SetInputData(ct_data);
     mapper->SetSlicePlane(this->Slices[i].WorldPlane);
 
     slice->SetMapper(mapper);
@@ -2245,13 +2246,13 @@ void cbElectrodeView::ComputePercentileRange(
   vtkSmartPointer<vtkImageHistogramStatistics> statistics =
     vtkSmartPointer<vtkImageHistogramStatistics>::New();
 
-  statistics->SetInput(data);
+  statistics->SetInputData(data);
   statistics->SetAutoRangePercentiles(0.0, percentile);
   statistics->SetAutoRangeExpansionFactors(0.0, 0.1);
   statistics->Update();
   statistics->GetAutoRange(range);
 
-  statistics->SetInput(0);
+  statistics->SetInputData(0);
 }
 
 void cbElectrodeView::SnapViewVectorsToVolume(vtkMatrix4x4 *matrix,

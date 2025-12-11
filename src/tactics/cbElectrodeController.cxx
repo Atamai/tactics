@@ -83,13 +83,13 @@
 
 #include <vector>
 #include <sstream>
+#include <iostream>
 
 #include "vtkImageData.h"
 #include "vtkMatrix4x4.h"
 #include "vtkStringArray.h"
 
 #include "json/json.h"
-#include "json/reader.h"
 
 void ReadImage(vtkStringArray *sarray, vtkImageData *data,
                vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta);
@@ -151,8 +151,7 @@ void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
 
   vtkImageData *output = reader->GetOutput();
   data->CopyStructure(output);
-  data->SetScalarType(output->GetScalarType());
-  data->SetNumberOfScalarComponents(output->GetNumberOfScalarComponents());
+  data->AllocateScalars(output->GetScalarType(), output->GetNumberOfScalarComponents());
   data->GetPointData()->PassData(output->GetPointData());
 
   matrix->DeepCopy(reader->GetPatientMatrix());
@@ -188,8 +187,7 @@ void ReadNIFTIImage(const std::string& fileName, vtkImageData *data,
 
   vtkImageData *output = reorder->GetOutput();
   data->CopyStructure(output);
-  data->SetScalarType(output->GetScalarType());
-  data->SetNumberOfScalarComponents(output->GetNumberOfScalarComponents());
+  data->AllocateScalars(output->GetScalarType(), output->GetNumberOfScalarComponents());
   data->GetPointData()->PassData(output->GetPointData());
 
   matrix->DeepCopy(reorder->GetPatientMatrix());
@@ -202,7 +200,7 @@ void WriteNIFTIImage(const std::string& fileName, vtkImageData *data,
   vtkSmartPointer<vtkDICOMToRAS> reorder =
     vtkSmartPointer<vtkDICOMToRAS>::New();
 
-  reorder->SetInput(data);
+  reorder->SetInputData(data);
   reorder->SetPatientMatrix(matrix);
   reorder->Update();
 
@@ -228,7 +226,7 @@ void cbElectrodeController::log(QString m)
 
 void cbElectrodeController::requestOpenImage(const QStringList& files)
 {
-  assert(path && "Path can't be NULL!");
+  //assert(path && "Path can't be NULL!");
 
   emit initializeProgress(0, 100);
   emit displayStatus("Loading primary image...");
@@ -283,7 +281,7 @@ void cbElectrodeController::requestOpenImage(const QStringList& files)
 void cbElectrodeController::OpenImageWithMatrix(
   const QStringList& files, vtkMatrix4x4 *m)
 {
-  assert(path && "Path can't be NULL!");
+  //assert(path && "Path can't be NULL!");
 
   emit initializeProgress(0, 100);
   emit displayStatus("Loading primary image...");
@@ -330,13 +328,13 @@ void cbElectrodeController::extractAndDisplaySurface(vtkImageData *data,
   int extent[6];
   double spacing[3];
   double origin[3];
-  data->GetWholeExtent(extent);
+  data->GetExtent(extent);
   data->GetSpacing(spacing);
   data->GetOrigin(origin);
 
   vtkSmartPointer<vtkImageMRIBrainExtractor> extractor =
     vtkSmartPointer<vtkImageMRIBrainExtractor>::New();
-  extractor->SetInput(data);
+  extractor->SetInputData(data);
 
   double bt = 0.0;
   if (spacing[2] > 1.5)
@@ -381,7 +379,7 @@ void cbElectrodeController::extractAndDisplaySurface(vtkImageData *data,
 
   vtkSmartPointer<vtkImageResize> resize =
     vtkSmartPointer<vtkImageResize>::New();
-  resize->SetInput(data);
+  resize->SetInputData(data);
   resize->SetOutputDimensions(dimensions);
   resize->CroppingOn();
   resize->SetCroppingRegion(bounds);
@@ -389,14 +387,14 @@ void cbElectrodeController::extractAndDisplaySurface(vtkImageData *data,
 
   vtkSmartPointer<vtkPolyDataToImageStencil> makeStencil =
     vtkSmartPointer<vtkPolyDataToImageStencil>::New();
-  makeStencil->SetInput(mesh);
+  makeStencil->SetInputData(mesh);
   makeStencil->SetInformationInput(resize->GetOutput());
   makeStencil->Update();
 
   vtkSmartPointer<vtkImageStencil> brainStencil =
     vtkSmartPointer<vtkImageStencil>::New();
-  brainStencil->SetInput(resize->GetOutput());
-  brainStencil->SetStencil(makeStencil->GetOutput());
+  brainStencil->SetInputData(resize->GetOutput());
+  brainStencil->SetStencilConnection(makeStencil->GetOutputPort());
   brainStencil->Update();
 
   vtkImageData *brainSurface = brainStencil->GetOutput();
@@ -495,7 +493,7 @@ void cbElectrodeController::OpenLegacyPlan(const QString& file)
     vtkStringArray *fileArray = sorter->GetOutputFileNames();
     QStringList image_files;
     for (vtkIdType i = 0; i < fileArray->GetNumberOfValues(); i++) {
-      image_files.append(QString::fromLocal8Bit(fileArray->GetValue(i)));
+      image_files.append(QString::fromLocal8Bit(fileArray->GetValue(i).c_str()));
     }
     this->requestOpenImage(image_files);
   }
@@ -539,7 +537,7 @@ void cbElectrodeController::OpenLegacyPlan(const QString& file)
       vtkStringArray *fileArray = sorter->GetOutputFileNames();
       QStringList ct_files;
       for (vtkIdType i = 0; i < fileArray->GetNumberOfValues(); i++) {
-        ct_files.append(QString::fromLocal8Bit(fileArray->GetValue(i)));
+        ct_files.append(QString::fromLocal8Bit(fileArray->GetValue(i).c_str()));
       }
       this->OpenCTData(ct_files, matrix_obj);
     }
@@ -1058,7 +1056,7 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
   vtkSmartPointer<vtkImageReslice> reslicer =
     vtkSmartPointer<vtkImageReslice>::New();
   reslicer->SetInterpolationModeToCubic();
-  reslicer->SetInput(ct_d);
+  reslicer->SetInputData(ct_d);
   reslicer->SetInformationInput(mr_d);
 
   vtkSmartPointer<vtkMatrix4x4> invertedMatrix =
@@ -1106,7 +1104,7 @@ void cbElectrodeController::OpenCTData(
   vtkSmartPointer<vtkImageReslice> reslicer =
     vtkSmartPointer<vtkImageReslice>::New();
   reslicer->SetInterpolationModeToCubic();
-  reslicer->SetInput(ct_data);
+  reslicer->SetInputData(ct_data);
   reslicer->SetInformationInput(mr_d);
 
   vtkSmartPointer<vtkMatrix4x4> invertedMatrix =

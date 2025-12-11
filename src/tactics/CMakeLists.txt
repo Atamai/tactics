@@ -10,11 +10,6 @@ set(APPLICATION_VERSION_PATCH 0)
 set(APPLICATION_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}")
 
 # ==============================================================================
-#  CMake Policies
-# ==============================================================================
-cmake_policy(SET CMP0043 NEW)  # find_package Qt5 behavior
-
-# ==============================================================================
 #  Qt Setup (Modern)
 # ==============================================================================
 set(CMAKE_AUTOMOC ON)
@@ -32,17 +27,19 @@ find_package(VTK 9.5 REQUIRED
         FiltersCore
         FiltersGeneral
         IOImage
+        jsoncpp
 )
 
 find_package(ToolCursor REQUIRED)
 find_package(AIRS REQUIRED)
+find_package(DICOM REQUIRED)
 
 # ==============================================================================
 #  Project source files
 # ==============================================================================
-file(GLOB_RECURSE PROJECT_SRCS CONFIGURE_DEPENDS src/*.cpp src/*.cxx src/*.cc src/*.C)
-file(GLOB_RECURSE PROJECT_HDRS CONFIGURE_DEPENDS src/*.h src/*.hpp)
-file(GLOB_RECURSE PROJECT_MAIN CONFIGURE_DEPENDS main.cpp main.cxx main.cc)
+file(GLOB_RECURSE PROJECT_SRCS CONFIGURE_DEPENDS *.cxx)
+file(GLOB_RECURSE PROJECT_HDRS CONFIGURE_DEPENDS *.h)
+file(GLOB_RECURSE PROJECT_MAIN CONFIGURE_DEPENDS main.cxx)
 
 list(REMOVE_ITEM PROJECT_SRCS ${PROJECT_MAIN})
 
@@ -77,6 +74,9 @@ target_link_libraries(${PROJECT_LIB}
         VTK::FiltersCore
         VTK::FiltersGeneral
         VTK::IOImage
+        VTK::ToolCursor
+        VTK::DICOM
+        VTK::jsoncpp
         VTK::ImageRegistration
         VTK::ImageSegmentation
 )
