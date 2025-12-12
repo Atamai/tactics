@@ -25,7 +25,11 @@ find_package(VTK 9.5 REQUIRED
         CommonCore
         CommonDataModel
         FiltersCore
+        RenderingFreeType
+        RenderingVolumeOpenGL2
+        RenderingAnnotation
         FiltersGeneral
+        InteractionStyle
         IOImage
         jsoncpp
 )
@@ -68,12 +72,17 @@ target_link_libraries(${PROJECT_LIB}
         Qt5::Xml
         ${Cerebra_LIBRARIES}
         cbVTK
+        cbProcessing
         ${GDCM_LIBS}
         VTK::CommonCore
         VTK::CommonDataModel
         VTK::FiltersCore
+        VTK::RenderingFreeType
+        VTK::RenderingAnnotation
+        VTK::RenderingVolumeOpenGL2
         VTK::FiltersGeneral
         VTK::IOImage
+        VTK::InteractionStyle
         VTK::ToolCursor
         VTK::DICOM
         VTK::jsoncpp
@@ -95,9 +104,14 @@ target_link_libraries(${PROJECT_NAME}
         Qt5::Widgets
         Qt5::Svg
         Qt5::Xml
+        cbProcessing
         VTK::CommonCore
         VTK::CommonDataModel
         VTK::FiltersCore
+        VTK::RenderingFreeType
+        VTK::RenderingVolumeOpenGL2
+        VTK::RenderingAnnotation
+        VTK::InteractionStyle
         VTK::FiltersGeneral
         VTK::IOImage
         VTK::ToolCursor
@@ -112,6 +126,7 @@ vtk_module_autoinit(
         VTK::CommonCore
         VTK::CommonDataModel
         VTK::FiltersCore
+        VTK::FiltersSources
         VTK::FiltersGeneral
         VTK::IOImage
 )
