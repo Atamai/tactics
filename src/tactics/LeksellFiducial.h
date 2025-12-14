@@ -37,6 +37,8 @@
 #ifndef LEKSELLFIDUCIAL_H
 #define LEKSELLFIDUCIAL_H
 
+#include<array>
+
 class LeksellFiducial
 {
  public:
@@ -44,11 +46,7 @@ class LeksellFiducial
 
   LeksellFiducial()
     {
-    points = new double*[4];
-    for (int i = 0; i < 4; i++)
-      {
-      points[i] = new double[3];
-      }
+    std::array<std::array<double, 3>, 4> points{};
     points[0][0] = 0.0;
     points[0][1] = 0.0;
     points[0][2] = 0.0;
@@ -147,12 +145,6 @@ class LeksellFiducial
 
   ~LeksellFiducial()
     {
-      // TODO segfault here
-    //for (int i = 0; i < 4; i++)
-    //  {
-    //  delete[] points[i];
-    //  }
-    //delete[] points;
     }
 
   void GetCornerOriginPoints(double p[4][3]) const
