@@ -66,28 +66,17 @@ target_include_directories(${PROJECT_LIB}
 target_link_libraries(${PROJECT_LIB}
     PRIVATE
         Qt5::Core
-        Qt5::Gui
         Qt5::Widgets
-        Qt5::Svg
-        Qt5::Xml
         ${Cerebra_LIBRARIES}
         cbVTK
         cbProcessing
-        ${GDCM_LIBS}
         VTK::CommonCore
-        VTK::CommonDataModel
-        VTK::FiltersCore
         VTK::RenderingFreeType
         VTK::RenderingAnnotation
         VTK::RenderingVolumeOpenGL2
-        VTK::FiltersGeneral
-        VTK::IOImage
         VTK::InteractionStyle
-        VTK::ToolCursor
         VTK::DICOM
         VTK::jsoncpp
-        VTK::ImageRegistration
-        VTK::ImageSegmentation
 )
 
 # ==============================================================================
@@ -102,30 +91,19 @@ target_link_libraries(${PROJECT_NAME}
         Qt5::Core
         Qt5::Gui
         Qt5::Widgets
-        Qt5::Svg
-        Qt5::Xml
-        cbProcessing
         VTK::CommonCore
-        VTK::CommonDataModel
-        VTK::FiltersCore
-        VTK::RenderingFreeType
-        VTK::RenderingVolumeOpenGL2
-        VTK::RenderingAnnotation
-        VTK::InteractionStyle
-        VTK::FiltersGeneral
-        VTK::IOImage
-        VTK::ToolCursor
 )
 
 # ==============================================================================
 #  VTK automatic module initialization
 # ==============================================================================
 vtk_module_autoinit(
-    TARGETS ${PROJECT_NAME}
+    TARGETS ${PROJECT_LIB}
     MODULES
         VTK::CommonCore
         VTK::CommonDataModel
         VTK::FiltersCore
+        VTK::RenderingVolumeOpenGL2
         VTK::FiltersSources
         VTK::FiltersGeneral
         VTK::IOImage
