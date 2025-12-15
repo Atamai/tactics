@@ -46,6 +46,7 @@
 #include "vtkCallbackCommand.h"
 
 #include "vtkViewRect.h"
+#include <iostream>
 
 //#define DEBUG
 
