@@ -44,8 +44,8 @@
 cbElectrodeIntroductionStage::cbElectrodeIntroductionStage() : cbStage()
 {
   this->widget = new QWidget;
-    QVBoxLayout *vertical = new QVBoxLayout;
-      QTextEdit *desc = new QTextEdit;
+  QVBoxLayout *vertical = new QVBoxLayout;
+  QTextEdit *desc = new QTextEdit;
 
   desc->setReadOnly(true);
   desc->insertHtml(
@@ -57,7 +57,6 @@ cbElectrodeIntroductionStage::cbElectrodeIntroductionStage() : cbStage()
       <p>Otherwise, press the <i>Next</i> button, above, to begin.</p>\
       "
       );
-  desc->setStyleSheet("background-color: aliceblue");
 
   vertical->setContentsMargins(11, 0, 11, 0);
   vertical->addWidget(desc);

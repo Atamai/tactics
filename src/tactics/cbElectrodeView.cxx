@@ -216,8 +216,8 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   primary_name_label.append(patient_name);
 
   vtkSmartPointer<vtkCornerAnnotation> meta_annotation = this->MetaAnnotation;
-  meta_annotation->SetMaximumFontSize(12);
-  meta_annotation->SetMinimumFontSize(10);
+  meta_annotation->SetMaximumFontSize(16);
+  meta_annotation->SetMinimumFontSize(14);
   planar->GetRenderer()->AddActor2D(meta_annotation);
 
   this->MetaAnnotation->SetText(3, primary_name_label.c_str());
@@ -575,8 +575,8 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   annotation->SetText(2,
     "Left Click: Active Tool\nRight Click: Rotate View\nMousewheel : Zoom\nMousewheel(side panes): Slice");
 
-  annotation->SetMaximumFontSize(12);
-  annotation->SetMinimumFontSize(10);
+  annotation->SetMaximumFontSize(16);
+  annotation->SetMinimumFontSize(14);
   planar->GetRenderer()->AddActor2D(annotation);
 
   this->resetViewOrientations();
@@ -1320,8 +1320,8 @@ void cbElectrodeView::addRendererLabel(vtkRenderer *r, const char *str,
   vtkSmartPointer<vtkCornerAnnotation> annotation =
     vtkSmartPointer<vtkCornerAnnotation>::New();
   annotation->SetText(corner, str);
-  annotation->SetMaximumFontSize(12);
-  annotation->SetMinimumFontSize(10);
+  annotation->SetMaximumFontSize(16);
+  annotation->SetMinimumFontSize(14);
   r->AddActor2D(annotation);
 }
 

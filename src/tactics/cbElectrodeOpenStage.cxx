@@ -74,7 +74,6 @@ cbElectrodeOpenStage::cbElectrodeOpenStage() : cbStage()
       </ul>\
       "
       );
-  desc->setStyleSheet("background-color: aliceblue");
 
   anteriorPosteriorCheck->setChecked(false);
 

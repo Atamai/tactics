@@ -138,7 +138,6 @@ cbElectrodePlanStage::cbElectrodePlanStage()
       <p>Open a plan at any time by using the file-menu or hitting <code>command+o</code>.</p>\
       "
       );
-  desc->setStyleSheet("background-color: aliceblue");
 
   connect(addButton, SIGNAL(clicked()), this, SLOT(placeProbeCallback()));
 

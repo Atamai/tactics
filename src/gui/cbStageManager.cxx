@@ -84,7 +84,6 @@ cbStageManager::cbStageManager(QWidget *parent, QFrame *toolbar,
       clinicalInfo = new QTextEdit(containerWidget);
       clinicalInfo->setReadOnly(true);
       clinicalInfo->insertHtml("<p>Log information will appear here.</p>");
-      clinicalInfo->setStyleSheet("background-color: aliceblue");
       clinicalInfo->setMinimumHeight(parent->height()*0.28);
       clinicalInfoLayout->addWidget(clinicalInfo);
       clinicalInfoWidget->setLayout(clinicalInfoLayout);
