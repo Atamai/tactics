@@ -420,8 +420,9 @@ void qvtkViewToolCursorWidget::mousePressEvent(QMouseEvent* e)
     return;
     }
 
-  int xpos = e->x();
-  int ypos = (e->y() * -1) + this->height() - 1;
+  qreal scale = this->devicePixelRatioF();  // retina scaling
+  int xpos = int(e->x() * scale);
+  int ypos = int((this->height() - 1 - e->y()) * scale);
   this->FocusCursor = this->ViewRect->RequestToolCursor(xpos, ypos);
 
   // If a tool cursor was not found, return
@@ -475,8 +476,9 @@ void qvtkViewToolCursorWidget::mouseReleaseEvent(QMouseEvent* e)
   // If there is a focus and the button is no longer held down
   if (this->FocusCursor && e->button() == this->FocusButton)
     {
-    int xpos = e->x();
-    int ypos = (e->y() * -1) + this->height() - 1;
+    qreal scale = this->devicePixelRatioF();  // retina scaling
+    int xpos = int(e->x() * scale);
+    int ypos = int((this->height() - 1 - e->y()) * scale);
     this->FocusCursor->SetDisplayPosition(xpos, ypos);
     int button = 0;
     int modifier = 0;
@@ -512,9 +514,10 @@ void qvtkViewToolCursorWidget::mouseMoveEvent(QMouseEvent* e)
 {
   this->ViewRect->GetRenderWindow()->SetDesiredUpdateRate(100);
 
-  int xpos = e->x();
-  int ypos = (e->y() * -1) + this->height() - 1;
-
+  qreal scale = this->devicePixelRatioF();  // retina scaling
+  int xpos = int(e->x() * scale);
+  int ypos = int((this->height() - 1 - e->y()) * scale);
+  
   if (this->FocusCursor ||
       this->ViewRect->RequestToolCursor(xpos, ypos))
     {
@@ -594,8 +597,9 @@ void qvtkViewToolCursorWidget::wheelEvent(QWheelEvent* e)
   int modifierMask = (VTK_TOOL_SHIFT | VTK_TOOL_CONTROL);
   int button = 0;
 
-  int xpos = e->x();
-  int ypos = (e->y() * -1) + this->height() - 1;
+  qreal scale = this->devicePixelRatioF();  // retina scaling
+  int xpos = int(e->x() * scale);
+  int ypos = int((this->height() - 1 - e->y()) * scale);
 
 #if QT_VERSION >= 0x050000
   int delta = e->angleDelta().y();
