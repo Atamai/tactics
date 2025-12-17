@@ -113,7 +113,7 @@ vtk_module_autoinit(
 #  macOS bundle variables
 # ==============================================================================
 if(APPLE)
-    set(plugin_dest_dir "${PROJECT_NAME}.app/Contents")
+    set(plugin_dest_dir "${PROJECT_NAME}.app/Contents/PlugIns")
     set(qtconf_dest_dir "${PROJECT_NAME}.app/Contents/Resources")
     set(APPS "${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app")
 else()
@@ -126,12 +126,21 @@ endif()
 #  macOS bundle properties
 # ==============================================================================
 if(APPLE)
+    set(APP_ICON
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../resources/Tactics.icns
+    )
+
     set_target_properties(${PROJECT_NAME} PROPERTIES
         INSTALL_RPATH_USE_LINK_PATH ON
         MACOSX_BUNDLE_BUNDLE_NAME ${PROJECT_NAME}
         MACOSX_BUNDLE_ICON_FILE Tactics
         MACOSX_BUNDLE_GUI_IDENTIFIER ca.calgaryimageanalysis.${PROJECT_NAME}
     )
+    set_source_files_properties(${APP_ICON} PROPERTIES
+        MACOSX_PACKAGE_LOCATION Resources
+    )
+    target_sources(${PROJECT_NAME} PRIVATE ${APP_ICON})
+
 else()
     set_target_properties(${PROJECT_NAME} PROPERTIES
         OUTPUT_NAME ${PROJECT_NAME}
@@ -148,10 +157,34 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin     COMPONENT Runtime
 )
 
+# ------------------------------------------------------------------------------
+#  Install icons and cursors into the app bundle
+# ------------------------------------------------------------------------------
+if(APPLE)
+    set(ICON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../resources/icons)
+    set(ICON_DST_DIR $<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Icons)
+    set(CURSOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../resources/cursors)
+    set(CURSOR_DST_DIR $<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Cursors)
+    add_custom_command(
+        TARGET ${PROJECT_NAME}
+        POST_BUILD
+        # make sure destination exists
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${ICON_DST_DIR}"
+        # copy contents only
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${ICON_SRC_DIR}/* "${ICON_DST_DIR}"
+        # make sure destination exists
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CURSOR_DST_DIR}"
+        # copy contents only
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CURSOR_SRC_DIR}/* "${CURSOR_DST_DIR}"
+    )
+endif()
+
 # qt.conf for relocatability
 install(CODE "
-    file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${qtconf_dest_dir}/qt.conf\" \"\")
+file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${qtconf_dest_dir}/qt.conf\"
+\"[Paths]\nPlugins = PlugIns\n\")
 " COMPONENT Runtime)
 
-# ==============================================================================
-#  macOS fixup_bundle (in
+

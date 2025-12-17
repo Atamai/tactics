@@ -68,9 +68,9 @@ cbElectrodeToolBarWidget::cbElectrodeToolBarWidget(vtkDataManager *dataManager,
 
   m_window = qobject_cast<cbElectrodeView *>(parent);
 
-  // get icons path
-  m_iconPath = QFile((iconDir).absoluteFilePath("Icons")).fileName();
-  m_cursorPath = QFile((iconDir).absoluteFilePath("Cursors")).fileName();
+  // get icons/cursors path
+  m_iconPath = QCoreApplication::applicationDirPath() + "/../Icons";
+  m_cursorPath = QCoreApplication::applicationDirPath() + "/../Cursors";
 
   this->createActions();
 
