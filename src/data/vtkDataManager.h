@@ -38,6 +38,7 @@
 #define __vtkDataManager_h
 
 #include <vtkObject.h>
+#include <atomic>
 
 class vtkDataNode;
 class vtkImageNode;
@@ -123,8 +124,8 @@ public:
     }
 
   private:
-    long long Id;
-    static volatile long long IdCounter;
+    int64_t Id;
+    static std::atomic<int64_t> IdCounter;
     vtkObjectBase *ObjectId;
   };
 

@@ -121,7 +121,7 @@ int cbQtDicomDirView::sizeHintForColumn(int col) const
 
   // Compute the width of the text
   QFontMetrics fm(this->viewOptions().font);
-  int w = fm.width(sampleText[col]);
+  int w = fm.horizontalAdvance(sampleText[col]);
 
   // For first column, add indentation
   if (col == 0) {

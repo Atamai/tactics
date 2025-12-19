@@ -332,7 +332,7 @@ QVariant cbQtDicomDirModel::data(const QModelIndex &idx, int role) const
 Qt::ItemFlags cbQtDicomDirModel::flags(const QModelIndex &idx) const
 {
   if (!idx.isValid()) {
-    return 0;
+    return Qt::NoItemFlags;
   }
 
   // Let the superclass take care of this.

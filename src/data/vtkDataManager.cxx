@@ -46,20 +46,13 @@
 #include <utility>
 #include <iostream>
 
-/* Header files for thread-safe modification of variables */
-#if defined(__APPLE__)
-#include <libkern/OSAtomic.h>
-#elif defined(WIN32) || defined(_WIN32)
-#include <vtkWindows.h>
-#endif
-
 // New macro for every VTK object
 vtkStandardNewMacro(vtkDataManager);
 
 //--------------------------------------------------------------------------
 
 // This increments every time a new key is created
-volatile long long vtkDataManager::Key::IdCounter = 0;
+std::atomic<long long> vtkDataManager::Key::IdCounter{0};
 
 // The key class for doing lookups
 vtkDataManager::Key::Key()
@@ -69,16 +62,7 @@ vtkDataManager::Key::Key()
    * case keys are created from multiple threads, we must use
    * thread-safe operations for incrementing IdCounter. */
 
-#if defined(__APPLE__)
-  this->Id = OSAtomicIncrement64Barrier(&this->IdCounter);
-#elif defined(WIN32) || defined(_WIN32)
-  this->Id = InterlockedIncrement((volatile LONG *)&this->IdCounter);
-#elif defined(__clang__) || defined(__GNUC__)
-  this->Id = __sync_add_and_fetch(&this->IdCounter, 1);
-#else
-#error "cannot implement thread-safe increment on this system"
-  this->Id = ++(this->IdCounter);
-#endif
+  this->Id = ++IdCounter;
 
   this->ObjectId = 0;
 }
