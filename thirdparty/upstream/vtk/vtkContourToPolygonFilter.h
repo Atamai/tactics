@@ -43,7 +43,7 @@ class vtkContourToPolygonFilter : public vtkPolyDataAlgorithm
 public:
   static vtkContourToPolygonFilter *New();
   vtkTypeMacro(vtkContourToPolygonFilter,vtkPolyDataAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Generate errors when the triangulation fails.  Usually the
@@ -60,7 +60,7 @@ protected:
 
   virtual int RequestData(
     vtkInformation* request, vtkInformationVector** inputVector,
-    vtkInformationVector* outputVector);
+    vtkInformationVector* outputVector) override;
 
   // Description:
   // A robust method for triangulating a polygon.  It cleans up the polygon

@@ -50,12 +50,12 @@ class cbQtVTKOutputWindow : public vtkOutputWindow
 public:
   vtkTypeMacro(cbQtVTKOutputWindow, vtkOutputWindow);
   static cbQtVTKOutputWindow* New();
-  virtual void PrintSelf(ostream& os, vtkIndent indent);
-  virtual void DisplayText(const char*);
-  virtual void DisplayErrorText(const char*);
-  virtual void DisplayWarningText(const char*);
-  virtual void DisplayGenericWarningText(const char*);
-  virtual void DisplayDebugText(const char*);
+  virtual void PrintSelf(ostream& os, vtkIndent indent) override;
+  virtual void DisplayText(const char*) override;
+  virtual void DisplayErrorText(const char*) override;
+  virtual void DisplayWarningText(const char*) override;
+  virtual void DisplayGenericWarningText(const char*) override;
+  virtual void DisplayDebugText(const char*) override;
   static void Install();
 
 protected:

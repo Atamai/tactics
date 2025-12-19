@@ -63,13 +63,13 @@ public:
    *  collection.
    *  \param child The vtkViewObject to add to the frame.
   */
-  void AddChild(vtkViewObject *child);
+  void AddChild(vtkViewObject *child) override;
 
   //! Updates the viewport of child at index to conform to a grid-based packing.
   /*!
    *  \param index Index of the child in the collection of vtkViewObjects.
   */
-  void UpdateChildView(int index);
+  void UpdateChildView(int index) override;
 
 protected:
   vtkGViewFrame();

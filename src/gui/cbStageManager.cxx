@@ -172,7 +172,7 @@ void cbStageManager::enableNextButton()
 
 void cbStageManager::enableResolutionTool()
 {
-  qDebug()<< "Enable Resolution Tool " << endl;
+  qDebug()<< "Enable Resolution Tool " << Qt::endl;
   //toolbarWidget->setResolutionToolEnabled(true);
   //toolbarWidget->showHighResolution();
 }

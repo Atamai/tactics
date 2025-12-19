@@ -57,10 +57,10 @@ public:
   static vtkImageNode *New();
   vtkTypeMacro(vtkImageNode, vtkDataNode);
 
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //! Get the image as a data object.
-  virtual vtkDataObject *GetDataObject();
+  virtual vtkDataObject *GetDataObject() override;
 
   //! Get the image from the node.
   vtkImageData *GetImage()

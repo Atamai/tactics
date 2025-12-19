@@ -53,10 +53,10 @@ public:
   static vtkSurfaceNode *New();
   vtkTypeMacro(vtkSurfaceNode, vtkDataNode);
 
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //! Get the surface as a data object.
-  virtual vtkDataObject *GetDataObject();
+  virtual vtkDataObject *GetDataObject() override;
 
   //! Get the surface as a vtkPolyData.
   vtkPolyData *GetSurface()

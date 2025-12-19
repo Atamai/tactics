@@ -61,7 +61,7 @@ class vtkDataNode : public vtkObject
 public:
   vtkTypeMacro(vtkDataNode, vtkObject);
 
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //! Get the data object for the node.
   virtual vtkDataObject *GetDataObject() = 0;

@@ -77,7 +77,7 @@ public:
   vtkTypeMacro(vtkMNITagPointReader2,vtkPolyDataAlgorithm);
 
   static vtkMNITagPointReader2 *New();
-  virtual void PrintSelf(ostream& os, vtkIndent indent);
+  virtual void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Set the file name.
@@ -173,7 +173,7 @@ protected:
 
   virtual int RequestData(vtkInformation* request,
                           vtkInformationVector** inInfo,
-                          vtkInformationVector* outInfo);
+                          vtkInformationVector* outInfo) override;
 
 private:
   vtkMNITagPointReader2(const vtkMNITagPointReader2&); // Not implemented

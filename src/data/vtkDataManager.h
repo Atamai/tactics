@@ -61,7 +61,7 @@ public:
   static vtkDataManager *New();
   vtkTypeMacro(vtkDataManager, vtkObject);
 
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //! The key type for doing lookups in the data manager.
   class Key;

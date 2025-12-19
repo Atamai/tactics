@@ -59,7 +59,7 @@ public:
   static vtkFrameOfReference *New();
   vtkTypeMacro(vtkFrameOfReference, vtkObjectBase);
 
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //! Set the relationship to another frame of reference.
   /*!

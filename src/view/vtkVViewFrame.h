@@ -56,7 +56,7 @@ public:
   /*!
    *  \param index Index of the child in the collection of vtkViewObjects.
   */
-  void UpdateChildView(int index);
+  void UpdateChildView(int index) override;
 
 protected:
   vtkVViewFrame();
