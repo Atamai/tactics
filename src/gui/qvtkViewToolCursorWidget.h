@@ -61,7 +61,7 @@ class qvtkViewToolCursorWidget : public QWidget
 
 public:
   //! constructor
-  qvtkViewToolCursorWidget(QWidget* parent = NULL, Qt::WindowFlags f = 0);
+  qvtkViewToolCursorWidget(QWidget* parent = NULL, Qt::WindowFlags f = Qt::WindowFlags());
   //! destructor
   virtual ~qvtkViewToolCursorWidget();
 

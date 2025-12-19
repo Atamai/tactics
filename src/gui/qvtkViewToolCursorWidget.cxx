@@ -85,8 +85,8 @@ qvtkViewToolCursorWidget::qvtkViewToolCursorWidget(QWidget* p, Qt::WindowFlags f
 {
   this->synchronized = false;
   this->LayoutSwitching = false;
-  // no background
-  this->setAttribute(Qt::WA_NoBackground);
+  // translucent background
+  this->setAttribute(Qt::WA_TranslucentBackground);
   // no double buffering
   this->setAttribute(Qt::WA_PaintOnScreen);
 
@@ -421,8 +421,13 @@ void qvtkViewToolCursorWidget::mousePressEvent(QMouseEvent* e)
     }
 
   qreal scale = this->devicePixelRatioF();  // retina scaling
-  int xpos = int(e->x() * scale);
-  int ypos = int((this->height() - 1 - e->y()) * scale);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  const QPointF pos = e->position();
+#else
+  const QPointF pos(e->x(), e->y());
+#endif
+  int xpos = qRound(pos.x() * scale);
+  int ypos = qRound((this->height() - 1 - pos.y()) * scale);
   this->FocusCursor = this->ViewRect->RequestToolCursor(xpos, ypos);
 
   // If a tool cursor was not found, return
@@ -448,7 +453,7 @@ void qvtkViewToolCursorWidget::mousePressEvent(QMouseEvent* e)
       modifierMask |= VTK_TOOL_B2;
       button = 2;
       break;
-    case Qt::MidButton:
+    case Qt::MiddleButton:
       modifier |= VTK_TOOL_B2;
       modifierMask |= VTK_TOOL_B2;
       button = 3;
@@ -477,8 +482,13 @@ void qvtkViewToolCursorWidget::mouseReleaseEvent(QMouseEvent* e)
   if (this->FocusCursor && e->button() == this->FocusButton)
     {
     qreal scale = this->devicePixelRatioF();  // retina scaling
-    int xpos = int(e->x() * scale);
-    int ypos = int((this->height() - 1 - e->y()) * scale);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    const QPointF pos = e->position();
+#else
+    const QPointF pos(e->x(), e->y());
+#endif
+    int xpos = qRound(pos.x() * scale);
+    int ypos = qRound((this->height() - 1 - pos.y()) * scale);
     this->FocusCursor->SetDisplayPosition(xpos, ypos);
     int button = 0;
     int modifier = 0;
@@ -493,7 +503,7 @@ void qvtkViewToolCursorWidget::mouseReleaseEvent(QMouseEvent* e)
         modifierMask |= VTK_TOOL_B2;
         button = 2;
         break;
-      case Qt::MidButton:
+      case Qt::MiddleButton:
         modifierMask |= VTK_TOOL_B2;
         button = 3;
         break;
@@ -515,9 +525,13 @@ void qvtkViewToolCursorWidget::mouseMoveEvent(QMouseEvent* e)
   this->ViewRect->GetRenderWindow()->SetDesiredUpdateRate(100);
 
   qreal scale = this->devicePixelRatioF();  // retina scaling
-  int xpos = int(e->x() * scale);
-  int ypos = int((this->height() - 1 - e->y()) * scale);
-  
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  const QPointF pos = e->position();
+#else
+  const QPointF pos(e->x(), e->y());
+#endif
+  int xpos = qRound(pos.x() * scale);
+  int ypos = qRound((this->height() - 1 - pos.y()) * scale);
   if (this->FocusCursor ||
       this->ViewRect->RequestToolCursor(xpos, ypos))
     {
@@ -598,9 +612,10 @@ void qvtkViewToolCursorWidget::wheelEvent(QWheelEvent* e)
   int button = 0;
 
   qreal scale = this->devicePixelRatioF();  // retina scaling
-  int xpos = int(e->x() * scale);
-  int ypos = int((this->height() - 1 - e->y()) * scale);
-
+  const QPointF pos = e->position();
+  int xpos = qRound(pos.x() * scale);
+  int ypos = qRound((this->height() - 1 - pos.y()) * scale);
+  
 #if QT_VERSION >= 0x050000
   int delta = e->angleDelta().y();
 #else

@@ -190,5 +190,5 @@ void vtkViewPane::AddBorder()
   actor->SetPosition(0,0);
   actor->GetProperty()->SetColor(0.1,0.1,0.1);
   actor->SetVisibility(1);
-  this->Renderer->AddActor2D(actor);
+  this->Renderer->AddViewProp(actor);
 }

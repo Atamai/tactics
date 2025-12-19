@@ -218,7 +218,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   vtkSmartPointer<vtkCornerAnnotation> meta_annotation = this->MetaAnnotation;
   meta_annotation->SetMaximumFontSize(16);
   meta_annotation->SetMinimumFontSize(14);
-  planar->GetRenderer()->AddActor2D(meta_annotation);
+  planar->GetRenderer()->AddViewProp(meta_annotation);
 
   this->MetaAnnotation->SetText(3, primary_name_label.c_str());
 
@@ -577,7 +577,7 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
 
   annotation->SetMaximumFontSize(16);
   annotation->SetMinimumFontSize(14);
-  planar->GetRenderer()->AddActor2D(annotation);
+  planar->GetRenderer()->AddViewProp(annotation);
 
   this->resetViewOrientations();
   viewRect->Start();
@@ -1322,7 +1322,7 @@ void cbElectrodeView::addRendererLabel(vtkRenderer *r, const char *str,
   annotation->SetText(corner, str);
   annotation->SetMaximumFontSize(16);
   annotation->SetMinimumFontSize(14);
-  r->AddActor2D(annotation);
+  r->AddViewProp(annotation);
 }
 
 void cbElectrodeView::addDataToPanes(vtkImageData *d, vtkMatrix4x4 *m,
