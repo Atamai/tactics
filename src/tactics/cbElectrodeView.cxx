@@ -1298,6 +1298,8 @@ void cbElectrodeView::displaySurfaceVolume(vtkDataManager::UniqueKey k)
   vtkSmartPointer<vtkSmartVolumeMapper> mapper =
     vtkSmartPointer<vtkSmartVolumeMapper>::New();
   mapper->SetInputData(data);
+  mapper->SetInteractiveUpdateRate(100000);
+
 
   vtkSmartPointer<vtkVolume> volume = vtkSmartPointer<vtkVolume>::New();
   volume->SetMapper(mapper);

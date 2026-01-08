@@ -1329,7 +1329,7 @@ static void vtkCTPFInsertTriangle(
         {
         vtkIdType npts=0;
         vtkIdType const *pts = nullptr;
-        originalEdges->GetCell(edgeLocs[i], npts, pts);
+        originalEdges->GetCellAtId(edgeLocs[i], npts, pts);
         assert(edgePts[i][0] == pts[0]);
         assert(edgePts[i][1] == pts[npts-1]);
         if (npts > maxPoints)
