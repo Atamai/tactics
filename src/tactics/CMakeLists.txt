@@ -18,7 +18,7 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Svg Xml)
 
 # ==============================================================================
-#  VTK Setup (Modern Target-based)
+#  VTK Setup
 # ==============================================================================
 find_package(VTK 9.6 REQUIRED
     COMPONENTS
@@ -157,34 +157,50 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin     COMPONENT Runtime
 )
 
-# ------------------------------------------------------------------------------
-#  Install icons and cursors into the app bundle
-# ------------------------------------------------------------------------------
+# ==============================================================================
+#  Cross-platform resource copy: icons, cursors, probes
+# ==============================================================================
+file(GLOB_RECURSE ICON_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/icons/*"
+)
+file(GLOB_RECURSE CURSOR_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/cursors/*"
+)
+file(GLOB_RECURSE PROBE_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/share/*.txt"
+)
+
 if(APPLE)
-    set(ICON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../resources/icons)
-    set(ICON_DST_DIR $<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Icons)
-    set(CURSOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../resources/cursors)
-    set(CURSOR_DST_DIR $<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Cursors)
-    add_custom_command(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        # make sure destination exists
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${ICON_DST_DIR}"
-        # copy contents only
-        COMMAND ${CMAKE_COMMAND} -E copy
-                ${ICON_SRC_DIR}/* "${ICON_DST_DIR}"
-        # make sure destination exists
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CURSOR_DST_DIR}"
-        # copy contents only
-        COMMAND ${CMAKE_COMMAND} -E copy
-                ${CURSOR_SRC_DIR}/* "${CURSOR_DST_DIR}"
-    )
+    set(ICON_DST_DIR "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Icons")
+    set(CURSOR_DST_DIR "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Cursors")
+    set(PROBES_DST_DIR "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Resources/Probes")
+else()
+    set(ICON_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Icons")
+    set(CURSOR_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Cursors")
+    set(PROBES_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Probes")
 endif()
 
-# qt.conf for relocatability
+# Function to copy files only if the list is non-empty
+function(copy_files_if_not_empty FILES_LIST DST)
+    if(FILES_LIST)
+        add_custom_command(
+            TARGET ${PROJECT_NAME}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${DST}"
+            COMMAND ${CMAKE_COMMAND} -E copy ${FILES_LIST} "${DST}"
+        )
+    endif()
+endfunction()
+
+# Copy resources safely
+copy_files_if_not_empty("${ICON_FILES}" "${ICON_DST_DIR}")
+copy_files_if_not_empty("${CURSOR_FILES}" "${CURSOR_DST_DIR}")
+copy_files_if_not_empty("${PROBE_FILES}" "${PROBES_DST_DIR}")
+
+# ==============================================================================
+#  qt.conf for relocatability
+# ==============================================================================
 install(CODE "
 file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${qtconf_dest_dir}/qt.conf\"
 \"[Paths]\nPlugins = PlugIns\n\")
 " COMPONENT Runtime)
-
-
