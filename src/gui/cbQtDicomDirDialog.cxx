@@ -42,7 +42,8 @@
 #include <QApplication>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QDesktopWidget>
+#include <QScreen>
+#include <QGuiApplication>
 #include <QPushButton>
 #include <QHBoxLayout>
 #include <QVBoxLayout>

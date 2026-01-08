@@ -10,17 +10,17 @@ set(APPLICATION_VERSION_PATCH 0)
 set(APPLICATION_VERSION_STRING "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}")
 
 # ==============================================================================
-#  Qt Setup (Modern)
+#  Qt Setup
 # ==============================================================================
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
-find_package(Qt5 REQUIRED COMPONENTS Widgets Gui Core Svg Xml)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Svg Xml)
 
 # ==============================================================================
 #  VTK Setup (Modern Target-based)
 # ==============================================================================
-find_package(VTK 9.5 REQUIRED
+find_package(VTK 9.6 REQUIRED
     COMPONENTS
         CommonCore
         CommonDataModel
@@ -65,8 +65,8 @@ target_include_directories(${PROJECT_LIB}
 # Link libraries (Qt, VTK, internal)
 target_link_libraries(${PROJECT_LIB}
     PRIVATE
-        Qt5::Core
-        Qt5::Widgets
+        Qt6::Core
+        Qt6::Widgets
         ${Cerebra_LIBRARIES}
         cbVTK
         cbProcessing
@@ -88,9 +88,9 @@ add_executable(${PROJECT_NAME} MACOSX_BUNDLE ${PROJECT_MAIN})
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         ${PROJECT_LIB}
-        Qt5::Core
-        Qt5::Gui
-        Qt5::Widgets
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Widgets
         VTK::CommonCore
 )
 

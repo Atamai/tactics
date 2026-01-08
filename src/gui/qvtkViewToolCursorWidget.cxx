@@ -389,10 +389,9 @@ void qvtkViewToolCursorWidget::paintEvent(QPaintEvent* )
   // render the VTK stuff before doing the QT stuff
   this->mRenWin->vtkRenderWindow::Render();
 
-  // In Qt 4.1+ let's support redirected painting
-  // if redirected, let's grab the image from VTK, and paint it to the device
-  QPaintDevice* device = QPainter::redirected(this);
-  if (device != NULL && device != this)
+  // Qt6: QPainter::redirected() is removed, use redirected(QPaintDevice*)
+  QPaintDevice* device = this->redirected(nullptr);
+  if (device != nullptr && device != this)
   {
     int w = this->width();
     int h = this->height();
@@ -409,7 +408,6 @@ void qvtkViewToolCursorWidget::paintEvent(QPaintEvent* )
     return;
   }
 }
-
 /*! handle mouse press event
 */
 void qvtkViewToolCursorWidget::mousePressEvent(QMouseEvent* e)

@@ -38,6 +38,7 @@
 
 // QT includes
 #include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QCursor>
 #include <QDebug>
@@ -109,44 +110,44 @@ void cbElectrodeToolBarWidget::createActions()
                                tr("&Window/Level..."), this);
   actionWinLevel->setCheckable(true);
   actionWinLevel->setStatusTip("Change contrast and brightness of images.");
-  connect(actionWinLevel, SIGNAL(triggered()), this, SLOT(onWinlevButtonDown()));
+  connect(actionWinLevel, &QAction::triggered, this, &cbElectrodeToolBarWidget::onWinlevButtonDown);
 
   actionRotate = new QAction(QIcon(m_iconPath + "/rotate.png"),
                           tr("&Rotate..."), this);
   actionRotate->setCheckable(true);
   actionRotate->setStatusTip("Rotate the 3D view.");
-  connect(actionRotate, SIGNAL(triggered()), this, SLOT(onRotateButtonDown()));
+  connect(actionRotate, &QAction::triggered, this, &cbElectrodeToolBarWidget::onRotateButtonDown);
 
   actionPan = new QAction(QIcon(m_iconPath + "/pan.png"),
                           tr("&Pan..."), this);
   actionPan->setCheckable(true);
   actionPan->setStatusTip("Move the display around the screen.");
-  connect(actionPan, SIGNAL(triggered()), this, SLOT(onPanButtonDown()));
+  connect(actionPan, &QAction::triggered, this, &cbElectrodeToolBarWidget::onPanButtonDown);
 
   actionZoom = new QAction(QIcon(m_iconPath + "/zoom.png"),
                            tr("&Zoom..."), this);
   actionZoom->setCheckable(true);
   actionZoom->setStatusTip("Zoom in/out the display.");
-  connect(actionZoom, SIGNAL(triggered()), this, SLOT(onZoomButtonDown()));
+  connect(actionZoom, &QAction::triggered, this, &cbElectrodeToolBarWidget::onZoomButtonDown);
 
   actionPlane = new QAction(QIcon(m_iconPath + "/slice.png"),
                             tr("&Plane..."), this);
   actionPlane->setCheckable(true);
   actionPlane->setChecked(true);
   actionPlane->setStatusTip("Slice through the display, or rotate a slice.");
-  connect(actionPlane, SIGNAL(triggered()), this, SLOT(onPlaneButtonDown()));
+  connect(actionPlane, &QAction::triggered, this, &cbElectrodeToolBarWidget::onPlaneButtonDown);
 
   actionReset = new QAction(QIcon(m_iconPath + "/undo.png"), tr("&Reset"), this);
   actionReset->setCheckable(false);
   actionReset->setEnabled(false);
   actionReset->setStatusTip("Reset the display to the default view.");
-  connect(actionReset, SIGNAL(triggered()), this, SLOT(onResetButtonDown()));
+  connect(actionReset, &QAction::triggered, this, &cbElectrodeToolBarWidget::onResetButtonDown);
 
   actionMaximizeToggle = new QAction(QIcon(m_iconPath + "/brain.png"), tr("&3D View"), this);
   actionMaximizeToggle->setCheckable(true);
   actionMaximizeToggle->setEnabled(false);
   actionMaximizeToggle->setStatusTip("Maximize/minimize the 3D rendering view.");
-  connect(actionMaximizeToggle, SIGNAL(triggered()), this, SLOT(onMaximizeToggleButtonDown()));
+  connect(actionMaximizeToggle, &QAction::triggered, this, &cbElectrodeToolBarWidget::onMaximizeToggleButtonDown);
 
   m_groupMouseControl->setExclusive(true);
   m_groupMouseControl->setEnabled(false);
@@ -156,7 +157,6 @@ void cbElectrodeToolBarWidget::createActions()
   m_groupMouseControl->addAction(actionWinLevel);
   m_groupMouseControl->addAction(actionPlane);
 }
-
 //----------------------------------------------------------------------------
 void cbElectrodeToolBarWidget::onRotateButtonDown()
 {

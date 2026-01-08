@@ -34,13 +34,13 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-# Find Qt once at top level so child CMakeLists can rely on Qt5:: targets
-find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui Svg Xml)
+# Find Qt once at top level so child CMakeLists can rely on Qt6:: targets
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Svg Xml)
 
 # -------------------------------------------------------------------------
 # Find VTK once at top level (modules may vary — children can find more if needed)
 # -------------------------------------------------------------------------
-find_package(VTK 9.5 REQUIRED COMPONENTS
+find_package(VTK 9.6 REQUIRED COMPONENTS
   CommonCore
   CommonDataModel
   FiltersCore
@@ -132,7 +132,7 @@ file(MAKE_DIRECTORY "${CONFIGURE_OUTPUT_PATH}")
 message(STATUS "Project root (MAINFOLDER): ${MAINFOLDER}")
 message(STATUS "Configure output path: ${CONFIGURE_OUTPUT_PATH}")
 message(STATUS "CMake install prefix: ${CMAKE_INSTALL_PREFIX}")
-message(STATUS "Qt5 found: ${Qt5_VERSION}")
+message(STATUS "Qt6 found: ${Qt6_VERSION}")
 message(STATUS "VTK found: ${VTK_VERSION}")
 
 # End of top-level CMake

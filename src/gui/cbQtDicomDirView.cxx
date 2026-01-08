@@ -120,13 +120,13 @@ int cbQtDicomDirView::sizeHintForColumn(int col) const
   }
 
   // Compute the width of the text
-  QFontMetrics fm(this->viewOptions().font);
+  QFontMetrics fm(this->font());
   int w = fm.horizontalAdvance(sampleText[col]);
 
   // For first column, add indentation
   if (col == 0) {
     w += 2*this->indentation();
-    int iconWidth = this->viewOptions().decorationSize.width();
+    int iconWidth = this->iconSize().width();
     if (iconWidth > 0) {
       w += iconWidth;
     }

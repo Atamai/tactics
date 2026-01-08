@@ -9,18 +9,18 @@ if(POLICY CMP0043)
 endif()
 
 # ------------------------------------------------------------------------------
-# Qt Setup (Modern)
+# Qt Setup
 # ------------------------------------------------------------------------------
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui Svg Xml)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Svg Xml)
 
 # ------------------------------------------------------------------------------
-# VTK Setup (Modern, target-based)
+# VTK Setup
 # ------------------------------------------------------------------------------
-find_package(VTK 9.5 REQUIRED
+find_package(VTK 9.6 REQUIRED
     COMPONENTS
         CommonCore
         CommonDataModel
@@ -70,11 +70,11 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # Link Qt libraries
 # ------------------------------------------------------------------------------
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    Qt5::Widgets
-    Qt5::Core
-    Qt5::Gui
-    Qt5::Svg
-    Qt5::Xml
+    Qt6::Widgets
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Svg
+    Qt6::Xml
 )
 
 # ------------------------------------------------------------------------------

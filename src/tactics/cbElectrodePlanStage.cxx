@@ -59,6 +59,8 @@
 #include <QFormLayout>
 #include <QShortcut>
 #include <QMessageBox>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 
 #include <iostream>
 #include <fstream>
@@ -295,10 +297,10 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   ySpin->setValue(0);
   zSpin->setValue(0);
 
-  QRegExp rx("^[A-Za-z0-9_]+$");
-  QRegExpValidator *validator = new QRegExpValidator(rx, this);
+  QRegularExpression rx("^[A-Za-z0-9_]+$");
+  QRegularExpressionValidator *validator = new QRegularExpressionValidator(rx, this);
   nameEdit->setValidator(validator);
-
+  
   connect(xSpin, SIGNAL(valueChanged(double)),
           this, SLOT(updateCurrentProbePosition()));
   connect(ySpin, SIGNAL(valueChanged(double)),
@@ -690,13 +692,9 @@ void cbElectrodePlanStage::savePlanReport()
   // Check the planFileFolder setting for the save path
   const char *folderKey = "planFileFolder";
   QSettings settings;
-  QString path;
-
-  if (settings.value(folderKey).toString() != NULL) {
-    path = settings.value(folderKey).toString();
-  }
-
-  if (path == "") {
+  QString path= settings.value(folderKey).toString();
+  
+  if (path.isEmpty()) {
     path = QDir::homePath();
   }
 

@@ -103,14 +103,11 @@ void cbElectrodeOpenStage::Execute()
   QSettings settings;
   QString path;
 
-  if (settings.value(folderKey).toString() != NULL) {
-    path = settings.value(folderKey).toString();
+  if (!settings.value(folderKey).toString().isEmpty()) {
+      path = settings.value(folderKey).toString();
   }
-  else {
-    path = QDir::homePath();
-  }
-
-  cbQtDicomDirDialog dialog(NULL, "Open Primary Series", path);
+  
+  cbQtDicomDirDialog dialog(nullptr, "Open Primary Series", path);
   if (!dialog.exec()) {
     return;
   }
@@ -122,27 +119,24 @@ void cbElectrodeOpenStage::Execute()
   emit finished();
 }
 
+
 void cbElectrodeOpenStage::ExecuteCT()
 {
   const char *folderKey = "recentFileFolder";
   QSettings settings;
   QString path;
 
-  if (settings.value(folderKey).toString() != NULL) {
-    path = settings.value(folderKey).toString();
+  if (!settings.value(folderKey).toString().isEmpty()) {
+      path = settings.value(folderKey).toString();
   }
-  else {
-    path = QDir::homePath();
-  }
-
-  cbQtDicomDirDialog dialog(NULL, "Open Secondary Series", path);
+  
+  cbQtDicomDirDialog dialog(nullptr, "Open Secondary Series", path);
   if (!dialog.exec()) {
     return;
   }
 
   emit requestOpenCT(dialog.selectedFiles());
 }
-
 const char *cbElectrodeOpenStage::getStageName() const
 {
   return "Open";

@@ -43,7 +43,8 @@
 // QT INCLUDES
 #include <QDebug>
 #include <QApplication>
-#include <QDesktopWidget>
+#include <QScreen>
+#include <QGuiApplication>
 #include <QDockWidget>
 #include <QCloseEvent>
 #include <QFile>
@@ -145,11 +146,8 @@ namespace cb {
 cbElectrodeView::cbElectrodeView(vtkDataManager *dataManager, QWidget *parent)
 : cbMainWindow(dataManager, parent), dataKey(), ctKey(), SaveFile(), SavedState(false), SelectedIndex(0)
 {
-  QDesktopWidget desktop;
-  int width = desktop.width();
-  int height = desktop.height();
-  this->resize(width, height);
-
+  this->resize(QGuiApplication::primaryScreen()->size());
+  
   this->showMaximized();
 
   this->setWindowTitle("Tactics - Stereotaxy Planner");
@@ -1827,13 +1825,9 @@ QString cbElectrodeView::GetPlanFolder()
 {
   const char *folderKey = "planFileFolder";
   QSettings settings;
-  QString path;
+  QString path = settings.value(folderKey).toString();
 
-  if (settings.value(folderKey).toString() != NULL) {
-    path = settings.value(folderKey).toString();
-  }
-
-  if (path == "") {
+  if (path.isEmpty()) {
     path = QDir::homePath();
   }
 
