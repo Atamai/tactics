@@ -385,28 +385,7 @@ void qvtkViewToolCursorWidget::paintEvent(QPaintEvent* )
   {
     return;
   }
-
-  // render the VTK stuff before doing the QT stuff
   this->mRenWin->vtkRenderWindow::Render();
-
-  // Qt6: QPainter::redirected() is removed, use redirected(QPaintDevice*)
-  QPaintDevice* device = this->redirected(nullptr);
-  if (device != nullptr && device != this)
-  {
-    int w = this->width();
-    int h = this->height();
-    QImage img(w, h, QImage::Format_RGB32);
-    vtkUnsignedCharArray* pixels = vtkUnsignedCharArray::New();
-    pixels->SetArray(img.bits(), w*h*4, 1);
-    this->mRenWin->GetRGBACharPixelData(0, 0, w-1, h-1, 1, pixels);
-    pixels->Delete();
-    img = img.rgbSwapped();
-    img = img.mirrored();
-
-    QPainter painter(this);
-    painter.drawImage(QPointF(0.0,0.0), img);
-    return;
-  }
 }
 /*! handle mouse press event
 */
@@ -419,11 +398,7 @@ void qvtkViewToolCursorWidget::mousePressEvent(QMouseEvent* e)
     }
 
   qreal scale = this->devicePixelRatioF();  // retina scaling
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   const QPointF pos = e->position();
-#else
-  const QPointF pos(e->x(), e->y());
-#endif
   int xpos = qRound(pos.x() * scale);
   int ypos = qRound((this->height() - 1 - pos.y()) * scale);
   this->FocusCursor = this->ViewRect->RequestToolCursor(xpos, ypos);
@@ -480,11 +455,7 @@ void qvtkViewToolCursorWidget::mouseReleaseEvent(QMouseEvent* e)
   if (this->FocusCursor && e->button() == this->FocusButton)
     {
     qreal scale = this->devicePixelRatioF();  // retina scaling
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     const QPointF pos = e->position();
-#else
-    const QPointF pos(e->x(), e->y());
-#endif
     int xpos = qRound(pos.x() * scale);
     int ypos = qRound((this->height() - 1 - pos.y()) * scale);
     this->FocusCursor->SetDisplayPosition(xpos, ypos);
@@ -523,11 +494,7 @@ void qvtkViewToolCursorWidget::mouseMoveEvent(QMouseEvent* e)
   this->ViewRect->GetRenderWindow()->SetDesiredUpdateRate(100);
 
   qreal scale = this->devicePixelRatioF();  // retina scaling
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   const QPointF pos = e->position();
-#else
-  const QPointF pos(e->x(), e->y());
-#endif
   int xpos = qRound(pos.x() * scale);
   int ypos = qRound((this->height() - 1 - pos.y()) * scale);
   if (this->FocusCursor ||
@@ -614,11 +581,7 @@ void qvtkViewToolCursorWidget::wheelEvent(QWheelEvent* e)
   int xpos = qRound(pos.x() * scale);
   int ypos = qRound((this->height() - 1 - pos.y()) * scale);
   
-#if QT_VERSION >= 0x050000
   int delta = e->angleDelta().y();
-#else
-  int delta = e->delta();
-#endif
 
   this->WheelDelta += delta;
 
