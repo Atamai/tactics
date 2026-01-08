@@ -1170,7 +1170,7 @@ void vtkCTPFFindTrueEdges(
             cellCount++;
             }
           originalEdges->UpdateCellCount(cellCount);
-          newEdges.push_back(originalEdges->GetInsertLocation(cellCount));
+          newEdges.push_back(originalEdges->GetNumberOfCells() - 1);
           }
         else if (cellCount == 0)
           {
@@ -1247,7 +1247,7 @@ void vtkCTPFFindTrueEdges(
     if (cellCount > 1)
       {
       originalEdges->UpdateCellCount(cellCount);
-      newEdges.push_back(originalEdges->GetInsertLocation(cellCount));
+      newEdges.push_back(originalEdges->GetNumberOfCells() - 1);
       }
 
     polys[polyId] = newPoly;
