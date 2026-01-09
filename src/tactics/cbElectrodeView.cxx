@@ -1600,7 +1600,7 @@ void cbElectrodeView::InitiatePlaceProbeCallback()
 #endif
   dir.cd("Icons");
 
-  QString cursor_path = QFile((dir).absoluteFilePath("Cursors")).fileName();
+  QString cursor_path = QCoreApplication::applicationDirPath() + "/../Cursors";
   QPixmap pix(cursor_path + "/pick.png");
   QCursor cur(pix);
 
