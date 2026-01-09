@@ -244,7 +244,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   tabWidget->addTab(planWidget, "&Planning");
   tabWidget->addTab(optionWidget, "&Options");
 
-  connect(precisionSelect, SIGNAL(currentIndexChanged(QString)),
+  connect(precisionSelect, SIGNAL(currentTextChanged(QString)),
           this, SLOT(setPrecision(QString)));
 
   frameToggle->setChecked(true);
@@ -309,7 +309,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
           this, SLOT(updateCurrentProbePosition()));
   connect(nameEdit, SIGNAL(textChanged(QString)),
           this, SLOT(updateCurrentProbeName(QString)));
-  connect(typeList, SIGNAL(currentIndexChanged(QString)),
+  connect(typeList, SIGNAL(currentTextChanged(QString)),
           this, SLOT(updateCurrentProbeType(QString)));
 
   dGroup->setTitle("Anterior to Posterior Angle");
@@ -527,7 +527,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   disconnect(this->nameEdit, SIGNAL(textChanged(QString)),
              this, SLOT(updateCurrentProbeName(QString)));
 
-  disconnect(this->typeList, SIGNAL(currentIndexChanged(QString)),
+  disconnect(this->typeList, SIGNAL(currentTextChanged(QString)),
              this, SLOT(updateCurrentProbeType(QString)));
 
   disconnect(this->azimuthSlider, SIGNAL(valueChanged(int)),
@@ -603,7 +603,7 @@ void cbElectrodePlanStage::updateForCurrentSelection()
   connect(this->nameEdit, SIGNAL(textChanged(QString)),
           this, SLOT(updateCurrentProbeName(QString)));
 
-  connect(this->typeList, SIGNAL(currentIndexChanged(QString)),
+  connect(this->typeList, SIGNAL(currentTextChanged(QString)),
           this, SLOT(updateCurrentProbeType(QString)));
 
   connect(this->azimuthSlider, SIGNAL(valueChanged(int)),
@@ -784,7 +784,6 @@ void cbElectrodePlanStage::updateCurrentProbeType(QString n)
     std::cout << "Nothing selected." << std::endl;
     return;
   }
-
   cbProbeSpecification s = this->catalogue_.specification(n.toStdString());
   this->Plan.at(pos).set_specification(s);
 
