@@ -44,7 +44,6 @@ find_package(DICOM REQUIRED)
 file(GLOB_RECURSE PROJECT_SRCS CONFIGURE_DEPENDS *.cxx)
 file(GLOB_RECURSE PROJECT_HDRS CONFIGURE_DEPENDS *.h)
 file(GLOB_RECURSE PROJECT_MAIN CONFIGURE_DEPENDS main.cxx)
-
 list(REMOVE_ITEM PROJECT_SRCS ${PROJECT_MAIN})
 
 # ==============================================================================
@@ -53,7 +52,6 @@ list(REMOVE_ITEM PROJECT_SRCS ${PROJECT_MAIN})
 set(PROJECT_LIB cbElectrode)
 add_library(${PROJECT_LIB} STATIC ${PROJECT_SRCS} ${PROJECT_HDRS})
 
-# Include paths for your library (PUBLIC so executable inherits)
 target_include_directories(${PROJECT_LIB}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/..
@@ -62,7 +60,6 @@ target_include_directories(${PROJECT_LIB}
         ${CMAKE_CURRENT_SOURCE_DIR}/../data
 )
 
-# Link libraries (Qt, VTK, internal)
 target_link_libraries(${PROJECT_LIB}
     PRIVATE
         Qt6::Core
@@ -84,7 +81,6 @@ target_link_libraries(${PROJECT_LIB}
 # ==============================================================================
 add_executable(${PROJECT_NAME} MACOSX_BUNDLE ${PROJECT_MAIN})
 
-# Link executable against library and dependencies
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         ${PROJECT_LIB}
@@ -110,28 +106,13 @@ vtk_module_autoinit(
 )
 
 # ==============================================================================
-#  macOS bundle variables
-# ==============================================================================
-if(APPLE)
-    set(plugin_dest_dir "${PROJECT_NAME}.app/Contents/PlugIns")
-    set(qtconf_dest_dir "${PROJECT_NAME}.app/Contents/Resources")
-    set(APPS "${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app")
-else()
-    set(plugin_dest_dir "bin")
-    set(qtconf_dest_dir "bin")
-    set(APPS "${CMAKE_INSTALL_PREFIX}/bin/${PROJECT_NAME}")
-endif()
-
-# ==============================================================================
 #  macOS bundle properties
 # ==============================================================================
 if(APPLE)
     set(APP_ICON
         ${CMAKE_CURRENT_SOURCE_DIR}/../../resources/Tactics.icns
     )
-
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        INSTALL_RPATH_USE_LINK_PATH ON
         MACOSX_BUNDLE_BUNDLE_NAME ${PROJECT_NAME}
         MACOSX_BUNDLE_ICON_FILE Tactics
         MACOSX_BUNDLE_GUI_IDENTIFIER ca.calgaryimageanalysis.${PROJECT_NAME}
@@ -140,67 +121,67 @@ if(APPLE)
         MACOSX_PACKAGE_LOCATION Resources
     )
     target_sources(${PROJECT_NAME} PRIVATE ${APP_ICON})
+endif()
 
+# ==============================================================================
+#  Resource directories
+# ==============================================================================
+set(ICONS_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/icons")
+set(CURSORS_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/cursors")
+set(PROBES_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../share")
+
+if(APPLE)
+    set(BUNDLE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.app/Contents")
+    set(ICONS_DST_DIR "${BUNDLE_DIR}/Icons")
+    set(CURSORS_DST_DIR "${BUNDLE_DIR}/Cursors")
+    set(PROBES_DST_DIR "${BUNDLE_DIR}/Resources/Probes")
 else()
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        OUTPUT_NAME ${PROJECT_NAME}
-        VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}"
-        CLEAN_DIRECT_OUTPUT 1
+    set(ICONS_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Icons")
+    set(CURSORS_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Cursors")
+    set(PROBES_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Probes")
+endif()
+
+# ==============================================================================
+#  Copy icons
+# ==============================================================================
+if(EXISTS "${ICONS_SRC_DIR}")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${ICONS_DST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${ICONS_SRC_DIR}" "${ICONS_DST_DIR}"
     )
 endif()
 
 # ==============================================================================
-#  Installation
+#  Copy cursors
 # ==============================================================================
-install(TARGETS ${PROJECT_NAME}
-    BUNDLE DESTINATION .        COMPONENT Runtime
-    RUNTIME DESTINATION bin     COMPONENT Runtime
-)
-
-# ==============================================================================
-#  Cross-platform resource copy: icons, cursors, probes
-# ==============================================================================
-file(GLOB_RECURSE ICON_FILES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/icons/*"
-)
-file(GLOB_RECURSE CURSOR_FILES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/cursors/*"
-)
-file(GLOB_RECURSE PROBE_FILES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/share/*.txt"
-)
-
-if(APPLE)
-    set(ICON_DST_DIR "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Icons")
-    set(CURSOR_DST_DIR "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Cursors")
-    set(PROBES_DST_DIR "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>/Contents/Resources/Probes")
-else()
-    set(ICON_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Icons")
-    set(CURSOR_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Cursors")
-    set(PROBES_DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/Resources/Probes")
+if(EXISTS "${CURSORS_SRC_DIR}")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CURSORS_DST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CURSORS_SRC_DIR}" "${CURSORS_DST_DIR}"
+    )
 endif()
 
-# Function to copy files only if the list is non-empty
-function(copy_files_if_not_empty FILES_LIST DST)
-    if(FILES_LIST)
-        add_custom_command(
-            TARGET ${PROJECT_NAME}
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${DST}"
-            COMMAND ${CMAKE_COMMAND} -E copy ${FILES_LIST} "${DST}"
-        )
-    endif()
-endfunction()
-
-# Copy resources safely
-copy_files_if_not_empty("${ICON_FILES}" "${ICON_DST_DIR}")
-copy_files_if_not_empty("${CURSOR_FILES}" "${CURSOR_DST_DIR}")
-copy_files_if_not_empty("${PROBE_FILES}" "${PROBES_DST_DIR}")
+# ==============================================================================
+#  Copy probe files individually
+# ==============================================================================
+file(GLOB PROBE_FILES "${PROBES_SRC_DIR}/*.txt")
+if(PROBE_FILES)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${PROBES_DST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy ${PROBE_FILES} "${PROBES_DST_DIR}"
+    )
+endif()
 
 # ==============================================================================
 #  qt.conf for relocatability
 # ==============================================================================
+if(APPLE)
+    set(QTCONF_DIR "${BUNDLE_DIR}")
+else()
+    set(QTCONF_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+endif()
+
 install(CODE "
-file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${qtconf_dest_dir}/qt.conf\"
+file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${QTCONF_DIR}/qt.conf\"
 \"[Paths]\nPlugins = PlugIns\n\")
 " COMPONENT Runtime)
