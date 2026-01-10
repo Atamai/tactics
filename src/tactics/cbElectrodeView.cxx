@@ -214,8 +214,6 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   primary_name_label.append(patient_name);
 
   vtkSmartPointer<vtkCornerAnnotation> meta_annotation = this->MetaAnnotation;
-  meta_annotation->SetMaximumFontSize(16);
-  meta_annotation->SetMinimumFontSize(14);
   planar->GetRenderer()->AddViewProp(meta_annotation);
 
   this->MetaAnnotation->SetText(3, primary_name_label.c_str());
@@ -572,9 +570,6 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   vtkSmartPointer<vtkCornerAnnotation> annotation = this->helpAnnotation;
   annotation->SetText(2,
     "Left Click: Active Tool\nRight Click: Rotate View\nMousewheel : Zoom\nMousewheel(side panes): Slice");
-
-  annotation->SetMaximumFontSize(16);
-  annotation->SetMinimumFontSize(14);
   planar->GetRenderer()->AddViewProp(annotation);
 
   this->resetViewOrientations();
@@ -1320,8 +1315,6 @@ void cbElectrodeView::addRendererLabel(vtkRenderer *r, const char *str,
   vtkSmartPointer<vtkCornerAnnotation> annotation =
     vtkSmartPointer<vtkCornerAnnotation>::New();
   annotation->SetText(corner, str);
-  annotation->SetMaximumFontSize(16);
-  annotation->SetMinimumFontSize(14);
   r->AddViewProp(annotation);
 }
 
@@ -1371,8 +1364,8 @@ void cbElectrodeView::CreateProbeCallback(cbProbe p)
   mapper->SetInputData(data);
 
   static double table[2][4] = {
-    {56.0/256.0, 117.0/256.0, 215.0/256.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
+    {256.0/256.0, 128.0/256.0, 0.0/256.0, 1.0}, // Fluorescent orange contacts
+    {1.0, 1.0, 1.0, 1.0}, // White insulator
   };
 
   vtkSmartPointer<vtkLookupTable> active =
@@ -1505,8 +1498,8 @@ void cbElectrodeView::UpdateProbeCallback(int index, cbProbe p)
   a->SetUserMatrix(matrix);
 
   static double active_table[2][4] = {
-    {56.0/256.0, 117.0/256.0, 215.0/256.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
+    {256.0/256.0, 128.0/256.0, 0.0/256.0, 1.0}, //Fluorescent Orange
+    {1.0, 1.0, 1.0, 1.0}, //White
   };
 
   vtkSmartPointer<vtkLookupTable> active =
@@ -1519,9 +1512,16 @@ void cbElectrodeView::UpdateProbeCallback(int index, cbProbe p)
   active->SetTableValue(1, active_table[1]);
 
   a->GetMapper()->SetLookupTable(active);
+  
+  // Make active electrode non-metallic
+  a->GetProperty()->SetAmbient(0.5);
+  a->GetProperty()->SetDiffuse(0.5);
+  a->GetProperty()->SetSpecular(0.2);
+  a->GetProperty()->SetSpecularPower(10);
+  a->GetProperty()->SetMetallic(0.0);
 
   static double passive_table[2][4] = {
-    {0.0, 0.0, 0.0, 1.0},
+    {0.75, 0.75, 0.75, 1.0},
     {1.0, 1.0, 1.0, 1.0},
   };
 
@@ -1539,8 +1539,13 @@ void cbElectrodeView::UpdateProbeCallback(int index, cbProbe p)
 
   vtkActor *act = NULL;
   while ((act = this->Probes->GetNextActor(iter))) {
-    if (act != a) {
+    if (act != a) { //Not the active electrode
       act->GetMapper()->SetLookupTable(passive);
+      act->GetProperty()->SetAmbient(0.3);      // Low ambient (less flat)
+      act->GetProperty()->SetDiffuse(0.6);      // Moderate diffuse
+      act->GetProperty()->SetSpecular(0.8);     // High specular (shininess)
+      act->GetProperty()->SetSpecularPower(50); // Tight specular highlight
+      act->GetProperty()->SetMetallic(0.7);     // Metallic appearance
     }
   }
 
@@ -1998,11 +2003,11 @@ void cbElectrodeView::CreatePlanVisualization()
 void cbElectrodeView::CreateLabelsAndAnnotations()
 {
   this->helpAnnotation = vtkCornerAnnotation::New();
+  this->MetaAnnotation = vtkCornerAnnotation::New();
   this->leftAxialFollower = vtkFollower::New();
   this->leftCoronalFollower = vtkFollower::New();
   this->rightAxialFollower = vtkFollower::New();
   this->rightCoronalFollower = vtkFollower::New();
-  this->MetaAnnotation = vtkCornerAnnotation::New();
 }
 
 void cbElectrodeView::DestroyMembers()
