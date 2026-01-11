@@ -48,8 +48,6 @@
 #include "vtkRenderer.h"
 #include "vtkCamera.h"
 
-#include "qpaintengine.h"
-
 #include "qdebug.h"
 #include "qevent.h"
 #include "qapplication.h"
@@ -81,28 +79,22 @@ qvtkViewToolCursorWidget::qvtkViewToolCursorWidget(QWidget* p, Qt::WindowFlags f
 : QWidget(p, f | Qt::MSWindowsOwnDC), mRenWin(NULL),
     cachedImageCleanFlag(false),
     automaticImageCache(false), maxImageCacheRenderRate(1.0)
-
 {
   this->synchronized = false;
   this->LayoutSwitching = false;
-  // translucent background
-  this->setAttribute(Qt::WA_TranslucentBackground);
-  // no double buffering
-  this->setAttribute(Qt::WA_PaintOnScreen);
-
-  // default to strong focus
+  
+  // For Qt 6.10+ on macOS - use native window instead of paint-on-screen
+  // not sure what this will do on non-macOS systems.
+  this->setAttribute(Qt::WA_NativeWindow);
+  this->setAttribute(Qt::WA_DontCreateNativeAncestors);
+  this->setAttribute(Qt::WA_OpaquePaintEvent);
+  this->setAttribute(Qt::WA_NoSystemBackground);
+  
   this->setFocusPolicy(Qt::StrongFocus);
-
-  // default to enable mouse events when a mouse button isn't down
-  // so we can send enter/leave events to VTK
   this->setMouseTracking(true);
-
-  // set expanding to take up space for better default layouts
   this->setSizePolicy(
       QSizePolicy( QSizePolicy::Expanding, QSizePolicy::Expanding )
       );
-
-  mPaintEngine = NULL;
 
   this->mCachedImage = vtkImageData::New();
   this->mCachedImage->SetOrigin(0,0,0);
@@ -124,11 +116,6 @@ qvtkViewToolCursorWidget::~qvtkViewToolCursorWidget()
   this->SetRenderWindow(NULL);
 
   this->mCachedImage->Delete();
-
-  if (mPaintEngine)
-  {
-    delete mPaintEngine;
-  }
 }
 
 /*! get the render window
@@ -377,19 +364,20 @@ void qvtkViewToolCursorWidget::moveEvent(QMoveEvent* e)
 }
 
 /*! handle paint event
-*/
-void qvtkViewToolCursorWidget::paintEvent(QPaintEvent* )
+*/void qvtkViewToolCursorWidget::paintEvent(QPaintEvent* )
 {
   // if we have a saved image, use it
   if (this->paintCachedImage())
   {
     return;
   }
-  this->mRenWin->vtkRenderWindow::Render();
-}
+    
+  // VTK renders directly to the native window
+  this->mRenWin->Render();
+ }
+
 /*! handle mouse press event
-*/
-void qvtkViewToolCursorWidget::mousePressEvent(QMouseEvent* e)
+*/void qvtkViewToolCursorWidget::mousePressEvent(QMouseEvent* e)
 {
   // If there is already a focus, return
   if (this->FocusCursor)
@@ -691,11 +679,6 @@ void qvtkViewToolCursorWidget::showEvent(QShowEvent* e)
   QWidget::showEvent(e);
 }
 
-QPaintEngine* qvtkViewToolCursorWidget::paintEngine() const
-{
-  return mPaintEngine;
-}
-
 
 // X11 stuff near the bottom of the file
 // to prevent namespace collisions with Qt headers
@@ -843,19 +826,23 @@ void qvtkViewToolCursorWidget::x11_setup_window()
 //-----------------------------------------------------------------------------
 bool qvtkViewToolCursorWidget::paintCachedImage()
 {
-  // if we have a saved image, use it
   if (this->cachedImageCleanFlag)
-    {
+  {
     vtkUnsignedCharArray* array = vtkUnsignedCharArray::SafeDownCast(
         this->mCachedImage->GetPointData()->GetScalars());
-    // put cached image into back buffer if we can
-    this->mRenWin->SetPixelData(0, 0, this->width()-1, this->height()-1,
-                                array, !this->mRenWin->GetDoubleBuffer());
-    // swap buffers, if double buffering
-    this->mRenWin->Frame();
-    // or should we just put it on the front buffer?
+    
+    int w = this->width();
+    int h = this->height();
+    
+    // Create QImage from VTK data (note: VTK data is bottom-up)
+    QImage img(array->GetPointer(0), w, h, w * 3,
+               QImage::Format_RGB888);
+    
+    QPainter painter(this);
+    painter.drawImage(0, 0, img.flipped(Qt::Vertical));
+    
     return true;
-    }
+  }
   return false;
 }
 

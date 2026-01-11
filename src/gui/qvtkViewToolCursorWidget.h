@@ -107,10 +107,6 @@ public:
   // Handle showing of the Widget
   virtual void showEvent(QShowEvent*);
 
-  // Description:
-  // Get the paint engine specific to this class
-  virtual QPaintEngine* paintEngine() const;
-
 Q_SIGNALS:
   // Description:
   // This signal will be emitted whenever a mouse event occurs
@@ -194,9 +190,6 @@ protected:
 
   // the vtk render window
   vtkRenderWindow* mRenWin;
-
-  // the paint engine
-  QPaintEngine* mPaintEngine;
 
   // set up an X11 window based on a visual and colormap
   // that VTK chooses
