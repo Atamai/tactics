@@ -142,8 +142,7 @@ void ReadImage(vtkStringArray *sarray, vtkImageData *data,
 void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
                     vtkMatrix4x4 *matrix, vtkDICOMMetaData *meta)
 {
-  vtkSmartPointer<vtkDICOMReader> reader =
-    vtkSmartPointer<vtkDICOMReader>::New();
+  vtkNew<vtkDICOMReader> reader;
 
   reader->SetFileNames(sarray);
   reader->SetMemoryRowOrderToFileNative();
@@ -151,7 +150,6 @@ void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
 
   vtkImageData *output = reader->GetOutput();
   data->CopyStructure(output);
-  data->AllocateScalars(output->GetScalarType(), output->GetNumberOfScalarComponents());
   data->GetPointData()->PassData(output->GetPointData());
 
   matrix->DeepCopy(reader->GetPatientMatrix());
@@ -162,15 +160,13 @@ void ReadDICOMImage(vtkStringArray *sarray, vtkImageData *data,
 void ReadNIFTIImage(const std::string& fileName, vtkImageData *data,
                     vtkMatrix4x4 *matrix)
 {
-  vtkSmartPointer<vtkNIFTIReader> reader =
-    vtkSmartPointer<vtkNIFTIReader>::New();
+  vtkNew<vtkNIFTIReader> reader;
 
   reader->SetFileName(fileName.c_str());
   reader->Update();
 
   // switch from NIFTI to DICOM coordinates
-  vtkSmartPointer<vtkDICOMToRAS> reorder =
-    vtkSmartPointer<vtkDICOMToRAS>::New();
+  vtkNew<vtkDICOMToRAS> reorder;
 
   reorder->RASToDICOMOn();
   reorder->RASMatrixHasPositionOn();
@@ -187,7 +183,6 @@ void ReadNIFTIImage(const std::string& fileName, vtkImageData *data,
 
   vtkImageData *output = reorder->GetOutput();
   data->CopyStructure(output);
-  data->AllocateScalars(output->GetScalarType(), output->GetNumberOfScalarComponents());
   data->GetPointData()->PassData(output->GetPointData());
 
   matrix->DeepCopy(reorder->GetPatientMatrix());
@@ -197,15 +192,13 @@ void WriteNIFTIImage(const std::string& fileName, vtkImageData *data,
                      vtkMatrix4x4 *matrix)
 {
   // switch from DICOM to NIFTI coordinates
-  vtkSmartPointer<vtkDICOMToRAS> reorder =
-    vtkSmartPointer<vtkDICOMToRAS>::New();
+  vtkNew<vtkDICOMToRAS> reorder;
 
   reorder->SetInputData(data);
   reorder->SetPatientMatrix(matrix);
   reorder->Update();
 
-  vtkSmartPointer<vtkNIFTIWriter> writer =
-    vtkSmartPointer<vtkNIFTIWriter>::New();
+  vtkNew<vtkNIFTIWriter> writer;
 
   writer->SetFileName(fileName.c_str());
   writer->SetInputConnection(reorder->GetOutputPort());
@@ -234,14 +227,10 @@ void cbElectrodeController::requestOpenImage(const QStringList& files)
   this->log(QString("Opening Data: "));
 
   // Open and display the image data
-  vtkSmartPointer<vtkImageData> data =
-    vtkSmartPointer<vtkImageData>::New();
-  vtkSmartPointer<vtkMatrix4x4> matrix =
-    vtkSmartPointer<vtkMatrix4x4>::New();
-  vtkSmartPointer<vtkStringArray> sarray =
-    vtkSmartPointer<vtkStringArray>::New();
-  vtkSmartPointer<vtkDICOMMetaData> meta =
-    vtkSmartPointer<vtkDICOMMetaData>::New();
+  vtkNew<vtkImageData> data;
+  vtkNew<vtkMatrix4x4> matrix;
+  vtkNew<vtkStringArray> sarray;
+  vtkNew<vtkDICOMMetaData> meta;
 
   for (int i = 0; i < files.size(); i++) {
     sarray->InsertNextValue(files[i].toUtf8());
@@ -289,14 +278,10 @@ void cbElectrodeController::OpenImageWithMatrix(
   this->log(QString("Opening Data: "));
 
   // Open and display the image data
-  vtkSmartPointer<vtkImageData> data =
-    vtkSmartPointer<vtkImageData>::New();
-  vtkSmartPointer<vtkMatrix4x4> matrix =
-    vtkSmartPointer<vtkMatrix4x4>::New();
-  vtkSmartPointer<vtkStringArray> sarray =
-    vtkSmartPointer<vtkStringArray>::New();
-  vtkSmartPointer<vtkDICOMMetaData> meta =
-    vtkSmartPointer<vtkDICOMMetaData>::New();
+  vtkNew<vtkImageData> data;
+  vtkNew<vtkMatrix4x4> matrix;
+  vtkNew<vtkStringArray> sarray;
+  vtkNew<vtkDICOMMetaData> meta;
 
   for (int i = 0; i < files.size(); i++) {
     sarray->InsertNextValue(files[i].toUtf8());
@@ -332,8 +317,7 @@ void cbElectrodeController::extractAndDisplaySurface(vtkImageData *data,
   data->GetSpacing(spacing);
   data->GetOrigin(origin);
 
-  vtkSmartPointer<vtkImageMRIBrainExtractor> extractor =
-    vtkSmartPointer<vtkImageMRIBrainExtractor>::New();
+  vtkNew<vtkImageMRIBrainExtractor> extractor;
   extractor->SetInputData(data);
 
   double bt = 0.0;
@@ -377,22 +361,19 @@ void cbElectrodeController::extractAndDisplaySurface(vtkImageData *data,
     dimensions[k] = static_cast<int>(aspect*dimensions[maxi]);
   }
 
-  vtkSmartPointer<vtkImageResize> resize =
-    vtkSmartPointer<vtkImageResize>::New();
+  vtkNew<vtkImageResize> resize;
   resize->SetInputData(data);
   resize->SetOutputDimensions(dimensions);
   resize->CroppingOn();
   resize->SetCroppingRegion(bounds);
   resize->Update();
 
-  vtkSmartPointer<vtkPolyDataToImageStencil> makeStencil =
-    vtkSmartPointer<vtkPolyDataToImageStencil>::New();
+  vtkNew<vtkPolyDataToImageStencil> makeStencil;
   makeStencil->SetInputData(mesh);
   makeStencil->SetInformationInput(resize->GetOutput());
   makeStencil->Update();
 
-  vtkSmartPointer<vtkImageStencil> brainStencil =
-    vtkSmartPointer<vtkImageStencil>::New();
+  vtkNew<vtkImageStencil> brainStencil;
   brainStencil->SetInputData(resize->GetOutput());
   brainStencil->SetStencilConnection(makeStencil->GetOutputPort());
   brainStencil->Update();
@@ -406,9 +387,8 @@ void cbElectrodeController::extractAndDisplaySurface(vtkImageData *data,
 void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
                                                  vtkMatrix4x4 *matrix)
 {
-  vtkSmartPointer<vtkFrameFinder> regist =
-    vtkSmartPointer<vtkFrameFinder>::New();
-  regist->SetInput(data);
+  vtkNew<vtkFrameFinder> regist;
+  regist->SetInputData(data);
   regist->SetDICOMPatientMatrix(matrix);
   regist->SetUsePosteriorFiducial(this->useAnteriorPosteriorFiducials);
   regist->SetUseAnteriorFiducial(this->useAnteriorPosteriorFiducials);
@@ -1013,8 +993,7 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
   emit displayProgress(1);
 
   // make a timer
-  vtkSmartPointer<vtkTimerLog> timer =
-  vtkSmartPointer<vtkTimerLog>::New();
+  vtkNew<vtkTimerLog> timer;
   double startTime = timer->GetUniversalTime();
   double lastTime = startTime;
 
@@ -1053,19 +1032,16 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
   // Allow the caller get the result of the registration
   ct_m->DeepCopy(regist->GetModifiedSourceMatrix());
 
-  vtkSmartPointer<vtkImageReslice> reslicer =
-    vtkSmartPointer<vtkImageReslice>::New();
+  vtkNew<vtkImageReslice> reslicer;
   reslicer->SetInterpolationModeToCubic();
   reslicer->SetInputData(ct_d);
   reslicer->SetInformationInput(mr_d);
 
-  vtkSmartPointer<vtkMatrix4x4> invertedMatrix =
-    vtkSmartPointer<vtkMatrix4x4>::New();
+  vtkNew<vtkMatrix4x4> invertedMatrix;
   invertedMatrix->DeepCopy(ct_m);
   invertedMatrix->Invert();
 
-  vtkSmartPointer<vtkTransform> resliceTransform =
-    vtkSmartPointer<vtkTransform>::New();
+  vtkNew<vtkTransform> resliceTransform;
   resliceTransform->PostMultiply();
   resliceTransform->Concatenate(mr_m);
   resliceTransform->Concatenate(invertedMatrix);
@@ -1080,14 +1056,10 @@ void cbElectrodeController::RegisterCT(vtkImageData *ct_d, vtkMatrix4x4 *ct_m)
 void cbElectrodeController::OpenCTData(
   const QStringList& files, vtkMatrix4x4 *m)
 {
-  vtkSmartPointer<vtkImageData> ct_data =
-    vtkSmartPointer<vtkImageData>::New();
-  vtkSmartPointer<vtkMatrix4x4> ct_matrix =
-    vtkSmartPointer<vtkMatrix4x4>::New();
-  vtkSmartPointer<vtkStringArray> ct_files =
-    vtkSmartPointer<vtkStringArray>::New();
-  vtkSmartPointer<vtkDICOMMetaData> ct_meta =
-    vtkSmartPointer<vtkDICOMMetaData>::New();
+  vtkNew<vtkImageData> ct_data;
+  vtkNew<vtkMatrix4x4> ct_matrix;
+  vtkNew<vtkStringArray> ct_files;
+  vtkNew<vtkDICOMMetaData> ct_meta;
 
   for (int i = 0; i < files.size(); i++) {
     ct_files->InsertNextValue(files[i].toUtf8());
@@ -1101,19 +1073,16 @@ void cbElectrodeController::OpenCTData(
 
   vtkSmartPointer<vtkMatrix4x4> registered_m = m;
 
-  vtkSmartPointer<vtkImageReslice> reslicer =
-    vtkSmartPointer<vtkImageReslice>::New();
+  vtkNew<vtkImageReslice> reslicer;
   reslicer->SetInterpolationModeToCubic();
   reslicer->SetInputData(ct_data);
   reslicer->SetInformationInput(mr_d);
 
-  vtkSmartPointer<vtkMatrix4x4> invertedMatrix =
-    vtkSmartPointer<vtkMatrix4x4>::New();
+  vtkNew<vtkMatrix4x4> invertedMatrix;
   invertedMatrix->DeepCopy(registered_m);
   invertedMatrix->Invert();
 
-  vtkSmartPointer<vtkTransform> resliceTransform =
-    vtkSmartPointer<vtkTransform>::New();
+  vtkNew<vtkTransform> resliceTransform;
   resliceTransform->PostMultiply();
   resliceTransform->Concatenate(mr_m);
   resliceTransform->Concatenate(invertedMatrix);
@@ -1123,8 +1092,7 @@ void cbElectrodeController::OpenCTData(
 
   ct_data->DeepCopy(reslicer->GetOutput());
 
-  vtkSmartPointer<vtkImageNode> ct_node =
-    vtkSmartPointer<vtkImageNode>::New();
+  vtkNew<vtkImageNode> ct_node;
 
   this->dataManager->AddDataNode(ct_node, this->ctKey);
 
@@ -1139,14 +1107,10 @@ void cbElectrodeController::OpenCTData(
 void cbElectrodeController::OpenCTWithMatrix(
   const QStringList& files, vtkMatrix4x4 *m)
 {
-  vtkSmartPointer<vtkImageData> ct_data =
-    vtkSmartPointer<vtkImageData>::New();
-  vtkSmartPointer<vtkMatrix4x4> ct_matrix =
-    vtkSmartPointer<vtkMatrix4x4>::New();
-  vtkSmartPointer<vtkStringArray> ct_files =
-    vtkSmartPointer<vtkStringArray>::New();
-  vtkSmartPointer<vtkDICOMMetaData> ct_meta =
-    vtkSmartPointer<vtkDICOMMetaData>::New();
+  vtkNew<vtkImageData> ct_data;
+  vtkNew<vtkMatrix4x4> ct_matrix;
+  vtkNew<vtkStringArray> ct_files;
+  vtkNew<vtkDICOMMetaData> ct_meta;
 
   for (int i = 0; i < files.size(); i++) {
     ct_files->InsertNextValue(files[i].toUtf8());
