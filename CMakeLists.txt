@@ -50,7 +50,7 @@ find_package(VTK 9.6 REQUIRED COMPONENTS
 
 # make VTK targets available to subdirectories
 if(VTK_VERSION)
-  message(STATUS "Found VTK ${VTK_VERSION}")
+  message(STATUS "Found VTK ${VTK_VERSION} at ${VTK_DIR}")
   # export VTK include dirs / targets already done by find_package
 endif()
 
@@ -132,7 +132,7 @@ file(MAKE_DIRECTORY "${CONFIGURE_OUTPUT_PATH}")
 message(STATUS "Project root (MAINFOLDER): ${MAINFOLDER}")
 message(STATUS "Configure output path: ${CONFIGURE_OUTPUT_PATH}")
 message(STATUS "CMake install prefix: ${CMAKE_INSTALL_PREFIX}")
-message(STATUS "Qt6 found: ${Qt6_VERSION}")
-message(STATUS "VTK found: ${VTK_VERSION}")
+message(STATUS "Qt6 found: ${Qt6_VERSION} at ${Qt6_DIR}")
+message(STATUS "VTK found: ${VTK_VERSION} at ${VTK_DIR}")
 
 # End of top-level CMake
