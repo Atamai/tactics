@@ -396,22 +396,27 @@ void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
 
   if (this->FrameMatrix) {
     this->FrameMatrix->Delete();
-    this->FrameMatrix = 0;
   }
+  this->FrameMatrix = vtkMatrix4x4::New();
 
   if (regist->GetSuccess()) {
-    this->FrameMatrix = vtkMatrix4x4::New();
     this->FrameMatrix->DeepCopy(regist->GetImageToFrameMatrix());
-
-    emit displayLeksellFrame(this->FrameMatrix);
   }
   else {
+    vtkNew<vtkMatrix4x4> flipMatrix;
+    flipMatrix->Identity();
+    flipMatrix->SetElement(1, 1, -1.0);  // Flip Y (Anterior-Posterior)
+    flipMatrix->SetElement(2, 2, -1.0);  // Flip Z (Superior-Inferior)
+     
+     // Combine flip with patient matrix
+    vtkMatrix4x4::Multiply4x4(flipMatrix, matrix, this->FrameMatrix);
     QMessageBox box;
     box.setText("No frame found in image.");
     box.setInformativeText("Planning with this image is not possible.");
     box.setStandardButtons(QMessageBox::Ok);
     box.exec();
   }
+  emit displayLeksellFrame(this->FrameMatrix);
 }
 
 namespace { // helper functions for json
