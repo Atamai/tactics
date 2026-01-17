@@ -93,6 +93,10 @@ signals:
   //! Tell the view to display the frame
   void displayLeksellFrame(vtkMatrix4x4 *);
 
+  //! Outgoing signal to toggle frame visualization.
+  void EnableFrameVisualization();
+  void DisableFrameVisualization();
+
   //! Tell the view to display the tags
   void displayTags(vtkDataManager::UniqueKey);
 

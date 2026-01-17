@@ -117,6 +117,14 @@ int main(int argc, char *argv[])
                    &window,
                    SLOT(displayLeksellFrame(vtkMatrix4x4 *)));
   QObject::connect(&controller,
+                   SIGNAL(DisableFrameVisualization()),
+                   &window,
+                   SLOT(DisableFrameVisualization()));
+  QObject::connect(&controller,
+                   SIGNAL(EnableFrameVisualization()),
+                   &window,
+                   SLOT(EnableFrameVisualization()));
+  QObject::connect(&controller,
                    SIGNAL(displayTags(vtkDataManager::UniqueKey)),
                    &window,
                    SLOT(displayTags(vtkDataManager::UniqueKey)));

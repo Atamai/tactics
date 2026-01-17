@@ -1103,9 +1103,7 @@ void cbElectrodeView::displayLeksellFrame(vtkMatrix4x4 *transform)
   actor->SetMapper(mapper);
   actor->SetPosition(0,0,0);
   actor->GetProperty()->SetColor(0.9,0.0,0.8);
-  actor->SetVisibility(1);
   this->planar->GetRenderer()->AddActor(actor);
-
   this->viewRect->Start();
 }
 
