@@ -405,10 +405,12 @@ void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
   else {
     vtkNew<vtkMatrix4x4> flipMatrix;
     flipMatrix->Identity();
-    flipMatrix->SetElement(1, 1, -1.0);
-    flipMatrix->SetElement(2, 2, -1.0);
+    flipMatrix->SetElement(1, 1, -1.0);  // Flip Y (Anterior-Posterior)
+    flipMatrix->SetElement(2, 2, -1.0);  // Flip Z (Superior-Inferior)
+     
+     // Combine flip with patient matrix
     vtkMatrix4x4::Multiply4x4(flipMatrix, matrix, this->FrameMatrix);
-    
+
     QMessageBox box;
     box.setText("No frame found in image.");
     box.setInformativeText("Planning with this image is not possible.");
