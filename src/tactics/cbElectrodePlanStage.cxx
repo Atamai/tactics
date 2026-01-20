@@ -141,7 +141,7 @@ cbElectrodePlanStage::cbElectrodePlanStage()
       "
       );
 
-  connect(addButton, SIGNAL(clicked()), this, SLOT(placeProbeCallback()));
+  connect(addButton, &QPushButton::clicked, this, &cbElectrodePlanStage::placeProbeCallback);
 
   // populate the type list
   std::vector<std::string> list = this->catalogue_.list_as_strings();
@@ -229,12 +229,18 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   opacityBox->setTitle("Secondary Series Opacity");
   opacityBox->setLayout(opacity_layout);
 
-  connect(opacitySlider, SIGNAL(valueChanged(int)),
-          this, SLOT(opacitySliderChanged(int)));
-  connect(opacitySlider,SIGNAL(valueChanged(int)),
-          opacityLabel, SLOT(setValue(int)));
-  connect(opacityLabel, SIGNAL(valueChanged(int)),
-          opacitySlider, SLOT(setValue(int)));
+  connect(opacitySlider,
+          &QSlider::valueChanged,
+          this,
+          &cbElectrodePlanStage::opacitySliderChanged);
+  connect(opacitySlider,
+          &QSlider::valueChanged,
+          opacityLabel,
+          &QSpinBox::setValue);
+  connect(opacityLabel,
+          QOverload<int>::of(&QSpinBox::valueChanged),
+          opacitySlider,
+          &QSlider::setValue);
 
   opacitySlider->setMinimum(0);
   opacitySlider->setMaximum(100);
@@ -244,8 +250,10 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   tabWidget->addTab(planWidget, "&Planning");
   tabWidget->addTab(optionWidget, "&Options");
 
-  connect(precisionSelect, SIGNAL(currentTextChanged(QString)),
-          this, SLOT(setPrecision(QString)));
+  connect(precisionSelect,
+          &QComboBox::currentTextChanged,
+          this,
+          &cbElectrodePlanStage::setPrecision);
 
   frameToggle->setChecked(true);
   axialToggle->setChecked(true);
@@ -256,24 +264,45 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   helpToggle->setChecked(true);
   patientToggle->setChecked(true);
 
-  connect(frameToggle, SIGNAL(stateChanged(int)),
-          this, SLOT(toggleFrameVisualization(int)));
+  connect(frameToggle,
+          &QCheckBox::checkStateChanged,
+          this,
+          &cbElectrodePlanStage::toggleFrameVisualization);
 
-  connect(axialToggle, SIGNAL(stateChanged(int)),
-          this, SIGNAL(ToggleAxialVisualization(int)));
-  connect(sagittalToggle, SIGNAL(stateChanged(int)),
-          this, SIGNAL(ToggleSagittalVisualization(int)));
-  connect(coronalToggle, SIGNAL(stateChanged(int)),
-          this, SIGNAL(ToggleCoronalVisualization(int)));
+  connect(axialToggle,
+          &QCheckBox::checkStateChanged,
+          this,
+          &cbElectrodePlanStage::ToggleAxialVisualization);
 
-  connect(probeToggle, SIGNAL(stateChanged(int)),
-          this, SIGNAL(ToggleProbeVisualizationMode(int)));
-  connect(tagToggle, SIGNAL(stateChanged(int)),
-          this, SLOT(toggleTagVisualization(int)));
-  connect(helpToggle, SIGNAL(stateChanged(int)),
-          this, SIGNAL(ToggleHelpAnnotations(int)));
-  connect(patientToggle, SIGNAL(stateChanged(int)),
-          this, SIGNAL(TogglePatientAnnotations(int)));
+  connect(sagittalToggle,
+          &QCheckBox::checkStateChanged,
+          this,
+          &cbElectrodePlanStage::ToggleSagittalVisualization);
+
+  connect(coronalToggle,
+          &QCheckBox::checkStateChanged,
+          this,
+          &cbElectrodePlanStage::ToggleCoronalVisualization);
+
+  connect(probeToggle,
+          &QCheckBox::checkStateChanged,
+          this,
+          &cbElectrodePlanStage::ToggleProbeVisualizationMode);
+
+  connect(tagToggle,
+          &QCheckBox::checkStateChanged,
+          this,
+          &cbElectrodePlanStage::toggleTagVisualization);
+
+  connect(helpToggle,
+          &QCheckBox::checkStateChanged,
+          this,
+          &cbElectrodePlanStage::ToggleHelpAnnotations);
+
+  connect(patientToggle,
+          &QCheckBox::checkStateChanged,
+          this,
+          &cbElectrodePlanStage::TogglePatientAnnotations);
 
   xSpin->setAccelerated(true);
   xSpin->setMinimum(0);
@@ -300,17 +329,19 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   QRegularExpression rx("^[A-Za-z0-9_]+$");
   QRegularExpressionValidator *validator = new QRegularExpressionValidator(rx, this);
   nameEdit->setValidator(validator);
-  
-  connect(xSpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateCurrentProbePosition()));
-  connect(ySpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateCurrentProbePosition()));
-  connect(zSpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateCurrentProbePosition()));
-  connect(nameEdit, SIGNAL(textChanged(QString)),
-          this, SLOT(updateCurrentProbeName(QString)));
-  connect(typeList, SIGNAL(currentTextChanged(QString)),
-          this, SLOT(updateCurrentProbeType(QString)));
+
+  connect(xSpin, &QDoubleSpinBox::valueChanged,
+          this, &cbElectrodePlanStage::updateCurrentProbePosition);
+
+  connect(ySpin, &QDoubleSpinBox::valueChanged,
+          this, &cbElectrodePlanStage::updateCurrentProbePosition);
+
+  connect(zSpin, &QDoubleSpinBox::valueChanged,
+          this, &cbElectrodePlanStage::updateCurrentProbePosition);
+  connect(nameEdit, &QLineEdit::textChanged,
+          this, &cbElectrodePlanStage::updateCurrentProbeName);
+  connect(typeList, &QComboBox::currentTextChanged,
+          this, &cbElectrodePlanStage::updateCurrentProbeType);
 
   dGroup->setTitle("Anterior to Posterior Angle");
   aGroup->setTitle("Left to Right Angle");
@@ -342,10 +373,12 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   declinationSlider->setMaximum(declinationRange[1]);
   declinationLabel->setMinimum(declinationRange[0]);
   declinationLabel->setMaximum(declinationRange[1]);
-  connect(declinationSlider,SIGNAL(valueChanged(int)),
-          declinationLabel, SLOT(setValue(int)));
-  connect(declinationLabel, SIGNAL(valueChanged(int)),
-          declinationSlider, SLOT(setValue(int)));
+  connect(declinationSlider, &QSlider::valueChanged,
+          declinationLabel, &QSpinBox::setValue);
+  connect(declinationLabel,
+          QOverload<int>::of(&QSpinBox::valueChanged),
+          declinationSlider,
+          &QSlider::setValue);
 
   azimuthSlider->setOrientation(Qt::Horizontal);
   azimuthSlider->setTracking(true);
@@ -354,10 +387,12 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   azimuthSlider->setMaximum(azimuthRange[1]);
   azimuthLabel->setMinimum(azimuthRange[0]);
   azimuthLabel->setMaximum(azimuthRange[1]);
-  connect(azimuthSlider,SIGNAL(valueChanged(int)),
-          azimuthLabel, SLOT(setValue(int)));
-  connect(azimuthLabel, SIGNAL(valueChanged(int)),
-          azimuthSlider, SLOT(setValue(int)));
+  connect(azimuthSlider, &QSlider::valueChanged,
+          azimuthLabel, &QSpinBox::setValue);
+  connect(azimuthLabel,
+          QOverload<int>::of(&QSpinBox::valueChanged),
+          azimuthSlider,
+          &QSlider::setValue);
 
   depthSlider->setOrientation(Qt::Horizontal);
   depthSlider->setTracking(true);
@@ -370,14 +405,25 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   depthSpin->setDecimals(spinBoxDecimals);
   depthSpin->setSingleStep(1.0/sliderSubdivisions);
 
-  connect(depthSpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateDepthSliderDouble(double)));
-  connect(this, SIGNAL(updateDepthSliderInt(int)),
-          depthSlider, SLOT(setValue(int)));
-  connect(depthSlider, SIGNAL(valueChanged(int)),
-          this, SLOT(updateDepthSpinBoxInt(int)));
-  connect(this, SIGNAL(updateDepthSpinBoxDouble(double)),
-          depthSpin, SLOT(setValue(double)));
+  connect(depthSpin,
+          QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+          this,
+          &cbElectrodePlanStage::updateDepthSliderDouble);
+
+  connect(this,
+          &cbElectrodePlanStage::updateDepthSliderInt,
+          depthSlider,
+          &QSlider::setValue);
+
+  connect(depthSlider,
+          &QSlider::valueChanged,
+          this,
+          &cbElectrodePlanStage::updateDepthSpinBoxInt);
+
+  connect(this,
+          &cbElectrodePlanStage::updateDepthSpinBoxDouble,
+          depthSpin,
+          &QDoubleSpinBox::setValue);
 
   azimuthSlider->setValue(90);
   declinationSlider->setValue(90);
@@ -615,7 +661,7 @@ void cbElectrodePlanStage::updateCurrentProbeOrientation()
     return;
   }
 
-  double orientation[3];
+  double orientation[2];
   orientation[0] = this->azimuthSlider->value();
   orientation[1] = this->declinationSlider->value();
 

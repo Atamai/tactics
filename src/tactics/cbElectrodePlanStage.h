@@ -86,18 +86,18 @@ signals:
   void DisableTagVisualization();
 
   //! Outgoing signals to toggle plane display.
-  void ToggleAxialVisualization(int);
-  void ToggleCoronalVisualization(int);
-  void ToggleSagittalVisualization(int);
+  void ToggleAxialVisualization(Qt::CheckState);
+  void ToggleCoronalVisualization(Qt::CheckState);
+  void ToggleSagittalVisualization(Qt::CheckState);
 
   //! Outgoing signal to display one-or-all probes on slice view.
-  void ToggleProbeVisualizationMode(int);
+  void ToggleProbeVisualizationMode(Qt::CheckState);
 
   //! Outgoing signal to toggle the help annotation.
-  void ToggleHelpAnnotations(int);
+  void ToggleHelpAnnotations(Qt::CheckState);
 
   //! Outgoing signal to toggle the patient information annotation.
-  void TogglePatientAnnotations(int);
+  void TogglePatientAnnotations(Qt::CheckState);
 
   //! Outgoing signal to save a screenshot of the render window.
   void ExportScreenshot();
