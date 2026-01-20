@@ -512,107 +512,71 @@ void cbElectrodePlanStage::CreateProbeRequest(
 
 void cbElectrodePlanStage::updateForCurrentSelection()
 {
-  int pos = this->placedList->currentRow();
+  const int pos = this->placedList->currentRow();
 
-  // disconnect the updateCurrentProbePosition, updateCurrentProbeOrientation
-  // slots as they will just cause a bunch of repetitive signals to be sent.
-  // A single, uniform signal will be sent at the end
-  disconnect(this->xSpin, SIGNAL(valueChanged(double)),
-             this, SLOT(updateCurrentProbePosition()));
-  disconnect(this->ySpin, SIGNAL(valueChanged(double)),
-             this, SLOT(updateCurrentProbePosition()));
-  disconnect(this->zSpin, SIGNAL(valueChanged(double)),
-             this, SLOT(updateCurrentProbePosition()));
+  // Block signals safely for the entire scope
+  const QSignalBlocker bx(*this->xSpin);
+  const QSignalBlocker by(*this->ySpin);
+  const QSignalBlocker bz(*this->zSpin);
+  const QSignalBlocker bdepth(*this->depthSpin);
+  const QSignalBlocker baz(*this->azimuthSlider);
+  const QSignalBlocker bdec(*this->declinationSlider);
+  const QSignalBlocker bname(*this->nameEdit);
+  const QSignalBlocker btype(*this->typeList);
 
-  disconnect(this->nameEdit, SIGNAL(textChanged(QString)),
-             this, SLOT(updateCurrentProbeName(QString)));
-
-  disconnect(this->typeList, SIGNAL(currentTextChanged(QString)),
-             this, SLOT(updateCurrentProbeType(QString)));
-
-  disconnect(this->azimuthSlider, SIGNAL(valueChanged(int)),
-             this, SLOT(updateCurrentProbeOrientation()));
-  disconnect(this->declinationSlider, SIGNAL(valueChanged(int)),
-             this, SLOT(updateCurrentProbeOrientation()));
-  disconnect(this->depthSpin, SIGNAL(valueChanged(double)),
-             this, SLOT(updateCurrentProbeDepth()));
-
-  if (pos == -1 || this->placedList->count() <= 0) {
+  if (pos < 0 || this->placedList->count() == 0) {
     this->xSpin->setValue(0);
     this->ySpin->setValue(0);
     this->zSpin->setValue(0);
-
     this->azimuthSlider->setValue(90);
     this->declinationSlider->setValue(90);
-
     this->depthSpin->setValue(0);
-
     this->nameEdit->setText(QString::number(0));
     this->typeList->setCurrentIndex(0);
-
     return;
   }
 
-  cbProbe temp = this->Plan.at(pos);
+  const cbProbe& probe = this->Plan.at(pos);
 
   double p[3];
   double o[2];
-  temp.GetPosition(p);
-  temp.GetOrientation(o);
+  probe.GetPosition(p);
+  probe.GetOrientation(o);
 
-  double depth = temp.GetDepth();
-  double tol = pow(0.1, spinBoxDecimals);
+  const double depth = probe.GetDepth();
+  const double tol = std::pow(0.1, spinBoxDecimals);
 
-  if (fabs(this->xSpin->value() - p[0]) < tol &&
-      fabs(this->ySpin->value() - p[1]) < tol &&
-      fabs(this->zSpin->value() - p[2]) < tol &&
-      this->azimuthSlider->value() == static_cast<int>(o[0]) &&
-      this->declinationSlider->value() == static_cast<int>(o[1]) &&
-      fabs(this->depthSpin->value() - depth) < tol) {
-    // No need to update anything
+  auto roundToTol = [&](double v) {
+    return std::floor(v / tol + 0.5) * tol;
+  };
+
+  if (std::fabs(this->xSpin->value() - p[0]) < tol &&
+      std::fabs(this->ySpin->value() - p[1]) < tol &&
+      std::fabs(this->zSpin->value() - p[2]) < tol &&
+      this->azimuthSlider->value() == static_cast<int>(std::round(o[0])) &&
+      this->declinationSlider->value() == static_cast<int>(std::round(o[1])) &&
+      std::fabs(this->depthSpin->value() - depth) < tol) {
     return;
   }
 
-  this->xSpin->setValue(floor(p[0]/tol + 0.5)*tol);
-  this->ySpin->setValue(floor(p[1]/tol + 0.5)*tol);
-  this->zSpin->setValue(floor(p[2]/tol + 0.5)*tol);
-
-  this->azimuthSlider->setValue(o[0]);
-  this->declinationSlider->setValue(o[1]);
-
+  this->xSpin->setValue(roundToTol(p[0]));
+  this->ySpin->setValue(roundToTol(p[1]));
+  this->zSpin->setValue(roundToTol(p[2]));
+  this->azimuthSlider->setValue(static_cast<int>(std::round(o[0])));
+  this->declinationSlider->setValue(static_cast<int>(std::round(o[1])));
   this->depthSpin->setValue(depth);
+  this->nameEdit->setText(QString::fromStdString(probe.GetName()));
 
-  this->nameEdit->setText(QString(temp.GetName().c_str()));
+  const int typeIndex =
+    this->typeList->findText(probe.specification().catalogue_number().c_str());
+  this->typeList->setCurrentIndex(typeIndex);
 
-  int type_index = this->typeList->findText(temp.specification().catalogue_number().c_str());
-  this->typeList->setCurrentIndex(type_index);
-
-  // Gather coords and tell view to update display
+  // One explicit update after UI is consistent
   this->updateCurrentProbePosition();
   this->updateCurrentProbeOrientation();
   this->updateCurrentProbeDepth();
-
-  // Reconnect the slider signals, now that updating has occured.
-  connect(this->xSpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateCurrentProbePosition()));
-  connect(this->ySpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateCurrentProbePosition()));
-  connect(this->zSpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateCurrentProbePosition()));
-
-  connect(this->nameEdit, SIGNAL(textChanged(QString)),
-          this, SLOT(updateCurrentProbeName(QString)));
-
-  connect(this->typeList, SIGNAL(currentTextChanged(QString)),
-          this, SLOT(updateCurrentProbeType(QString)));
-
-  connect(this->azimuthSlider, SIGNAL(valueChanged(int)),
-          this, SLOT(updateCurrentProbeOrientation()));
-  connect(this->declinationSlider, SIGNAL(valueChanged(int)),
-          this, SLOT(updateCurrentProbeOrientation()));
-  connect(this->depthSpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateCurrentProbeDepth()));
 }
+
 
 // Called when a spinbox has changed. If there is a selection, update the
 // position of the probe object, and tell the view to re-display it.
@@ -827,33 +791,45 @@ void cbElectrodePlanStage::opacitySliderChanged(int o)
 
 void cbElectrodePlanStage::setPrecision(QString text)
 {
-  double precision = text.toDouble();
-  int oldSubdivisions = sliderSubdivisions;
-  sliderSubdivisions = static_cast<int>(1.0/precision + 0.5);
-  spinBoxDecimals = (sliderSubdivisions > 1 ? 1 : 0);
+  bool ok = false;
+  const double precision = text.toDouble(&ok);
+
+  if (!ok || precision <= 0.0) {
+    return; // or set a default precision
+  }
+
+  const int oldSubdivisions = sliderSubdivisions;
+  sliderSubdivisions = static_cast<int>(std::round(1.0 / precision));
+
+  // Determine decimals from precision (e.g. 0.01 → 2)
+  spinBoxDecimals = std::max(0, static_cast<int>(std::ceil(-std::log10(precision))));
+
+  const double step = 1.0 / sliderSubdivisions;
 
   xSpin->setDecimals(spinBoxDecimals);
-  xSpin->setSingleStep(1.0/sliderSubdivisions);
+  xSpin->setSingleStep(step);
   ySpin->setDecimals(spinBoxDecimals);
-  ySpin->setSingleStep(1.0/sliderSubdivisions);
+  ySpin->setSingleStep(step);
   zSpin->setDecimals(spinBoxDecimals);
-  zSpin->setSingleStep(1.0/sliderSubdivisions);
+  zSpin->setSingleStep(step);
   depthSpin->setDecimals(spinBoxDecimals);
-  depthSpin->setSingleStep(1.0/sliderSubdivisions);
+  depthSpin->setSingleStep(step);
 
-  disconnect(depthSlider, SIGNAL(valueChanged(int)),
-             this, SLOT(updateDepthSpinBoxInt(int)));
+  // Block signals safely
+  const QSignalBlocker blockDepthSlider(*depthSlider);
 
-  double depthRange[2];
-  depthRange[0] = depthSlider->minimum()*1.0/oldSubdivisions;
-  depthRange[1] = depthSlider->maximum()*1.0/oldSubdivisions;
-  double depth = depthSlider->value()*1.0/oldSubdivisions;
-  depthSlider->setMinimum(floor(depthRange[0]*sliderSubdivisions + 0.5));
-  depthSlider->setMaximum(floor(depthRange[1]*sliderSubdivisions + 0.5));
-  depthSlider->setValue(floor(depth*sliderSubdivisions + 0.5));
+  // Preserve physical depth values while changing slider resolution
+  const double minDepth = depthSlider->minimum() / static_cast<double>(oldSubdivisions);
+  const double maxDepth = depthSlider->maximum() / static_cast<double>(oldSubdivisions);
+  const double curDepth = depthSlider->value()   / static_cast<double>(oldSubdivisions);
 
-  connect(depthSlider, SIGNAL(valueChanged(int)),
-          this, SLOT(updateDepthSpinBoxInt(int)));
+  auto toSlider = [&](double v) {
+    return static_cast<int>(std::round(v * sliderSubdivisions));
+  };
+
+  depthSlider->setMinimum(toSlider(minDepth));
+  depthSlider->setMaximum(toSlider(maxDepth));
+  depthSlider->setValue(toSlider(curDepth));
 }
 
 void cbElectrodePlanStage::placeProbeCallback()
