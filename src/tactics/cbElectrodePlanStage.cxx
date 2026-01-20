@@ -429,23 +429,41 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   declinationSlider->setValue(90);
   depthSpin->setValue(0);
 
-  connect(azimuthSlider, SIGNAL(valueChanged(int)),
-          this, SLOT(updateCurrentProbeOrientation()));
-  connect(declinationSlider, SIGNAL(valueChanged(int)),
-          this, SLOT(updateCurrentProbeOrientation()));
-  connect(depthSpin, SIGNAL(valueChanged(double)),
-          this, SLOT(updateCurrentProbeDepth()));
+  connect(azimuthSlider,
+          &QSlider::valueChanged,
+          this,
+          &cbElectrodePlanStage::updateCurrentProbeOrientation);
 
-  connect(removeButton, SIGNAL(clicked()), this, SLOT(RemoveCurrentFromPlan()));
+  connect(declinationSlider,
+          &QSlider::valueChanged,
+          this,
+          &cbElectrodePlanStage::updateCurrentProbeOrientation);
+  connect(depthSpin,
+          QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+          this,
+          &cbElectrodePlanStage::updateCurrentProbeDepth);
+
+  connect(removeButton,
+          &QPushButton::clicked,
+          this,
+          &cbElectrodePlanStage::RemoveCurrentFromPlan);
 
   crudWidget->setLayout(new QGridLayout);
   qobject_cast<QGridLayout *>(crudWidget->layout())->addWidget(removeButton, 1, 0);
 
-  connect(saveButton, SIGNAL(clicked()), this, SLOT(savePlanReport()));
-  connect(exportButton, SIGNAL(clicked()), this, SIGNAL(ExportScreenshot()));
+  connect(saveButton,
+          &QPushButton::clicked,
+          this,
+          &cbElectrodePlanStage::savePlanReport);
+  connect(exportButton,
+          &QPushButton::clicked,
+          this,
+          &cbElectrodePlanStage::ExportScreenshot);
 
-  connect(placedList, SIGNAL(itemSelectionChanged()),
-          this, SLOT(updateForCurrentSelection()));
+  connect(placedList,
+          &QListWidget::itemSelectionChanged,
+          this,
+          &cbElectrodePlanStage::updateForCurrentSelection);
 
   vertical->addWidget(desc);
   vertical->addWidget(tabWidget);
@@ -455,10 +473,14 @@ cbElectrodePlanStage::cbElectrodePlanStage()
   QShortcut *shortcut_bs =
     new QShortcut(QKeySequence(Qt::Key_Backspace), this->placedList);
 
-  connect(shortcut_del, SIGNAL(activated()),
-          this, SLOT(RemoveCurrentFromPlan()));
-  connect(shortcut_bs, SIGNAL(activated()),
-          this, SLOT(RemoveCurrentFromPlan()));
+  connect(shortcut_del,
+          &QShortcut::activated,
+          this,
+          &cbElectrodePlanStage::RemoveCurrentFromPlan);
+  connect(shortcut_bs,
+          &QShortcut::activated,
+          this,
+          &cbElectrodePlanStage::RemoveCurrentFromPlan);
 
   this->widget->setLayout(vertical);
   emit finished();

@@ -1573,24 +1573,27 @@ void cbElectrodeView::DisableTagVisualization()
   this->viewRect->GetRenderWindow()->Render();
 }
 
-void cbElectrodeView::ToggleSagittalVisualization(int s)
+void cbElectrodeView::ToggleSagittalVisualization(Qt::CheckState state)
 {
+  bool s = (state == Qt::Checked);
   this->Slices[0].Stack->SetVisibility(s);
   this->Slices[0].Stack->SetPickable(s);
   this->Slices[0].Stack->SetDragable(s);
   this->viewRect->GetRenderWindow()->Render();
 }
 
-void cbElectrodeView::ToggleCoronalVisualization(int s)
+void cbElectrodeView::ToggleCoronalVisualization(Qt::CheckState state)
 {
+  bool s = (state == Qt::Checked);
   this->Slices[1].Stack->SetVisibility(s);
   this->Slices[1].Stack->SetPickable(s);
   this->Slices[1].Stack->SetDragable(s);
   this->viewRect->GetRenderWindow()->Render();
 }
 
-void cbElectrodeView::ToggleAxialVisualization(int s)
+void cbElectrodeView::ToggleAxialVisualization(Qt::CheckState state)
 {
+  bool s = (state == Qt::Checked);
   this->Slices[2].Stack->SetVisibility(s);
   this->Slices[2].Stack->SetPickable(s);
   this->Slices[2].Stack->SetDragable(s);

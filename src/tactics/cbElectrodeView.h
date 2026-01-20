@@ -147,9 +147,9 @@ public slots:
   void DisableTagVisualization();
 
   //! Incoming signal to toggle visualization of the plane.
-  void ToggleAxialVisualization(int s);
-  void ToggleSagittalVisualization(int s);
-  void ToggleCoronalVisualization(int s);
+  void ToggleAxialVisualization(Qt::CheckState);
+  void ToggleSagittalVisualization(Qt::CheckState);
+  void ToggleCoronalVisualization(Qt::CheckState);
 
   //! Incoming signal to toggle probe visualization mode.
   void ToggleProbeVisualizationMode(int s);
