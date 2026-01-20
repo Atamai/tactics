@@ -410,12 +410,6 @@ void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
      
      // Combine flip with patient matrix
     vtkMatrix4x4::Multiply4x4(flipMatrix, matrix, this->FrameMatrix);
-
-    QMessageBox box;
-    box.setText("No frame found in image.");
-    box.setInformativeText("Planning with this image is not possible.");
-    box.setStandardButtons(QMessageBox::Ok);
-    box.exec();
   }
   emit displayLeksellFrame(this->FrameMatrix);
   if (regist->GetSuccess()){

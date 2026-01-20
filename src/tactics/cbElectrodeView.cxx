@@ -188,10 +188,11 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
   this->SaveFile = "";
 
   // If this is not the first time rendering, clear stack actors
-  for (size_t i = 0; i < this->Slices.size(); i++) {
-    planar->GetRenderer()->RemoveViewProp(this->Slices[i].Stack);
-    planar->GetRenderer()->RemoveViewProp(this->Slices[i].Border);
-    planar->GetRenderer()->RemoveViewProp(this->Slices[i].Intersect);
+  auto renderer = planar->GetRenderer();
+  for (auto &slice : this->Slices) {
+      renderer->RemoveViewProp(slice.Stack);
+      renderer->RemoveViewProp(slice.Border);
+      renderer->RemoveViewProp(slice.Intersect);
   }
   this->surface->RemoveAllViewProps();
 
@@ -210,8 +211,16 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
     patient_name = "unnamed";
   }
 
+  // Get study date
+  const vtkDICOMValue study_date_val =
+      primary_meta_data->GetAttributeValue(DC::StudyDate);
+  std::string study_date = study_date_val.AsString();
+  if (study_date.empty()) {
+      study_date = "unknown";
+  }
   std::string primary_name_label = "Primary Patient: ";
   primary_name_label.append(patient_name);
+  primary_name_label += "\nStudy Date: " + study_date;
 
   vtkSmartPointer<vtkCornerAnnotation> meta_annotation = this->MetaAnnotation;
   planar->GetRenderer()->AddViewProp(meta_annotation);
@@ -338,22 +347,9 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
     ctpA->GetProperty()->SetColor(0.5, 0.0, 0.0);
     planar->GetRenderer()->AddActor(ctpA);
 
-    // !!!! this smells!
-    // Set the pane's focal point to be the discovered point
-    vtkImageViewPane *currentPane = NULL;
-    switch(i) {
-      case 0:
-        currentPane = sagittalPane;
-        break;
-      case 1:
-        currentPane = coronalPane;
-        break;
-      case 2:
-        currentPane = axialPane;
-        break;
-      default:
-        break;
-    }
+     // Set the pane's focal point to be the discovered point
+    std::array<vtkImageViewPane*, 3> panes = { sagittalPane, coronalPane, axialPane };
+    vtkImageViewPane* currentPane = panes[i];
 
     // Get slice plane of the orthogonal plane's mapper to get the normal
     image->GetMapper()->UpdateInformation();
