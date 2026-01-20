@@ -58,14 +58,12 @@
 #include "qx11info_x11.h"
 #endif
 
-//#include "vtkstd/map"
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkRenderWindow.h"
 #include "vtkCommand.h"
 #include "vtkOStrStreamWrapper.h"
 #include "vtkObjectFactory.h"
 #include "vtkCallbackCommand.h"
-//#include "vtkConfigure.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkImageData.h"
 #include "vtkPointData.h"
