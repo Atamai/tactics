@@ -213,14 +213,21 @@ void cbElectrodeView::displayData(vtkDataManager::UniqueKey k)
 
   // Get study date
   const vtkDICOMValue study_date_val =
-      primary_meta_data->GetAttributeValue(DC::StudyDate);
+    primary_meta_data->GetAttributeValue(DC::StudyDate);
   std::string study_date = study_date_val.AsString();
   if (study_date.empty()) {
       study_date = "unknown";
   }
+  
+  // Get Study Instance UID
+  const vtkDICOMValue study_instance_UID_val =
+    primary_meta_data->GetAttributeValue(DC::StudyInstanceUID);
+  std::string study_instance_uid = study_instance_UID_val.AsString();
+  
   std::string primary_name_label = "Primary Patient: ";
   primary_name_label.append(patient_name);
   primary_name_label += "\nStudy Date: " + study_date;
+  primary_name_label += "\nStudy UID: " + study_instance_uid;
 
   vtkSmartPointer<vtkCornerAnnotation> meta_annotation = this->MetaAnnotation;
   planar->GetRenderer()->AddViewProp(meta_annotation);
