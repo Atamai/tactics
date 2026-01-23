@@ -181,25 +181,41 @@ int main(int argc, char *argv[])
   QObject::connect(&planStage, SIGNAL(DisableFrameVisualization()),
                    &window, SLOT(DisableFrameVisualization()));
 
-  QObject::connect(&planStage, SIGNAL(ToggleAxialVisualization(int)),
-                   &window, SLOT(ToggleAxialVisualization(int)));
-  QObject::connect(&planStage, SIGNAL(ToggleCoronalVisualization(int)),
-                   &window, SLOT(ToggleCoronalVisualization(int)));
-  QObject::connect(&planStage, SIGNAL(ToggleSagittalVisualization(int)),
-                   &window, SLOT(ToggleSagittalVisualization(int)));
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::ToggleAxialVisualization,
+                   &window,
+                   &cbElectrodeView::ToggleAxialVisualization);
 
-  QObject::connect(&planStage, SIGNAL(ToggleProbeVisualizationMode(int)),
-                   &window, SLOT(ToggleProbeVisualizationMode(int)));
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::ToggleCoronalVisualization,
+                   &window,
+                   &cbElectrodeView::ToggleCoronalVisualization);
+
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::ToggleSagittalVisualization,
+                   &window,
+                   &cbElectrodeView::ToggleSagittalVisualization);
+
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::ToggleProbeVisualizationMode,
+                   &window,
+                   &cbElectrodeView::ToggleProbeVisualizationMode);
+
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::ToggleHelpAnnotations,
+                   &window,
+                   &cbElectrodeView::ToggleHelpAnnotations);
+
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::TogglePatientAnnotations,
+                   &window,
+                   &cbElectrodeView::TogglePatientAnnotations);
 
   QObject::connect(&planStage, SIGNAL(EnableTagVisualization()),
                    &window, SLOT(EnableTagVisualization()));
   QObject::connect(&planStage, SIGNAL(DisableTagVisualization()),
                    &window, SLOT(DisableTagVisualization()));
 
-  QObject::connect(&planStage, SIGNAL(ToggleHelpAnnotations(int)),
-                   &window, SLOT(ToggleHelpAnnotations(int)));
-  QObject::connect(&planStage, SIGNAL(TogglePatientAnnotations(int)),
-                   &window, SLOT(TogglePatientAnnotations(int)));
 
   QObject::connect(&planStage, SIGNAL(ExportScreenshot()),
                    &window, SLOT(ExportScreenshot()));
