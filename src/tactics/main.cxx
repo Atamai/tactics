@@ -40,7 +40,6 @@
 #include "cbElectrodeOpenStage.h"
 #include "cbElectrodePlanStage.h"
 #include "cbElectrodeView.h"
-#include "cbElectrodeAutomator.h"
 #include "cbElectrodeToolBarWidget.h"
 #include "cbProbe.h"
 #include "cbQtVTKOutputWindow.h"
@@ -211,14 +210,21 @@ int main(int argc, char *argv[])
                    &window,
                    &cbElectrodeView::TogglePatientAnnotations);
 
-  QObject::connect(&planStage, SIGNAL(EnableTagVisualization()),
-                   &window, SLOT(EnableTagVisualization()));
-  QObject::connect(&planStage, SIGNAL(DisableTagVisualization()),
-                   &window, SLOT(DisableTagVisualization()));
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::EnableTagVisualization,
+                   &window,
+                   &cbElectrodeView::EnableTagVisualization);
+
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::DisableTagVisualization,
+                   &window,
+                   &cbElectrodeView::DisableTagVisualization);
 
 
-  QObject::connect(&planStage, SIGNAL(ExportScreenshot()),
-                   &window, SLOT(ExportScreenshot()));
+  QObject::connect(&planStage,
+                   &cbElectrodePlanStage::ExportScreenshot,
+                   &window,
+                   &cbElectrodeView::ExportScreenshot);
 
   std::vector<cbStage *> stages;
   stages.push_back(new cbElectrodeIntroductionStage);
