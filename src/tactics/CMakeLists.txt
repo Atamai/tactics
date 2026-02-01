@@ -491,6 +491,10 @@ if(APPLE)
     set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${APPLICATION_VERSION_STRING}")
     set(CPACK_DMG_SLA_USE_RESOURCE_FILE_LICENSE OFF)
     
+    # Only include the Runtime component (the app bundle), not libraries
+    set(CPACK_COMPONENTS_ALL Runtime)
+    set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${PROJECT_NAME};Runtime;/")
+    
     # This creates a nice DMG with just the app bundle
     set(CPACK_PACKAGE_EXECUTABLES "${PROJECT_NAME}" "${PROJECT_NAME}")
     
