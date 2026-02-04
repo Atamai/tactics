@@ -675,17 +675,6 @@ void qvtkViewToolCursorWidget::showEvent(QShowEvent* e)
   this->markCachedImageAsDirty();
 
   QWidget::showEvent(e);
-
-  // Defer the first render until after the widget is fully shown.
-  QTimer::singleShot(0, this, [this]() {
-    if (!this->mRenWin)
-      {
-      return;
-      }
-    this->mRenWin->Start();
-    this->mRenWin->Render();
-    this->update();
-  });
 }
 
 
