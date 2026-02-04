@@ -92,6 +92,8 @@ signals:
 
   //! Tell the view to display the frame
   void displayLeksellFrame(vtkMatrix4x4 *);
+  //! Tell the view the frame-finder RMS value.
+  void displayFrameRMS(double);
 
   //! Outgoing signal to toggle frame visualization.
   void EnableFrameVisualization();

@@ -56,6 +56,7 @@
 #include <QStringList>
 #include <QStatusBar>
 #include <QMessageBox>
+#include <QLabel>
 
 #include <assert.h>
 
@@ -71,6 +72,8 @@ cbMainWindow::cbMainWindow(vtkDataManager *dataManager, QWidget *parent)
   QStatusBar *statusBar = this->statusBar();
   progressBar = new QProgressBar;
   statusBar->addPermanentWidget(progressBar);
+  rmsLabel = new QLabel("RMS=—");
+  statusBar->addPermanentWidget(rmsLabel);
 
   viewRect = vtkViewRect::New();
 
@@ -156,6 +159,18 @@ void cbMainWindow::setActiveToolCursor(QCursor cur)
   qvtkWidget->SetFocusCursorShape(cur);
 }
 
+void cbMainWindow::displayFrameRMS(double rms)
+{
+  if (!rmsLabel) {
+    return;
+  }
+  if (rms < 0.0) {
+    rmsLabel->setText("RMS=N/A");
+  } else {
+    rmsLabel->setText(QString("RMS=%1").arg(rms, 0, 'f', 2));
+  }
+}
+
 void cbMainWindow::SetViewFromMatrix(vtkRenderer *renderer,
                                      vtkInteractorStyleImage *istyle,
                                      vtkMatrix4x4 *matrix)
@@ -172,4 +187,3 @@ void cbMainWindow::SetViewFromMatrix(vtkRenderer *renderer,
 
   istyle->SetImageOrientation(viewRight, viewUp);
 }
-

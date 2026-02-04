@@ -412,6 +412,7 @@ void cbElectrodeController::buildAndDisplayFrame(vtkImageData *data,
     vtkMatrix4x4::Multiply4x4(flipMatrix, matrix, this->FrameMatrix);
   }
   emit displayLeksellFrame(this->FrameMatrix);
+  emit displayFrameRMS(regist->GetAverageFiducialRMS());
   if (regist->GetSuccess()){
     emit EnableFrameVisualization();
   }

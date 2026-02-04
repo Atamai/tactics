@@ -50,6 +50,7 @@ class QAction;
 class QToolBar;
 class QString;
 class QProgressBar;
+class QLabel;
 class QDockWidget;
 class QPushButton;
 class QTextEdit;
@@ -97,6 +98,9 @@ public slots:
   //! Allows an external entity to set the active tool for all toolcursors.
   void setActiveToolCursor(QCursor cur);
 
+  //! Display frame-finder RMS in the status bar.
+  void displayFrameRMS(double rms);
+
   //! Bind actions to the tool cursor.
   virtual void bindToolCursorAction(int cursortool, int mousebutton) = 0;
 
@@ -106,6 +110,7 @@ protected:
 
   //! The application windows progress bar.
   QProgressBar *progressBar;
+  QLabel *rmsLabel;
 
   //! The base class for cbStageManager.
   QDockWidget *dock;
