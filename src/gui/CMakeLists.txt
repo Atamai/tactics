@@ -15,8 +15,6 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Svg Xml)
-
 # ------------------------------------------------------------------------------
 # VTK Setup
 # ------------------------------------------------------------------------------

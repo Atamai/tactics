@@ -50,6 +50,7 @@
 #include <QObject>
 #include <QThread>
 #include <QApplication>
+#include <QTimer>
 
 #include "LeksellFiducial.h"
 
@@ -256,6 +257,10 @@ int main(int argc, char *argv[])
 
   // Display the main window.
   window.show();
+  QTimer::singleShot(0, &window, [&window]() {
+    window.raise();
+    window.activateWindow();
+  });
 
   if (argc > 1 && strcmp(argv[1], "--auto") == 0)
     {
