@@ -191,6 +191,9 @@ protected:
   // the vtk render window
   vtkRenderWindow* mRenWin;
 
+  // One-shot warmup to avoid first-frame stall.
+  bool warmupDone;
+
   // set up an X11 window based on a visual and colormap
   // that VTK chooses
   void x11_setup_window();

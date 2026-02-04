@@ -60,6 +60,7 @@
 
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkRenderWindow.h"
+#include "vtkRendererCollection.h"
 #include "vtkCommand.h"
 #include "vtkOStrStreamWrapper.h"
 #include "vtkObjectFactory.h"
@@ -78,6 +79,7 @@ qvtkViewToolCursorWidget::qvtkViewToolCursorWidget(QWidget* p, Qt::WindowFlags f
     cachedImageCleanFlag(false),
     automaticImageCache(false), maxImageCacheRenderRate(1.0)
 {
+  this->warmupDone = false;
   this->synchronized = false;
   this->LayoutSwitching = false;
   
@@ -364,6 +366,14 @@ void qvtkViewToolCursorWidget::moveEvent(QMoveEvent* e)
 /*! handle paint event
 */void qvtkViewToolCursorWidget::paintEvent(QPaintEvent* )
 {
+  // One-shot warmup: touch render-window state to avoid first-frame stall on launch.
+  if (!this->warmupDone && this->mRenWin)
+  {
+    int *size = this->mRenWin->GetSize();
+    (void)size;
+    this->mRenWin->GetRenderers()->GetNumberOfItems();
+    this->warmupDone = true;
+  }
   // if we have a saved image, use it
   if (this->paintCachedImage())
   {
